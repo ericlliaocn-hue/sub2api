@@ -47,6 +47,7 @@ func ProvideAdminHandlers(
 	auditLogHandler *admin.AuditLogHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
+	creationHistoryHandler *admin.CreationHistoryHandler,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
@@ -85,6 +86,7 @@ func ProvideAdminHandlers(
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
+		Creation:               creationHistoryHandler,
 	}
 }
 
@@ -123,6 +125,7 @@ func ProvideOpenAIGatewayHandler(
 	contentModerationService *service.ContentModerationService,
 	opsService *service.OpsService,
 	grokQuotaService *service.GrokQuotaService,
+	creationHistory *service.CreationHistoryService,
 	cfg *config.Config,
 	coordinator *securityaudit.Coordinator,
 ) *OpenAIGatewayHandler {
@@ -130,6 +133,7 @@ func ProvideOpenAIGatewayHandler(
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.securityAuditCoordinator = coordinator
 	h.grokMediaEligibilityProber = grokQuotaService
+	h.SetCreationHistoryService(creationHistory)
 	return h
 }
 
@@ -186,6 +190,7 @@ func ProvideHandlers(
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	creationHistoryHandler *CreationHistoryHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -210,6 +215,7 @@ func ProvideHandlers(
 		ModelPlaza:       modelPlazaHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		Creation:         creationHistoryHandler,
 	}
 }
 
@@ -235,6 +241,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPlazaHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
+	NewCreationHistoryHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -265,6 +272,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewChannelHandler,
 	admin.NewChannelMonitorHandler,
 	admin.NewChannelMonitorRequestTemplateHandler,
+	admin.NewCreationHistoryHandler,
 	admin.NewContentModerationHandler,
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,

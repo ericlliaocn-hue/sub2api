@@ -228,6 +228,9 @@ func RegisterAuthRoutes(
 		settings.GET("/public", h.Setting.GetPublicSettings)
 		settings.GET("/email-unsubscribe", h.Setting.UnsubscribeNotificationEmail)
 	}
+	creation := v1.Group("/creation")
+	creation.Use(panelRateLimiter.PublicIP())
+	creation.GET("/config", h.Creation.GetConfig)
 
 	// 需要认证的当前用户信息
 	authenticated := v1.Group("")

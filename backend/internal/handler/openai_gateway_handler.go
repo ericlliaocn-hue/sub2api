@@ -38,11 +38,20 @@ type OpenAIGatewayHandler struct {
 	contentModerationService   *service.ContentModerationService
 	securityAuditCoordinator   *securityaudit.Coordinator
 	grokMediaEligibilityProber grokMediaEligibilityProber
+	creationHistory            *service.CreationHistoryService
 	opsService                 *service.OpsService
 	concurrencyHelper          *ConcurrencyHelper
 	imageLimiter               *imageConcurrencyLimiter
 	maxAccountSwitches         int
 	cfg                        *config.Config
+}
+
+// SetCreationHistoryService attaches the durable media-task projection used
+// to recover video account bindings after a process restart.
+func (h *OpenAIGatewayHandler) SetCreationHistoryService(history *service.CreationHistoryService) {
+	if h != nil {
+		h.creationHistory = history
+	}
 }
 
 type openAIWSTurnChannelMappingSnapshot struct {

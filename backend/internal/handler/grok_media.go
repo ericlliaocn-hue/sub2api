@@ -66,6 +66,21 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
 	}
+	mediaPlatform := service.PlatformGrok
+	if apiKey.Group != nil {
+		mediaPlatform = apiKey.Group.Platform
+	}
+	if resolved, resolvedOK := service.ResolvedTargetPlatformFromContext(c.Request.Context()); resolvedOK {
+		mediaPlatform = resolved
+	}
+	if mediaPlatform != service.PlatformGrok && mediaPlatform != service.PlatformSeedance {
+		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Media generation is not supported for this platform")
+		return
+	}
+	if mediaPlatform == service.PlatformSeedance && !endpoint.IsVideoLookupRequest() && endpoint != service.GrokMediaEndpointVideosGenerations {
+		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Seedance only supports video generation")
+		return
+	}
 
 	reqLog := requestLogger(
 		c,
@@ -171,6 +186,22 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		boundLookupAccountID, err = h.gatewayService.ResolveGrokMediaVideoRequestAccount(
 			c.Request.Context(), apiKey.GroupID, requestID, subject.UserID, apiKey.ID,
 		)
+		if (err != nil || boundLookupAccountID <= 0) && h.creationHistory != nil {
+			durableAccountID, durableErr := h.creationHistory.ResolveVideoRequestAccount(
+				c.Request.Context(), subject.UserID, apiKey.ID, requestID,
+			)
+			if durableErr != nil {
+				reqLog.Info("grok_media.video_lookup_durable_binding_failed", zap.Error(durableErr))
+			} else if durableAccountID > 0 {
+				boundLookupAccountID = durableAccountID
+				err = nil
+				if cacheErr := h.gatewayService.BindGrokMediaVideoRequestAccount(
+					c.Request.Context(), apiKey.GroupID, requestID, subject.UserID, apiKey.ID, durableAccountID,
+				); cacheErr != nil {
+					reqLog.Info("grok_media.video_lookup_cache_rebind_failed", zap.Error(cacheErr))
+				}
+			}
+		}
 		if err != nil || boundLookupAccountID <= 0 {
 			reqLog.Info("grok_media.video_lookup_owner_binding_missing", zap.Error(err))
 			h.errorResponse(c, http.StatusNotFound, "not_found_error", "Video request not found")
@@ -193,7 +224,10 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		maxAccountSwitches = 3
 	}
 	routingStart := time.Now()
-	requiredCapability := grokMediaRequiredCapability(endpoint)
+	requiredCapability := service.OpenAIEndpointCapability("")
+	if mediaPlatform == service.PlatformGrok {
+		requiredCapability = grokMediaRequiredCapability(endpoint)
+	}
 
 	for {
 		if failoverClientGone(c) {
@@ -211,7 +245,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			false,
 			false,
 			false,
-			service.PlatformGrok,
+			mediaPlatform,
 		)
 		if err != nil {
 			if failoverClientGone(c) {
@@ -225,11 +259,11 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			if endpoint.IsGenerationRequest() && errors.Is(err, service.ErrNoAvailableAccounts) &&
 				(len(failedAccountIDs) == 0 || (mediaEligibilityRejected && lastFailoverErr == nil)) {
 				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
-				h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
+				h.errorResponse(c, http.StatusServiceUnavailable, "media_no_eligible_account", "No eligible media accounts")
 				return
 			}
 			if len(failedAccountIDs) == 0 {
-				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, routingModel, service.PlatformGrok)
+				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, routingModel, mediaPlatform)
 				if !cls.ModelNotFound {
 					markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
 				}
@@ -246,10 +280,10 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		if selection == nil || selection.Account == nil {
 			if endpoint.IsGenerationRequest() {
 				markOpsRoutingCapacityLimited(c)
-				h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
+				h.errorResponse(c, http.StatusServiceUnavailable, "media_no_eligible_account", "No eligible media accounts")
 				return
 			}
-			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, routingModel, service.PlatformGrok)
+			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, routingModel, mediaPlatform)
 			if !cls.ModelNotFound {
 				markOpsRoutingCapacityLimited(c)
 			}
@@ -275,7 +309,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		)
 
 		account := selection.Account
-		if endpoint.IsGenerationRequest() {
+		if endpoint.IsGenerationRequest() && mediaPlatform == service.PlatformGrok {
 			eligible, eligibilityReason, eligibilityErr := h.ensureGrokMediaAccountEligibility(requestCtx, account)
 			if !eligible {
 				mediaEligibilityRejected = true
@@ -287,7 +321,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				)
 				if switchCount >= maxAccountSwitches {
 					markOpsRoutingCapacityLimited(c)
-					h.errorResponse(c, http.StatusServiceUnavailable, "grok_media_no_eligible_account", "No eligible Grok media accounts")
+					h.errorResponse(c, http.StatusServiceUnavailable, "media_no_eligible_account", "No eligible media accounts")
 					return
 				}
 				switchCount++
@@ -415,6 +449,19 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 					zap.String("request_id", result.ResponseID),
 					zap.Error(err),
 				)
+			}
+			if h.creationHistory != nil {
+				creationTaskID, _ := strconv.ParseInt(strings.TrimSpace(c.GetHeader("X-Creation-Task-ID")), 10, 64)
+				if err := h.creationHistory.BindVideoRequestAccount(
+					requestCtx, subject.UserID, apiKey.ID, creationTaskID, result.ResponseID, account.ID,
+				); err != nil {
+					reqLog.Warn("grok_media.persist_video_request_account_failed",
+						zap.Int64("account_id", account.ID),
+						zap.String("request_id", result.ResponseID),
+						zap.Int64("creation_task_id", creationTaskID),
+						zap.Error(err),
+					)
+				}
 			}
 		}
 		if shouldRecordGrokMediaUsage(endpoint, requestModel) {

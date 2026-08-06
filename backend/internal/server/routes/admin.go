@@ -87,6 +87,9 @@ func RegisterAdminRoutes(
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
 
+		// 创作中心记录
+		registerCreationRoutes(admin, h)
+
 		// 用户属性管理
 		registerUserAttributeRoutes(admin, h)
 
@@ -530,6 +533,8 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		adminSettings.GET("", h.Admin.Setting.GetSettings)
 		adminSettings.PUT("", h.Admin.Setting.UpdateSettings)
+		adminSettings.GET("/creation", h.Admin.Setting.GetCreationSettings)
+		adminSettings.PUT("/creation", h.Admin.Setting.UpdateCreationSettings)
 		adminSettings.POST("/test-smtp", h.Admin.Setting.TestSMTPConnection)
 		adminSettings.POST("/send-test-email", h.Admin.Setting.SendTestEmail)
 		adminSettings.GET("/email-templates", h.Admin.Setting.ListEmailTemplates)
@@ -564,6 +569,14 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.PUT("/web-search-emulation", h.Admin.Setting.UpdateWebSearchEmulationConfig)
 		adminSettings.POST("/web-search-emulation/test", h.Admin.Setting.TestWebSearchEmulation)
 		adminSettings.POST("/web-search-emulation/reset-usage", h.Admin.Setting.ResetWebSearchUsage)
+	}
+}
+
+func registerCreationRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	creation := admin.Group("/creation")
+	{
+		creation.GET("/tasks", h.Admin.Creation.ListTasks)
+		creation.GET("/assets/:asset_id/content", h.Admin.Creation.ServeAsset)
 	}
 }
 

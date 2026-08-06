@@ -229,6 +229,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/creation',
+    name: 'CreationStudio',
+    component: () => import('@/views/user/CreationStudioView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Creation Studio',
+      titleKey: 'nav.creationCenter',
+      descriptionKey: 'nav.creationCenterDescription'
+    }
+  },
+  {
     path: '/usage',
     name: 'Usage',
     component: () => import('@/views/user/UsageView.vue'),
@@ -585,6 +597,30 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/creation/settings',
+    name: 'AdminCreationSettings',
+    component: () => import('@/views/admin/CreationSettingsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Creation Settings',
+      titleKey: 'nav.creationSettings',
+      descriptionKey: 'admin.creation.settingsDescription'
+    }
+  },
+  {
+    path: '/admin/creation/history',
+    name: 'AdminCreationHistory',
+    component: () => import('@/views/admin/CreationHistoryView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Creation History',
+      titleKey: 'nav.creationHistory',
+      descriptionKey: 'admin.creation.historyDescription'
+    }
+  },
+  {
     path: '/admin/risk-control',
     name: 'AdminRiskControl',
     component: () => import('@/views/admin/RiskControlView.vue'),
@@ -875,6 +911,16 @@ router.beforeEach(async (to, _from, next) => {
     // User is authenticated but not admin, redirect to user dashboard
     next('/dashboard')
     return
+  }
+
+  // 创作中心由后端同源配置控制。菜单隐藏只是体验层，路由仍需在登录后
+  // 再次校验，避免直接访问 /creation 绕过总开关。
+  if (to.path === '/creation') {
+    const creationSettings = await appStore.fetchCreationSettings()
+    if (creationSettings?.enabled === false) {
+      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+      return
+    }
   }
 
   if (requiresAdmin && authStore.isAdmin) {

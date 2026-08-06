@@ -130,6 +130,7 @@ onMounted(async () => {
 
   // Load public settings into appStore (will be cached for other components)
   await appStore.fetchPublicSettings()
+  await appStore.fetchCreationSettings()
 
   // Re-resolve document title now that site settings are available
   updateDocumentTitle()

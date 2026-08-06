@@ -10,6 +10,48 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type creationSettingsRequest struct {
+	Enabled      *bool `json:"enabled"`
+	ImageEnabled *bool `json:"image_enabled"`
+	VideoEnabled *bool `json:"video_enabled"`
+}
+
+func (h *SettingHandler) GetCreationSettings(c *gin.Context) {
+	settings, err := h.settingService.GetCreationSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, settings)
+}
+
+func (h *SettingHandler) UpdateCreationSettings(c *gin.Context) {
+	var req creationSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid creation settings")
+		return
+	}
+	current, err := h.settingService.GetCreationSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if req.Enabled != nil {
+		current.Enabled = *req.Enabled
+	}
+	if req.ImageEnabled != nil {
+		current.ImageEnabled = *req.ImageEnabled
+	}
+	if req.VideoEnabled != nil {
+		current.VideoEnabled = *req.VideoEnabled
+	}
+	if err := h.settingService.UpdateCreationSettings(c.Request.Context(), current); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, current)
+}
+
 // GetAdminAPIKey 获取管理员 API Key 状态
 // GET /api/v1/admin/settings/admin-api-key
 func (h *SettingHandler) GetAdminAPIKey(c *gin.Context) {

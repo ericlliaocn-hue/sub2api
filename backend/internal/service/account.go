@@ -265,12 +265,43 @@ func (a *Account) IsGrok() bool {
 	return a.Platform == PlatformGrok
 }
 
+// IsSeedance reports whether the account is configured for the Seedance video API.
+// Seedance accounts use the same static base_url + api_key credential shape as
+// other upstream API-key accounts, but remain isolated in their own platform
+// so group routing and quota accounting never mix providers accidentally.
+func (a *Account) IsSeedance() bool {
+	return a != nil && a.Platform == PlatformSeedance
+}
+
 func (a *Account) IsGrokOAuth() bool {
 	return a.IsGrok() && a.Type == AccountTypeOAuth
 }
 
 func (a *Account) IsOpenAICompatible() bool {
-	return a != nil && (a.Platform == PlatformOpenAI || a.Platform == PlatformGrok)
+	return a != nil && (a.Platform == PlatformOpenAI || a.Platform == PlatformGrok || a.Platform == PlatformSeedance)
+}
+
+// GetSeedanceBaseURL returns the configured Seedance-compatible API base URL.
+// The endpoint builders append /v1/video/generations and validate the final URL
+// against the global outbound URL policy before sending a credential.
+func (a *Account) GetSeedanceBaseURL() string {
+	if !a.IsSeedance() {
+		return ""
+	}
+	if baseURL := strings.TrimSpace(a.GetCredential("base_url")); baseURL != "" {
+		return strings.TrimRight(baseURL, "/")
+	}
+	return "https://api.byteplus.com"
+}
+
+func (a *Account) GetSeedanceAccessToken() string {
+	if !a.IsSeedance() {
+		return ""
+	}
+	if token := strings.TrimSpace(a.GetCredential("api_key")); token != "" {
+		return token
+	}
+	return strings.TrimSpace(a.GetCredential("access_token"))
 }
 
 func (a *Account) GeminiOAuthType() string {

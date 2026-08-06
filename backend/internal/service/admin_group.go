@@ -247,6 +247,8 @@ func defaultModelsListCandidateIDs(platform string) []string {
 		return ids
 	case PlatformGrok:
 		return xai.DefaultModelIDs()
+	case PlatformSeedance:
+		return []string{"seedance2", "seedance2.5", "seedance-mini", "seedance-fast", "seedance-key"}
 	case PlatformComposite:
 		return compositeDefaultModelsListCandidateIDs()
 	default:
@@ -261,13 +263,13 @@ func defaultModelsListCandidateIDs(platform string) []string {
 func defaultAllowImageGenerationForPlatform(platform string) bool {
 	// Grok image and video generation routes share the legacy image-generation gate.
 	// Older clients send the false zero value, so Grok groups must default enabled.
-	return platform == PlatformGrok
+	return platform == PlatformGrok || platform == PlatformSeedance
 }
 
 func compositeDefaultModelsListCandidateIDs() []string {
 	seen := make(map[string]struct{})
 	ids := make([]string, 0)
-	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok} {
+	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformSeedance} {
 		for _, id := range defaultModelsListCandidateIDs(platform) {
 			if _, ok := seen[id]; ok {
 				continue
@@ -292,6 +294,7 @@ func groupSupportsOAuthOnlyFilter(platform string) bool {
 		platform == PlatformAnthropic ||
 		platform == PlatformGemini ||
 		platform == PlatformGrok ||
+		platform == PlatformSeedance ||
 		platform == PlatformComposite
 }
 

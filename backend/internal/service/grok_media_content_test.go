@@ -51,6 +51,18 @@ func grokMediaContentTestAccount() *Account {
 	}
 }
 
+func seedanceMediaContentTestAccount() *Account {
+	return &Account{
+		ID:       10,
+		Platform: PlatformSeedance,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "seedance-key",
+			"base_url": "https://qfzy.example/v1",
+		},
+	}
+}
+
 func grokMediaContentTestContext(method, target string, headers map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
@@ -252,6 +264,34 @@ func TestForwardGrokMediaContentFollowsAuthenticatedSub2APIRelay(t *testing.T) {
 			require.Equal(t, "Bearer upstream-key", upstream.requests[1].Header.Get("Authorization"))
 		})
 	}
+}
+
+func TestForwardSeedanceMediaContentFallsBackToAuthenticatedVideoProxy(t *testing.T) {
+	upstream := &grokMediaContentUpstreamStub{
+		responses: []*http.Response{
+			grokMediaContentStatusResponse(`{"status":"completed"}`),
+			{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"video/mp4"}},
+				Body:       io.NopCloser(strings.NewReader("seedance-video")),
+			},
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	c, recorder := grokMediaContentTestContext(http.MethodGet, "https://api.example/v1/videos/task-1/content", nil)
+
+	_, err := svc.ForwardGrokMedia(
+		context.Background(), c, seedanceMediaContentTestAccount(),
+		GrokMediaEndpointVideoContent, "task-1", nil, "",
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, "seedance-video", recorder.Body.String())
+	require.Len(t, upstream.requests, 2)
+	require.Equal(t, "https://qfzy.example/v1/video/generations/task-1", upstream.requests[0].URL.String())
+	require.Equal(t, "https://qfzy.example/v1/videos/task-1/content", upstream.requests[1].URL.String())
+	require.Equal(t, "Bearer seedance-key", upstream.requests[1].Header.Get("Authorization"))
 }
 
 func TestForwardGrokMediaContentRejectsUntrustedSignedURL(t *testing.T) {

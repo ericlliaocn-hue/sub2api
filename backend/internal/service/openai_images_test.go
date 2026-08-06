@@ -356,6 +356,22 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGrokImageModels(t *t
 	}
 }
 
+func TestIsGPTImageGenerationModel_CreativeAliases(t *testing.T) {
+	for _, model := range []string{
+		"image2",
+		"banana1",
+		"bananapro",
+		"banana2",
+		"turbo/gpt-image-2",
+		"turbo/nano-banana-2",
+		"nano-banana-pro",
+	} {
+		require.True(t, IsGPTImageGenerationModel(model), "model %q should be accepted as an image model", model)
+	}
+
+	require.False(t, IsGPTImageGenerationModel("seedance2"))
+}
+
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_JSONEditURLs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{

@@ -43,6 +43,8 @@
                     ? 'https://cloudcode-pa.googleapis.com'
                     : account.platform === 'grok'
                       ? 'https://api.x.ai/v1'
+                      : account.platform === 'seedance'
+                        ? 'https://api.byteplus.com'
                       : 'https://api.anthropic.com'
             "
           />
@@ -72,6 +74,8 @@
                     ? 'sk-...'
                     : account.platform === 'grok'
                       ? 'xai-...'
+                      : account.platform === 'seedance'
+                        ? 'BytePlus API Key'
                       : 'sk-ant-...'
             "
           />
@@ -2754,6 +2758,7 @@ const baseUrlHint = computed(() => {
   if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (props.account.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (props.account.platform === 'grok') return ''
+  if (props.account.platform === 'seedance') return ''
   return t('admin.accounts.baseUrlHint')
 })
 

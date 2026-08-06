@@ -1,4 +1,8 @@
 export default {
+    creation: {
+      settingsDescription: 'Creation center feature and capability controls',
+      historyDescription: 'Review user creation tasks and generated results'
+    },
     // Dashboard
     dashboard: {
       title: 'Admin Dashboard',
@@ -944,6 +948,7 @@ export default {
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         grok: 'Grok',
+        seedance: 'Seedance',
         composite: 'Composite',
       },
       deleteConfirm:

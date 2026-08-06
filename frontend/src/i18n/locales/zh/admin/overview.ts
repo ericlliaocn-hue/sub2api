@@ -1,4 +1,8 @@
 export default {
+    creation: {
+      settingsDescription: '创作中心开关与能力管理',
+      historyDescription: '查看用户创作任务和生成结果'
+    },
     // Dashboard
     dashboard: {
       title: '管理控制台',
@@ -877,6 +881,7 @@ export default {
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         grok: 'Grok',
+        seedance: 'Seedance',
         composite: 'Composite',
       },
       saving: '保存中...',

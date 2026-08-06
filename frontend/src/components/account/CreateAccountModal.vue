@@ -160,6 +160,19 @@
             <PlatformIcon platform="grok" size="sm" />
             Grok
           </button>
+          <button
+            type="button"
+            @click="form.platform = 'seedance'; accountCategory = 'apikey'"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'seedance'
+                ? 'bg-white text-indigo-700 shadow-sm dark:bg-dark-600 dark:text-indigo-300'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <span class="text-sm">✦</span>
+            Seedance
+          </button>
         </div>
       </div>
 
@@ -1125,9 +1138,11 @@
                 ? 'https://api.openai.com'
                 : form.platform === 'gemini'
                   ? 'https://generativelanguage.googleapis.com'
-                  : form.platform === 'grok'
-                    ? 'https://api.x.ai/v1'
-                    : 'https://api.anthropic.com'
+          : form.platform === 'grok'
+            ? 'https://api.x.ai/v1'
+            : form.platform === 'seedance'
+              ? 'https://api.byteplus.com'
+              : 'https://api.anthropic.com'
             "
           />
           <p v-if="baseUrlHint" class="input-hint">{{ baseUrlHint }}</p>
@@ -1151,7 +1166,9 @@
                   ? 'AIza...'
                   : form.platform === 'grok'
                     ? 'xai-...'
-                    : 'sk-ant-...'
+                    : form.platform === 'seedance'
+                      ? 'BytePlus API Key'
+                      : 'sk-ant-...'
             "
           />
           <p v-if="apiKeyHint" class="input-hint">{{ apiKeyHint }}</p>
@@ -4225,8 +4242,10 @@ watch(
         ? 'https://api.openai.com'
         : newPlatform === 'gemini'
           ? 'https://generativelanguage.googleapis.com'
-          : newPlatform === 'grok'
+        : newPlatform === 'grok'
             ? 'https://api.x.ai/v1'
+            : newPlatform === 'seedance'
+              ? 'https://api.byteplus.com'
             : 'https://api.anthropic.com'
     // Clear model-related settings
     allowedModels.value = []
@@ -4250,6 +4269,12 @@ watch(
     if (newPlatform === 'grok') {
       accountCategory.value = 'oauth-based'
       addMethod.value = 'oauth'
+      modelRestrictionMode.value = 'mapping'
+      form.concurrency = 1
+      form.load_factor = null
+    }
+    if (newPlatform === 'seedance') {
+      accountCategory.value = 'apikey'
       modelRestrictionMode.value = 'mapping'
       form.concurrency = 1
       form.load_factor = null

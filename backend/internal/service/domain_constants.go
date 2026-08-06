@@ -43,6 +43,7 @@ const (
 	PlatformGemini      = domain.PlatformGemini
 	PlatformAntigravity = domain.PlatformAntigravity
 	PlatformGrok        = domain.PlatformGrok
+	PlatformSeedance    = domain.PlatformSeedance
 	PlatformComposite   = domain.PlatformComposite
 )
 
@@ -55,6 +56,7 @@ var AllowedQuotaPlatforms = []string{
 	PlatformGemini,
 	PlatformAntigravity,
 	PlatformGrok,
+	PlatformSeedance,
 }
 
 // IsAllowedQuotaPlatform 报告 s 是否为合法的 quota platform 标识。
@@ -399,6 +401,13 @@ const (
 	// SettingKeyModelPlazaDescription stores the Markdown blurb rendered at the top of
 	// the Model Plaza page (global pricing notes, exchange rate, promotions, ...).
 	SettingKeyModelPlazaDescription = "model_plaza_description"
+
+	// Creation Center feature switches. Provider URLs and API keys continue to
+	// live in the existing groups/accounts tables; these keys only control the
+	// user-facing studio availability.
+	SettingKeyCreationCenterEnabled = "creation_center_enabled"
+	SettingKeyCreationImageEnabled  = "creation_image_enabled"
+	SettingKeyCreationVideoEnabled  = "creation_video_enabled"
 
 	// SettingKeyUpstreamBillingProbeSettings stores the global enable switch and interval
 	// for probing remote Sub2API API-key billing metadata.

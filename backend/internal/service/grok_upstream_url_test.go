@@ -61,6 +61,48 @@ func TestGrokAPIKeyURLPolicyFollowsGlobalSecurityConfig(t *testing.T) {
 	})
 }
 
+func TestSeedanceMediaURLUsesVideoContentProxyRoute(t *testing.T) {
+	account := &Account{
+		Platform: PlatformSeedance,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "seedance-key",
+			"base_url": "https://qfzy.example.test/api",
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = false
+
+	submitURL, err := buildGrokMediaURL(account, cfg, GrokMediaEndpointVideosGenerations, "")
+	require.NoError(t, err)
+	require.Equal(t, "https://qfzy.example.test/api/v1/video/generations", submitURL)
+
+	statusURL, err := buildGrokMediaURL(account, cfg, GrokMediaEndpointVideoStatus, "task/123")
+	require.NoError(t, err)
+	require.Equal(t, "https://qfzy.example.test/api/v1/video/generations/task%2F123", statusURL)
+
+	contentURL, err := buildGrokMediaURL(account, cfg, GrokMediaEndpointVideoContent, "task/123")
+	require.NoError(t, err)
+	require.Equal(t, "https://qfzy.example.test/api/v1/videos/task%2F123/content", contentURL)
+}
+
+func TestSeedanceMediaURLRejectsUnsafeContentBaseURL(t *testing.T) {
+	account := &Account{
+		Platform: PlatformSeedance,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "seedance-key",
+			"base_url": "https://169.254.169.254",
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.Enabled = true
+	cfg.Security.URLAllowlist.UpstreamHosts = []string{"qfzy.example.test"}
+
+	_, err := buildGrokMediaURL(account, cfg, GrokMediaEndpointVideoContent, "task-1")
+	require.EqualError(t, err, "base URL rejected by URL security policy")
+}
+
 func TestGrokAPIKeyURLPolicyAppliesAllowlistAndPrivateHostControls(t *testing.T) {
 	account := &Account{
 		Platform: PlatformGrok,

@@ -688,6 +688,7 @@ const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
+const flagCreationCenter = () => appStore.creationSettings?.enabled
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
@@ -701,6 +702,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   }
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+    { path: '/creation', label: t('nav.creationCenter'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagCreationCenter },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
@@ -753,6 +755,17 @@ const customMenuItemsForAdmin = computed(() => {
 const adminNavItems = computed((): NavItem[] => {
   const baseItems: NavItem[] = [
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+    {
+      path: '/admin/creation',
+      label: t('nav.creationCenter'),
+      icon: BatchImageIcon,
+      hideInSimpleMode: true,
+      expandOnly: true,
+      children: [
+        { path: '/admin/creation/settings', label: t('nav.creationSettings'), icon: CogIcon },
+        { path: '/admin/creation/history', label: t('nav.creationHistory'), icon: ChartIcon },
+      ],
+    },
     { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },

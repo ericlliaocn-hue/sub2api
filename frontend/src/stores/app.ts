@@ -13,6 +13,7 @@ import {
   type ReleaseInfo
 } from '@/api/admin/system'
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
+import { getCreationSettings as fetchCreationSettingsAPI, type CreationSettings } from '@/api/creationStudio'
 
 export const useAppStore = defineStore('app', () => {
   // ==================== State ====================
@@ -34,6 +35,9 @@ export const useAppStore = defineStore('app', () => {
   const docUrl = ref<string>('')
   const cachedPublicSettings = ref<PublicSettings | null>(null)
   let publicSettingsRequest: Promise<PublicSettings | null> | null = null
+  const creationSettingsLoaded = ref<boolean>(false)
+  const creationSettings = ref<CreationSettings | null>(null)
+  let creationSettingsRequest: Promise<CreationSettings | null> | null = null
 
   // Version cache state
   const versionLoaded = ref<boolean>(false)
@@ -414,6 +418,34 @@ export const useAppStore = defineStore('app', () => {
     cachedPublicSettings.value = null
   }
 
+  function fetchCreationSettings(force = false): Promise<CreationSettings | null> {
+    if (creationSettingsRequest) return creationSettingsRequest
+    if (creationSettingsLoaded.value && !force) return Promise.resolve(creationSettings.value)
+
+    const request = fetchCreationSettingsAPI()
+      .then((data) => {
+        creationSettings.value = data
+        creationSettingsLoaded.value = true
+        return data
+      })
+      .catch((error) => {
+        console.error('Failed to fetch creation settings:', error)
+        creationSettings.value = null
+        creationSettingsLoaded.value = false
+        return null
+      })
+      .finally(() => {
+        if (creationSettingsRequest === request) creationSettingsRequest = null
+      })
+    creationSettingsRequest = request
+    return request
+  }
+
+  function clearCreationSettingsCache(): void {
+    creationSettingsLoaded.value = false
+    creationSettings.value = null
+  }
+
   /**
    * Initialize settings from injected config (window.__APP_CONFIG__)
    * This is called synchronously before Vue app mounts to prevent flash
@@ -446,6 +478,8 @@ export const useAppStore = defineStore('app', () => {
     apiBaseUrl,
     docUrl,
     cachedPublicSettings,
+    creationSettingsLoaded,
+    creationSettings,
 
     // Version state
     versionLoaded,
@@ -484,6 +518,8 @@ export const useAppStore = defineStore('app', () => {
     // Public settings actions
     fetchPublicSettings,
     clearPublicSettingsCache,
-    initFromInjectedConfig
+    initFromInjectedConfig,
+    fetchCreationSettings,
+    clearCreationSettingsCache
   }
 })

@@ -95,6 +95,17 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 创作中心历史（仅当前登录用户可见）
+		creation := authenticated.Group("/creation")
+		{
+			creation.POST("/tasks", h.Creation.CreateTask)
+			creation.GET("/tasks", h.Creation.ListTasks)
+			creation.PATCH("/tasks/:id", h.Creation.UpdateTask)
+			creation.POST("/tasks/:id/assets", h.Creation.AddAsset)
+			creation.DELETE("/tasks/:id", h.Creation.DeleteTask)
+			creation.GET("/assets/:asset_id/content", h.Creation.ServeAsset)
+		}
+
 		// 使用记录（聚合统计属重查询，叠加更严格的按用户限流）
 		usage := authenticated.Group("/usage")
 		usage.Use(panelRateLimiter.Heavy())

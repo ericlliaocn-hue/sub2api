@@ -461,7 +461,16 @@ func isOpenAIImageGenerationModel(model string) bool {
 // IsGPTImageGenerationModel identifies the GPT native image-generation model family.
 func IsGPTImageGenerationModel(model string) bool {
 	model = strings.ToLower(strings.TrimSpace(model))
-	return strings.HasPrefix(model, "gpt-image-")
+	if strings.Contains(model, "gpt-image-") {
+		return true
+	}
+	// OIOIO 创作中心对外使用稳定的产品别名，账号级 model_mapping
+	// 会在真正转发前将其映射到 qingfeng-v3 的实际图片模型。
+	switch model {
+	case "image2", "banana1", "bananapro", "banana2":
+		return true
+	}
+	return strings.Contains(model, "nano-banana") || strings.Contains(model, "banana")
 }
 
 func isGrokImageGenerationModel(model string) bool {

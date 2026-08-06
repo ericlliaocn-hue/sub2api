@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -328,13 +330,22 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	if account == nil {
 		return nil, fmt.Errorf("grok account is required")
 	}
-	if account.Platform != PlatformGrok {
-		return nil, fmt.Errorf("account platform %s is not supported for grok media", account.Platform)
+	if account.Platform != PlatformGrok && account.Platform != PlatformSeedance {
+		return nil, fmt.Errorf("account platform %s is not supported for media generation", account.Platform)
 	}
 
-	token, _, err := s.getRequestCredential(ctx, c, account)
-	if err != nil {
-		return nil, err
+	var token string
+	if account.IsSeedance() {
+		token = account.GetSeedanceAccessToken()
+		if token == "" {
+			return nil, errors.New("api_key not found in seedance credentials")
+		}
+	} else {
+		var err error
+		token, _, err = s.getRequestCredential(ctx, c, account)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if endpoint == GrokMediaEndpointVideoContent {
 		return s.forwardGrokMediaVideoContent(ctx, c, account, token, requestID, startTime)
@@ -351,6 +362,12 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	body, contentType, err = normalizeGrokMediaForwardBody(endpoint, body, contentType)
 	if err != nil {
 		return nil, err
+	}
+	if account.IsSeedance() && endpoint.RequiresRequestBody() {
+		body, contentType, err = normalizeSeedanceMediaForwardBody(body, contentType, account)
+		if err != nil {
+			return nil, err
+		}
 	}
 	requestInfo := ParseGrokMediaRequest(contentType, body)
 	upstreamModel := requestInfo.Model
@@ -413,7 +430,9 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 		return s.handleGrokMediaErrorResponse(ctx, resp, c, account, requestIDHeader, requestModel)
 	}
 
-	s.updateGrokUsageFromResponse(ctx, account, resp.Header, resp.StatusCode)
+	if account.IsGrok() {
+		s.updateGrokUsageFromResponse(ctx, account, resp.Header, resp.StatusCode)
+	}
 	respBody, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
 	if err != nil {
 		return nil, err
@@ -429,11 +448,12 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 		}
 	}
 	if endpoint == GrokMediaEndpointVideoStatus {
-		respBody = rewriteGrokMediaVideoContentURLs(
-			respBody,
-			requestID,
-			grokMediaContentProxyURL(c, requestID),
-		)
+		proxyURL := grokMediaContentProxyURL(c, requestID)
+		if account.IsSeedance() {
+			respBody = rewriteSeedanceMediaVideoContentURLs(respBody, proxyURL)
+		} else {
+			respBody = rewriteGrokMediaVideoContentURLs(respBody, requestID, proxyURL)
+		}
 	}
 	writeGrokMediaResponse(c, resp, respBody, s.responseHeaderFilter)
 	usage := grokMediaUsageFromResponse(endpoint, requestInfo, respBody)
@@ -512,7 +532,12 @@ func (s *OpenAIGatewayService) forwardGrokMediaVideoContent(
 		return nil, err
 	}
 
-	contentURL, err := grokMediaSignedVideoContentURL(statusBody, requestID)
+	var contentURL string
+	if account.IsSeedance() {
+		contentURL, err = seedanceMediaSignedVideoContentURL(statusBody, s.cfg, requestID)
+	} else {
+		contentURL, err = grokMediaSignedVideoContentURL(statusBody, requestID)
+	}
 	if err != nil {
 		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 		return nil, err
@@ -564,7 +589,9 @@ func (s *OpenAIGatewayService) forwardGrokMediaVideoContent(
 		return s.handleGrokMediaErrorResponse(ctx, contentResp, c, account, contentRequestID, "")
 	}
 
-	s.updateGrokUsageFromResponse(ctx, account, contentResp.Header, contentResp.StatusCode)
+	if account.IsGrok() {
+		s.updateGrokUsageFromResponse(ctx, account, contentResp.Header, contentResp.StatusCode)
+	}
 	if err := writeGrokMediaContentResponse(c, contentResp); err != nil {
 		return nil, err
 	}
@@ -594,6 +621,41 @@ func grokMediaSignedVideoContentURL(body []byte, requestID string) (string, erro
 		return "", fmt.Errorf("grok media status returned an unsupported video content URL")
 	}
 	return parsed.String(), nil
+}
+
+func seedanceMediaSignedVideoContentURL(body []byte, cfg *config.Config, requestID string) (string, error) {
+	if len(body) == 0 || !gjson.ValidBytes(body) {
+		return "", nil
+	}
+	paths := []string{
+		"content.0.video_url.url",
+		"content.0.video_url",
+		"data.content.0.video_url.url",
+		"data.content.0.video_url",
+		"video_url.url",
+		"video_url",
+		"url",
+	}
+	for _, path := range paths {
+		rawURL := strings.TrimSpace(gjson.GetBytes(body, path).String())
+		if rawURL == "" {
+			continue
+		}
+		if isGrokMediaVideoContentURL(rawURL, requestID) {
+			return "", nil
+		}
+		validator := grokOperatorPolicyValidator(cfg)
+		validated, err := validator(rawURL)
+		if err != nil {
+			return "", errors.New("seedance video content URL rejected by URL security policy")
+		}
+		parsed, err := url.Parse(validated)
+		if err != nil || !strings.EqualFold(parsed.Scheme, "https") || parsed.User != nil {
+			return "", errors.New("seedance status returned an unsupported video content URL")
+		}
+		return parsed.String(), nil
+	}
+	return "", nil
 }
 
 func isGrokCLIProxyTarget(rawURL string) bool {
@@ -759,6 +821,74 @@ func sanitizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conte
 	}
 }
 
+// normalizeSeedanceMediaForwardBody converts the public OpenAI-shaped studio
+// request into the BytePlus/Seedance contract. Keeping this normalization in
+// the provider boundary lets the frontend remain provider-neutral while each
+// Seedance account can still map the public model alias to its own upstream ID.
+func normalizeSeedanceMediaForwardBody(body []byte, contentType string, account *Account) ([]byte, string, error) {
+	if !gjson.ValidBytes(body) {
+		return nil, "", errors.New("seedance request body must be valid JSON")
+	}
+	if gjson.GetBytes(body, "content").IsArray() {
+		return body, "application/json", nil
+	}
+
+	model := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	prompt := strings.TrimSpace(gjson.GetBytes(body, "prompt").String())
+	if model == "" || prompt == "" {
+		return nil, "", errors.New("seedance model and prompt are required")
+	}
+	if account != nil {
+		if mapped := strings.TrimSpace(account.GetMappedModel(model)); mapped != "" {
+			model = mapped
+		}
+	}
+
+	ratio := strings.TrimSpace(gjson.GetBytes(body, "ratio").String())
+	if ratio == "" {
+		ratio = strings.TrimSpace(gjson.GetBytes(body, "aspect_ratio").String())
+	}
+	resolution := strings.TrimSpace(gjson.GetBytes(body, "resolution").String())
+	duration := gjson.GetBytes(body, "duration").Int()
+	if duration <= 0 {
+		duration = int64(NormalizeVideoBillingDurationSecondsOrDefault(0))
+	}
+	content := []any{map[string]any{"type": "text", "text": prompt}}
+	info := ParseGrokMediaRequest(contentType, body)
+	for _, imageURL := range info.InputImageURLs {
+		if strings.TrimSpace(imageURL) == "" {
+			continue
+		}
+		content = append(content, map[string]any{
+			"type":      "image_url",
+			"role":      "reference_image",
+			"image_url": map[string]string{"url": imageURL},
+		})
+	}
+
+	payload := map[string]any{
+		"model":    model,
+		"content":  content,
+		"duration": duration,
+	}
+	if ratio != "" {
+		payload["ratio"] = ratio
+	}
+	if resolution != "" {
+		payload["resolution"] = resolution
+	}
+	for _, key := range []string{"generate_audio", "watermark"} {
+		if value := gjson.GetBytes(body, key); value.Exists() {
+			payload[key] = value.Value()
+		}
+	}
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return nil, "", fmt.Errorf("marshal seedance request: %w", err)
+	}
+	return out, "application/json", nil
+}
+
 func (r GrokMediaRequestInfo) HasInputImage() bool {
 	return len(r.InputImageURLs) > 0 || len(r.Uploads) > 0
 }
@@ -833,9 +963,12 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 	requestedModel string,
 ) (*OpenAIForwardResult, error) {
 	body := s.readUpstreamErrorBody(resp)
-	// Reconcile readiness before configurable passthrough branches can return;
-	// otherwise a Grok 429 can remain schedulable.
-	s.handleGrokAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+	// Reconcile Grok readiness before configurable passthrough branches can
+	// return. Seedance uses the same failover/error envelope but has no xAI
+	// quota headers or OAuth entitlement state to reconcile.
+	if account != nil && account.IsGrok() {
+		s.handleGrokAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+	}
 	upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
 	if upstreamMsg == "" {
 		upstreamMsg = fmt.Sprintf("xAI upstream returned status %d", resp.StatusCode)
@@ -850,7 +983,7 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 		upstreamDetail = truncateString(string(body), maxBytes)
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
-	if isGrokContentPolicyRejection(resp.StatusCode, body) {
+	if account != nil && account.IsGrok() && isGrokContentPolicyRejection(resp.StatusCode, body) {
 		clientMsg := grokContentPolicyClientMessage(body)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           account.Platform,
@@ -1013,6 +1146,67 @@ func rewriteGrokMediaVideoContentURLs(body []byte, requestID, proxyURL string) [
 		return body
 	}
 	return rewritten
+}
+
+func rewriteSeedanceMediaVideoContentURLs(body []byte, proxyURL string) []byte {
+	if len(body) == 0 || strings.TrimSpace(proxyURL) == "" || !gjson.ValidBytes(body) {
+		return body
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return body
+	}
+	changed := rewriteSeedanceMediaVideoContentValue(&value, proxyURL)
+	if !changed {
+		return body
+	}
+	rewritten, err := json.Marshal(value)
+	if err != nil {
+		return body
+	}
+	return rewritten
+}
+
+func rewriteSeedanceMediaVideoContentValue(value *any, proxyURL string) bool {
+	if value == nil {
+		return false
+	}
+	switch typed := (*value).(type) {
+	case map[string]any:
+		changed := false
+		if raw, ok := typed["video_url"].(string); ok && strings.TrimSpace(raw) != "" {
+			typed["video_url"] = proxyURL
+			changed = true
+		}
+		if videoURL, ok := typed["video_url"].(map[string]any); ok {
+			if raw, ok := videoURL["url"].(string); ok && strings.TrimSpace(raw) != "" {
+				videoURL["url"] = proxyURL
+				changed = true
+			}
+		}
+		for key, child := range typed {
+			childValue := child
+			if rewriteSeedanceMediaVideoContentValue(&childValue, proxyURL) {
+				typed[key] = childValue
+				changed = true
+			}
+		}
+		return changed
+	case []any:
+		changed := false
+		for index, child := range typed {
+			childValue := child
+			if rewriteSeedanceMediaVideoContentValue(&childValue, proxyURL) {
+				typed[index] = childValue
+				changed = true
+			}
+		}
+		return changed
+	default:
+		return false
+	}
 }
 
 func rewriteGrokMediaKnownVideoURL(value *any, proxyURL string) bool {

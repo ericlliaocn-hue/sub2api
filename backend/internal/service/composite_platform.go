@@ -133,6 +133,8 @@ func DetectModelPlatform(model string) (string, bool) {
 		return PlatformGemini, true
 	case normalized == "grok" || strings.HasPrefix(normalized, "grok-"):
 		return PlatformGrok, true
+	case strings.HasPrefix(normalized, "seedance") || strings.HasPrefix(normalized, "seed-"):
+		return PlatformSeedance, true
 	default:
 		return "", false
 	}
@@ -179,7 +181,7 @@ func (s *GatewayService) resolveCompositeRouteDecision(ctx context.Context, grou
 
 func isConcreteRequestPlatform(platform string) bool {
 	switch platform {
-	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformGrok:
+	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformGrok, PlatformSeedance:
 		return true
 	default:
 		return false

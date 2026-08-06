@@ -3,6 +3,8 @@ package service
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
@@ -94,6 +96,9 @@ func buildGrokBillingURL(account *Account, cfg *config.Config, weekly bool) (str
 }
 
 func buildGrokMediaURL(account *Account, cfg *config.Config, endpoint GrokMediaEndpoint, requestID string) (string, error) {
+	if account != nil && account.IsSeedance() {
+		return buildSeedanceMediaURL(account, cfg, endpoint, requestID)
+	}
 	validator, err := grokBaseURLValidator(account, cfg)
 	if err != nil {
 		return "", err
@@ -121,4 +126,59 @@ func buildGrokMediaURL(account *Account, cfg *config.Config, endpoint GrokMediaE
 	default:
 		return "", fmt.Errorf("unsupported grok media endpoint: %s", endpoint)
 	}
+}
+
+func buildSeedanceMediaURL(account *Account, cfg *config.Config, endpoint GrokMediaEndpoint, requestID string) (string, error) {
+	if account == nil || !account.IsSeedance() {
+		return "", fmt.Errorf("seedance account is required")
+	}
+	base := strings.TrimRight(account.GetSeedanceBaseURL(), "/")
+	if base == "" {
+		return "", fmt.Errorf("seedance base URL is required")
+	}
+	validator := grokOperatorPolicyValidator(cfg)
+	validated, err := validator(base)
+	if err != nil {
+		return "", errors.New("base URL rejected by URL security policy")
+	}
+	parsed, err := url.Parse(strings.TrimRight(validated, "/"))
+	if err != nil || parsed.Hostname() == "" {
+		return "", errors.New("seedance base URL is invalid")
+	}
+	path := strings.TrimRight(parsed.Path, "/")
+	if !strings.HasSuffix(path, "/v1") {
+		path += "/v1"
+	}
+	suffix := "/video/generations"
+	rawSuffix := suffix
+	switch endpoint {
+	case GrokMediaEndpointVideoStatus:
+		requestID = strings.TrimSpace(requestID)
+		if requestID == "" {
+			return "", errors.New("seedance request ID is required")
+		}
+		suffix += "/" + requestID
+		rawSuffix += "/" + url.PathEscape(requestID)
+	case GrokMediaEndpointVideoContent:
+		requestID = strings.TrimSpace(requestID)
+		if requestID == "" {
+			return "", errors.New("seedance request ID is required")
+		}
+		// Qingfeng's Seedance-compatible relay keeps the BytePlus status
+		// endpoint at /v1/video/generations/:id, but exposes the authenticated
+		// binary proxy at /v1/videos/:id/content.  These are deliberately
+		// different routes; using the status route here returns JSON instead of
+		// the generated media bytes.
+		suffix = "/videos/" + requestID + "/content"
+		rawSuffix = "/videos/" + url.PathEscape(requestID) + "/content"
+	default:
+		if endpoint != GrokMediaEndpointVideosGenerations {
+			return "", fmt.Errorf("unsupported seedance media endpoint: %s", endpoint)
+		}
+	}
+	parsed.Path = strings.TrimRight(path, "/") + suffix
+	parsed.RawPath = strings.TrimRight(path, "/") + rawSuffix
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String(), nil
 }
