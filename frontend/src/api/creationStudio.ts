@@ -236,6 +236,9 @@ export async function submitCreationImage(
 ): Promise<ImageGenerationResponse> {
   const hasReferenceImage = referenceImageDataUrl.startsWith('data:image/')
   const resolution = options.resolution || 'auto'
+  // 创作中心使用稳定的产品别名；Sub2API 现有 OpenAI 图片渠道使用
+  // gpt-image-2 作为实际调度模型名。历史记录仍保留 image2 展示名。
+  const gatewayModel = model === 'image2' ? 'gpt-image-2' : model
   const response = await fetch(buildGatewayUrl(hasReferenceImage ? '/v1/images/edits' : '/v1/images/generations'), {
     method: 'POST',
     headers: authHeaders(apiKey, {
@@ -243,7 +246,7 @@ export async function submitCreationImage(
       'Idempotency-Key': idempotencyKey,
     }),
     body: JSON.stringify({
-      model,
+      model: gatewayModel,
       prompt,
       n: Math.max(1, Math.min(4, Math.floor(options.n || 1))),
       size: imageSizeForAspectRatio(aspectRatio, resolution),
