@@ -5,10 +5,14 @@ export interface AdminCreationTask {
   id: number
   user_id: number
   user_email: string
+  api_key_name?: string
+  group_id?: number
+  group_name?: string
   api_key_id: number
   kind: 'image' | 'video'
   model: string
   prompt: string
+  request?: Record<string, unknown>
   status: string
   provider_task_id?: string
   error_message?: string
@@ -37,9 +41,9 @@ export async function updateCreationSettings(settings: CreationSettings): Promis
   return data
 }
 
-export async function listAdminCreationTasks(page = 1, pageSize = 20): Promise<AdminCreationTaskPage> {
+export async function listAdminCreationTasks(page = 1, pageSize = 20, filters: { search?: string; kind?: string; status?: string; model?: string } = {}): Promise<AdminCreationTaskPage> {
   const { data } = await apiClient.get<AdminCreationTaskPage>('/admin/creation/tasks', {
-    params: { page, page_size: pageSize },
+    params: { page, page_size: pageSize, ...filters },
   })
   return data
 }

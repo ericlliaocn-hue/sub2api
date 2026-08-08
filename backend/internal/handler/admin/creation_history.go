@@ -19,7 +19,12 @@ func NewCreationHistoryHandler(history *service.CreationHistoryService) *Creatio
 func (h *CreationHistoryHandler) ListTasks(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	tasks, total, err := h.history.ListAdminTasks(c.Request.Context(), page, pageSize)
+	tasks, total, err := h.history.ListAdminTasks(c.Request.Context(), page, pageSize, service.CreationAdminHistoryFilters{
+		Search: c.Query("search"),
+		Kind:   c.Query("kind"),
+		Status: c.Query("status"),
+		Model:  c.Query("model"),
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

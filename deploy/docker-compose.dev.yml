@@ -30,11 +30,13 @@ services:
       - SERVER_MODE=debug
       - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
-      - DATABASE_USER=${POSTGRES_USER:-sub2api}
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - DATABASE_DBNAME=${POSTGRES_DB:-sub2api}
+      # Native PostgreSQL runs on the macOS host. Docker Desktop exposes it
+      # through host.docker.internal; do not use the removed postgres service.
+      - DATABASE_HOST=${DATABASE_HOST:-host.docker.internal}
+      - DATABASE_PORT=${DATABASE_PORT:-5432}
+      - DATABASE_USER=${DATABASE_USER:-sub2api}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      - DATABASE_DBNAME=${DATABASE_DBNAME:-sub2api}
       - DATABASE_SSLMODE=disable
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -80,8 +82,6 @@ services:
       - BATCH_IMAGE_VERTEX_INPUT_RETENTION_HOURS=${BATCH_IMAGE_VERTEX_INPUT_RETENTION_HOURS:-24}
       - BATCH_IMAGE_VERTEX_OUTPUT_RETENTION_HOURS=${BATCH_IMAGE_VERTEX_OUTPUT_RETENTION_HOURS:-72}
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -92,27 +92,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
-  postgres:
-    image: postgres:18-alpine
-    container_name: sub2api-postgres-dev
-    restart: unless-stopped
-    volumes:
-      - ./postgres_data:/var/lib/postgresql/data:Z
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-sub2api}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - POSTGRES_DB=${POSTGRES_DB:-sub2api}
-      - PGDATA=/var/lib/postgresql/data
-      - TZ=${TZ:-Asia/Shanghai}
-    networks:
-      - sub2api-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sub2api} -d ${POSTGRES_DB:-sub2api}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
   redis:
     image: redis:8-alpine

@@ -44,6 +44,7 @@ type CreationHistoryTask struct {
 	Kind           string                 `json:"kind"`
 	Model          string                 `json:"model"`
 	Prompt         string                 `json:"prompt"`
+	Request        map[string]any         `json:"request,omitempty"`
 	Status         string                 `json:"status"`
 	ProviderTaskID string                 `json:"provider_task_id,omitempty"`
 	ErrorMessage   string                 `json:"error_message,omitempty"`
@@ -54,8 +55,18 @@ type CreationHistoryTask struct {
 
 type CreationAdminHistoryTask struct {
 	CreationHistoryTask
-	UserID    int64  `json:"user_id"`
-	UserEmail string `json:"user_email"`
+	UserID     int64  `json:"user_id"`
+	UserEmail  string `json:"user_email"`
+	APIKeyName string `json:"api_key_name,omitempty"`
+	GroupID    int64  `json:"group_id,omitempty"`
+	GroupName  string `json:"group_name,omitempty"`
+}
+
+type CreationAdminHistoryFilters struct {
+	Search string
+	Kind   string
+	Status string
+	Model  string
 }
 
 type CreationHistoryAsset struct {
@@ -300,6 +311,7 @@ func (s *CreationHistoryService) ListTasks(ctx context.Context, userID int64, pa
 		}
 		var request map[string]any
 		if json.Unmarshal(requestBody, &request) == nil {
+			task.Request = request
 			task.Model, _ = request["model"].(string)
 		}
 		assets, assetErr := s.listAssets(ctx, userID, task.ID)
@@ -315,7 +327,7 @@ func (s *CreationHistoryService) ListTasks(ctx context.Context, userID int64, pa
 	return tasks, total, nil
 }
 
-func (s *CreationHistoryService) ListAdminTasks(ctx context.Context, page, pageSize int) ([]CreationAdminHistoryTask, int64, error) {
+func (s *CreationHistoryService) ListAdminTasks(ctx context.Context, page, pageSize int, filters CreationAdminHistoryFilters) ([]CreationAdminHistoryTask, int64, error) {
 	if s == nil || s.db == nil {
 		return nil, 0, errors.New("creation history database is not configured")
 	}
@@ -328,19 +340,27 @@ func (s *CreationHistoryService) ListAdminTasks(ctx context.Context, page, pageS
 	if pageSize > creationHistoryMaxPageSize {
 		pageSize = creationHistoryMaxPageSize
 	}
+	where, args := creationAdminTaskWhere(filters)
 	var total int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM creation.generation_task`).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM creation.generation_task AS task
+		LEFT JOIN users ON users.id = task.user_id
+		LEFT JOIN api_keys ON api_keys.id = task.api_key_id
+		LEFT JOIN groups ON groups.id = api_keys.group_id `+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count admin creation tasks: %w", err)
 	}
+	listArgs := append(append([]any{}, args...), pageSize, (page-1)*pageSize)
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT task.id, task.user_id, COALESCE(users.email, ''), COALESCE(task.api_key_id, 0),
+			COALESCE(api_keys.name, ''), COALESCE(groups.id, 0), COALESCE(groups.name, ''),
 			task.kind, task.status, task.prompt, task.request,
 			COALESCE(task.provider_task_id, ''), COALESCE(task.error_message, ''),
 			task.created_at, task.finished_at
 		FROM creation.generation_task AS task
 		LEFT JOIN users ON users.id = task.user_id
-		ORDER BY task.created_at DESC, task.id DESC
-		LIMIT $1 OFFSET $2`, pageSize, (page-1)*pageSize)
+		LEFT JOIN api_keys ON api_keys.id = task.api_key_id
+		LEFT JOIN groups ON groups.id = api_keys.group_id
+		`+where+` ORDER BY task.created_at DESC, task.id DESC
+		LIMIT $`+strconv.Itoa(len(args)+1)+` OFFSET $`+strconv.Itoa(len(args)+2), listArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin creation tasks: %w", err)
 	}
@@ -352,6 +372,7 @@ func (s *CreationHistoryService) ListAdminTasks(ctx context.Context, page, pageS
 		var requestBody []byte
 		if err := rows.Scan(
 			&task.ID, &task.UserID, &task.UserEmail, &task.APIKeyID,
+			&task.APIKeyName, &task.GroupID, &task.GroupName,
 			&task.Kind, &task.Status, &task.Prompt, &requestBody,
 			&task.ProviderTaskID, &task.ErrorMessage, &task.CreatedAt, &task.FinishedAt,
 		); err != nil {
@@ -371,6 +392,49 @@ func (s *CreationHistoryService) ListAdminTasks(ctx context.Context, page, pageS
 		return nil, 0, fmt.Errorf("iterate admin creation tasks: %w", err)
 	}
 	return tasks, total, nil
+}
+
+func creationAdminTaskWhere(filters CreationAdminHistoryFilters) (string, []any) {
+	clauses := make([]string, 0, 4)
+	args := make([]any, 0, 4)
+	add := func(clause string, value any) {
+		args = append(args, value)
+		clauses = append(clauses, strings.Replace(clause, "?", "$"+strconv.Itoa(len(args)), 1))
+	}
+	if search := strings.TrimSpace(filters.Search); search != "" {
+		pattern := "%" + search + "%"
+		start := len(args) + 1
+		for i := 0; i < 6; i++ {
+			args = append(args, pattern)
+		}
+		clauses = append(clauses, `(CAST(task.id AS TEXT) ILIKE $`+strconv.Itoa(start)+` OR users.email ILIKE $`+strconv.Itoa(start+1)+` OR task.prompt ILIKE $`+strconv.Itoa(start+2)+` OR COALESCE(task.request->>'model', '') ILIKE $`+strconv.Itoa(start+3)+` OR api_keys.name ILIKE $`+strconv.Itoa(start+4)+` OR groups.name ILIKE $`+strconv.Itoa(start+5)+`)`)
+	}
+	if kind := strings.TrimSpace(filters.Kind); kind != "" {
+		add("task.kind = ?", kind)
+	}
+	if model := strings.TrimSpace(filters.Model); model != "" {
+		add("task.request->>'model' = ?", model)
+	}
+	if status := strings.TrimSpace(filters.Status); status != "" {
+		statuses := map[string][]string{
+			"completed":  {"completed", "succeeded", "success"},
+			"failed":     {"failed", "error", "cancelled"},
+			"processing": {"processing", "running"},
+			"queued":     {"queued", "pending"},
+		}
+		if values, ok := statuses[status]; ok {
+			placeholders := make([]string, 0, len(values))
+			for _, value := range values {
+				args = append(args, value)
+				placeholders = append(placeholders, "$"+strconv.Itoa(len(args)))
+			}
+			clauses = append(clauses, "task.status IN ("+strings.Join(placeholders, ", ")+")")
+		}
+	}
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func (s *CreationHistoryService) DeleteTask(ctx context.Context, userID, taskID int64) error {

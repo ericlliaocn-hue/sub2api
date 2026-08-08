@@ -17,7 +17,7 @@ export interface CreationModelOption {
   platform: CreationModelPlatform
 }
 
-export type ImageResolution = 'auto' | '1K' | '2K' | '4K'
+export type ImageResolution = 'auto' | '1K' | '2K' | '3K' | '4K' | '5K' | '6K'
 export type ImageQuality = 'auto' | 'low' | 'high'
 export type VideoResolution = 'auto' | '720p' | '1080p'
 export type CreationModelPlatform = 'openai' | 'gemini' | 'seedance'
@@ -279,9 +279,21 @@ function imageSizeForAspectRatio(aspectRatio: string, resolution: ImageResolutio
       '1:1': '2048x2048', '16:9': '2048x1152', '9:16': '1152x2048',
       '4:3': '2048x1536', '3:4': '1536x2048', '21:9': '2048x878',
     },
+    '3K': {
+      '1:1': '3072x3072', '16:9': '3072x1728', '9:16': '1728x3072',
+      '4:3': '3072x2304', '3:4': '2304x3072', '21:9': '3072x1317',
+    },
     '4K': {
       '1:1': '4096x4096', '16:9': '3840x2160', '9:16': '2160x3840',
       '4:3': '4096x3072', '3:4': '3072x4096', '21:9': '4096x1755',
+    },
+    '5K': {
+      '1:1': '5120x5120', '16:9': '5120x2880', '9:16': '2880x5120',
+      '4:3': '5120x3840', '3:4': '3840x5120', '21:9': '5120x2194',
+    },
+    '6K': {
+      '1:1': '6144x6144', '16:9': '6144x3456', '9:16': '3456x6144',
+      '4:3': '6144x4608', '3:4': '4608x6144', '21:9': '6144x2637',
     },
   }
   return sizes[resolution][aspectRatio] || sizes[resolution]['1:1']

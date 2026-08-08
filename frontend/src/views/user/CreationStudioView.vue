@@ -49,7 +49,7 @@
 
           <aside class="control-column">
             <div class="control-card model-control-card">
-              <div class="mode-switch">
+              <div v-if="tabs.length > 1" class="mode-switch">
                 <button v-for="tab in tabs" :key="tab.value" type="button" :class="{ 'is-active': activeKind === tab.value }" @click="activeKind = tab.value">{{ tab.label }}</button>
               </div>
               <div class="control-heading"><div><span>MODEL LIBRARY</span><h2>选择模型</h2></div><small>{{ activeKind === 'video' ? '适合镜头运动和图生视频' : '适合细节表现和构图创作' }}</small></div>
@@ -253,6 +253,7 @@ import {
   type CreationKind,
   type CreationReferenceKind,
   type CreationModelOption,
+  type CreationSettings,
   type ImageQuality,
   type ImageResolution,
   type VideoResolution,
@@ -281,7 +282,14 @@ interface ReferenceMediaState {
 }
 
 const appStore = useAppStore()
-const tabs = [{ value: 'image' as const, label: '图片创作' }, { value: 'video' as const, label: '视频创作' }]
+const creationSettings = ref<CreationSettings | null>(null)
+const tabs = computed(() => {
+  if (!creationSettings.value) return []
+  const available = [] as Array<{ value: CreationKind; label: string }>
+  if (creationSettings.value.image_enabled) available.push({ value: 'image', label: '图片创作' })
+  if (creationSettings.value.video_enabled) available.push({ value: 'video', label: '视频创作' })
+  return available
+})
 const activeKind = ref<CreationKind>('image')
 const apiKeys = ref<ApiKey[]>([])
 const selectedApiKeyId = ref<number | ''>('')
@@ -315,6 +323,7 @@ const compatibleApiKeys = computed(() => apiKeys.value.filter(key => {
   const platform = key.group?.platform
   return activeKind.value === 'image' ? platform === 'openai' : platform === 'seedance'
 }))
+const activeKindEnabled = computed(() => tabs.value.some(tab => tab.value === activeKind.value))
 const aspectRatios = [
   { value: '1:1', label: '方形', icon: '□' },
   { value: '16:9', label: '横屏', icon: '▭' },
@@ -327,7 +336,10 @@ const imageResolutionOptions: Array<{ value: ImageResolution; label: string }> =
   { value: 'auto', label: '自动 · 推荐' },
   { value: '1K', label: '1K · 轻量快速' },
   { value: '2K', label: '2K · 高清创作' },
+  { value: '3K', label: '3K · 高解析度' },
   { value: '4K', label: '4K · 超清细节' },
+  { value: '5K', label: '5K · 极致细节' },
+  { value: '6K', label: '6K · 旗舰画质' },
 ]
 const imageQualityOptions: Array<{ value: ImageQuality; label: string }> = [
   { value: 'auto', label: '自动 · 平衡' },
@@ -347,6 +359,10 @@ const referenceAccept = computed(() => activeKind.value === 'video'
   : 'image/png,image/jpeg,image/webp')
 
 watch(activeKind, () => {
+  if (!activeKindEnabled.value) {
+    activeKind.value = tabs.value[0]?.value || 'image'
+    return
+  }
   selectedModelId.value = modelOptions.value[0]?.id || ''
   modelMenuOpen.value = false
   if (activeKind.value === 'image' && referenceMedia.value?.kind === 'video') clearReferenceMedia()
@@ -453,6 +469,11 @@ function modelNameForHistory(modelId: string) {
 
 async function loadHistory() {
   historyLoading.value = true
+  // Do not retain the previous session's in-memory works while the current
+  // user's scoped API response is loading (for example after an SSO account
+  // switch without a full page reload).
+  recentWorks.value = []
+  currentWork.value = null
   try {
     const result = await listCreationHistory(1, 20)
     const items = await Promise.all((result.items || []).map(async item => {
@@ -527,6 +548,10 @@ async function loadHistory() {
 }
 
 async function generate() {
+  if (!activeKindEnabled.value) {
+    errorMessage.value = '当前创作类型已被管理员关闭。'
+    return
+  }
   const key = selectedApiKey.value
   const selected = selectedModel.value
   const text = prompt.value.trim()
@@ -733,6 +758,11 @@ async function loadApiKeys() {
 
 onMounted(async () => {
   document.addEventListener('pointerdown', handleDocumentPointerDown)
+  creationSettings.value = await appStore.fetchCreationSettings()
+  if (!creationSettings.value?.enabled || !tabs.value.length) {
+    errorMessage.value = '当前没有可用的创作类型。'
+    return
+  }
   await loadApiKeys()
   await loadHistory()
 })
