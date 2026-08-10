@@ -241,6 +241,12 @@
   }
 
   /* ============ 浅色液态金属材质 ============ */
+  html:not(.dark),
+  html:not(.dark) body,
+  html:not(.dark) #app {
+    background-color: #bfc8d0;
+  }
+
   html:not(.dark) .app-shell {
     background:
       radial-gradient(ellipse at 16% 0%, rgba(158, 210, 115, 0.28) 0%, transparent 34%),
