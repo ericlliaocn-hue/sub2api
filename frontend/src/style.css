@@ -534,24 +534,23 @@
   /* ============ 侧边栏 ============ */
   .sidebar {
     @apply fixed inset-y-0 left-0 z-40;
-    @apply w-64 bg-white dark:bg-dark-900;
-    @apply border-r border-gray-200 dark:border-dark-800;
-    @apply flex flex-col;
+    @apply w-64 bg-transparent;
+    @apply flex flex-col gap-3 p-3;
     @apply transition-transform duration-300;
     transition-property: width, transform;
   }
 
   .sidebar-header {
-    @apply h-16 px-6;
+    @apply h-16 flex-shrink-0 rounded-2xl border border-gray-200/70 bg-white/90 px-6 shadow-sm;
     @apply flex items-center gap-3;
-    @apply border-b border-gray-100 dark:border-dark-800;
+    @apply dark:border-dark-700/70 dark:bg-dark-900/90 dark:shadow-black/10;
     transition:
       padding 0.2s ease,
       gap 0.2s ease;
   }
 
   .sidebar-nav {
-    @apply flex-1 overflow-y-auto px-3 py-4;
+    @apply flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto;
   }
 
   .sidebar-link {
@@ -573,7 +572,13 @@
   }
 
   .sidebar-section {
-    @apply mb-6;
+    @apply flex-shrink-0 rounded-2xl border border-gray-200/70 bg-white/85 p-2.5 shadow-sm;
+    @apply dark:border-dark-700/70 dark:bg-dark-900/85 dark:shadow-black/10;
+  }
+
+  .sidebar-footer {
+    @apply flex-shrink-0 rounded-2xl border border-gray-200/70 bg-white/85 p-2.5 shadow-sm;
+    @apply dark:border-dark-700/70 dark:bg-dark-900/85 dark:shadow-black/10;
   }
 
   .sidebar-section-title {
@@ -583,6 +588,11 @@
   }
 
   /* ============ 页面头部 ============ */
+  .app-main {
+    @apply mt-3 rounded-2xl border border-gray-200/60 bg-white/5 shadow-sm;
+    @apply dark:border-dark-700/60 dark:bg-dark-900/15 dark:shadow-black/10;
+  }
+
   .page-header {
     @apply mb-6;
   }
