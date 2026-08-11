@@ -33,6 +33,24 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/home',
     name: 'Home',
+    component: () => import('@/views/HomeLandingV4View.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Home'
+    }
+  },
+  {
+    path: '/home-v4',
+    name: 'HomeV4',
+    component: () => import('@/views/HomeLandingV4View.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Home'
+    }
+  },
+  {
+    path: '/home-classic',
+    name: 'HomeClassic',
     component: () => import('@/views/HomeView.vue'),
     meta: {
       requiresAuth: false,
@@ -426,6 +444,28 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/business-finance',
+    name: 'AdminBusinessFinance',
+    component: () => import('@/views/admin/BusinessFinanceView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Business Finance',
+      titleKey: 'nav.businessFinance',
+      descriptionKey: 'admin.businessFinance.description'
+    }
+  },
+  {
+    path: '/admin/business-finance/dashboard',
+    name: 'AdminBusinessFinanceDashboard',
+    component: () => import('@/views/admin/BusinessFinanceDashboardView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Business Dashboard'
+    }
+  },
+  {
     path: '/admin/ops',
     name: 'AdminOps',
     component: () => import('@/views/admin/ops/OpsDashboard.vue'),
@@ -774,7 +814,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/model-plaza']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',

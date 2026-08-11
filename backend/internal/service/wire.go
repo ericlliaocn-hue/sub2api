@@ -758,6 +758,7 @@ var ProviderSet = wire.NewSet(
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,
 	NewCreationHistoryService,
+	NewBusinessFinanceService,
 	ProvideBatchImageCleanupService,
 	ProvideBatchImageWorkerRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),

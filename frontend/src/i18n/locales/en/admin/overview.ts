@@ -1,4 +1,8 @@
 export default {
+    businessFinance: {
+      title: 'Business Finance',
+      description: 'Manage operating costs, revenue, profit and business data'
+    },
     creation: {
       settingsDescription: 'Creation center feature and capability controls',
       historyDescription: 'Review user creation tasks and generated results'

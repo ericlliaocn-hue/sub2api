@@ -116,13 +116,30 @@ describe('PlazaModelPricingTable', () => {
     expect(names).toEqual(['model-expensive', 'model-cheap', 'model-no-official'])
   })
 
-  it('官方输出价相同时按模型名降序(新版本号在前)', () => {
-    const older = tokenModel({ name: 'gpt-5.5' })
-    const newer = tokenModel({ name: 'gpt-5.6-sol' })
+  it('GPT 模型按版本号和同代性能降序排列,不按价格排序', () => {
+    const models = [
+      tokenModel({ name: 'gpt-5.4-nano', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.5', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.6-luna', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.6-terra', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.5-pro', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.6-sol', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.4', official_pricing: null }),
+      tokenModel({ name: 'gpt-5.4-mini', official_pricing: null })
+    ]
 
-    const wrapper = mountTable([older, newer], 1)
+    const wrapper = mountTable(models, 1)
     const names = wrapper.findAll('tbody tr').map((tr) => tr.find('td').text())
-    expect(names).toEqual(['gpt-5.6-sol', 'gpt-5.5'])
+    expect(names).toEqual([
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+      'gpt-5.5-pro',
+      'gpt-5.5',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.4-nano'
+    ])
   })
 
   it('按图片/按次计费的模型沉到末尾,不与 token 模型按官方价混排', () => {
@@ -261,9 +278,9 @@ describe('PlazaModelPricingTable', () => {
     })
     const wrapper = mountTable([model], 0.5)
     const text = wrapper.text()
-    // 区间标签按 token 数生成
-    expect(text).toContain('≤200K')
-    expect(text).toContain('>200K')
+    // 区间价格统一只显示数值,不显示上下文档位标签
+    expect(text).not.toContain('≤200K')
+    expect(text).not.toContain('>200K')
     // 折后:输入 1.5 / 3,输出 7.5 / 15
     expect(text).toContain('$1.50')
     expect(text).toContain('$7.50')

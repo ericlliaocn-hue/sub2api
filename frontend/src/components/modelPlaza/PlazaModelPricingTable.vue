@@ -93,7 +93,6 @@
                   :key="idx"
                   class="whitespace-nowrap text-xs leading-5"
                 >
-                  <span class="mr-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ tierLabel(iv) }}</span>
                   {{ paidPerMillion(iv.input_price) }}
                 </div>
               </template>
@@ -106,7 +105,6 @@
                   :key="idx"
                   class="whitespace-nowrap text-xs leading-5"
                 >
-                  <span class="mr-1 font-sans font-normal text-gray-400 dark:text-dark-500">{{ tierLabel(iv) }}</span>
                   {{ paidPerMillion(iv.output_price) }}
                 </div>
               </template>
@@ -244,14 +242,27 @@ const PER_MILLION = 1_000_000
 /**
  * 展示顺序:
  * 1. token 计费的排在前,按图/按次计费的沉到末尾——它们的官方 token 价与实付的按张/按次价不同量纲,混排无意义;
- * 2. 组内按官方输出价从高到低,无官方价的排最后;
- * 3. 同价按名称降序(新版本号在前,如 gpt-5.6 先于 gpt-5.5)。
+ * 2. GPT 模型按版本号从高到低（如 gpt-5.6 先于 gpt-5.5），同版本按性能变体排序;
+ * 3. 其他模型按官方输出价从高到低，无官方价的排最后。
  */
 const sortedModels = computed(() => {
   return [...props.models].sort((a, b) => {
     const ta = billingMode(a) === BILLING_MODE_TOKEN
     const tb = billingMode(b) === BILLING_MODE_TOKEN
     if (ta !== tb) return ta ? -1 : 1
+
+    const va = gptVersion(a.name)
+    const vb = gptVersion(b.name)
+    if (va && vb) {
+      if (va.major !== vb.major) return vb.major - va.major
+      if (va.minor !== vb.minor) return vb.minor - va.minor
+      const variantOrder = gptVariantPriority(b.name) - gptVariantPriority(a.name)
+      if (variantOrder !== 0) return variantOrder
+      return a.name.localeCompare(b.name)
+    }
+    if (va) return -1
+    if (vb) return 1
+
     const pa = a.official_pricing?.output_price ?? null
     const pb = b.official_pricing?.output_price ?? null
     if (pa != null && pb != null && pa !== pb) return pb - pa
@@ -260,6 +271,24 @@ const sortedModels = computed(() => {
     return b.name.localeCompare(a.name)
   })
 })
+
+function gptVersion(name: string): { major: number; minor: number } | null {
+  const match = /^gpt-(\d+)(?:\.(\d+))?(?:-|$)/i.exec(name.trim())
+  if (!match) return null
+  return { major: Number(match[1]), minor: Number(match[2] ?? 0) }
+}
+
+function gptVariantPriority(name: string): number {
+  const suffix = name.trim().toLowerCase().replace(/^gpt-\d+(?:\.\d+)?/, '')
+  if (suffix === '-pro') return 70
+  if (suffix === '-sol') return 60
+  if (suffix === '-terra') return 50
+  if (suffix === '-luna') return 40
+  if (suffix === '') return 30
+  if (suffix === '-mini') return 20
+  if (suffix === '-nano') return 10
+  return 0
+}
 
 const effectiveRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
 const hasCustomRate = computed(
@@ -332,7 +361,7 @@ function requestIntervals(m: PlazaModel): UserPricingInterval[] {
   return (m.pricing?.intervals ?? []).filter((iv) => iv.per_request_price != null)
 }
 
-/** 档位标签:优先管理员配置的 tier_label,否则按 token 区间生成(≤200K / >200K / 200K–1M)。 */
+/** 按次/按图档位仍需显示标签（如 1K、2K、4K）。 */
 function tierLabel(iv: UserPricingInterval): string {
   if (iv.tier_label) return iv.tier_label
   const { min_tokens: min, max_tokens: max } = iv
@@ -350,6 +379,7 @@ function formatTokenCount(n: number): string {
 function trimZero(n: number): string {
   return String(Math.round(n * 100) / 100)
 }
+
 </script>
 
 <style scoped>

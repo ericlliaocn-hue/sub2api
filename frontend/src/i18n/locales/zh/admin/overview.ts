@@ -1,4 +1,8 @@
 export default {
+    businessFinance: {
+      title: '经营管理',
+      description: '成本、收入、利润和经营数据管理'
+    },
     creation: {
       settingsDescription: '创作中心开关与能力管理',
       historyDescription: '查看用户创作任务和生成结果'

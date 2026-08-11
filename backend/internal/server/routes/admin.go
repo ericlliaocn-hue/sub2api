@@ -33,6 +33,9 @@ func RegisterAdminRoutes(
 		// 仪表盘
 		registerDashboardRoutes(admin, h)
 
+		// 经营管理（成本与费用基础）
+		registerBusinessFinanceRoutes(admin, h)
+
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
 
@@ -122,6 +125,23 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerBusinessFinanceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	finance := admin.Group("/business-finance")
+	{
+		finance.GET("/cost-configs", h.Admin.BusinessFinance.ListCostConfigs)
+		finance.POST("/cost-configs", h.Admin.BusinessFinance.CreateCostConfig)
+		finance.PUT("/cost-configs/:id", h.Admin.BusinessFinance.UpdateCostConfig)
+		finance.POST("/cost-configs/:id/disable", h.Admin.BusinessFinance.DisableCostConfig)
+
+		finance.GET("/expenses", h.Admin.BusinessFinance.ListExpenses)
+		finance.POST("/expenses", h.Admin.BusinessFinance.CreateExpense)
+		finance.PUT("/expenses/:id", h.Admin.BusinessFinance.UpdateExpense)
+		finance.POST("/expenses/:id/void", h.Admin.BusinessFinance.VoidExpense)
+		finance.GET("/report", h.Admin.BusinessFinance.GetReport)
+		finance.GET("/growth", h.Admin.BusinessFinance.GetGrowth)
 	}
 }
 

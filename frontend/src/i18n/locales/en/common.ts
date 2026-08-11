@@ -151,6 +151,8 @@ export default {
   // Navigation
   nav: {
     dashboard: 'Dashboard',
+    businessFinance: 'Cost Ledger',
+    businessFinanceDashboard: 'Business Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',

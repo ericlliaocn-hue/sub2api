@@ -785,9 +785,9 @@ onBeforeUnmount(() => {
   --studio-text: #1d1d1f;
   --studio-muted: #a0a1a7;
   --studio-border: rgba(20, 20, 30, 0.09);
-  --studio-primary: #0d9488;
-  --studio-primary-strong: #0f766e;
-  --studio-primary-ring: rgba(13, 148, 136, 0.18);
+  --studio-primary: #5c9e3c;
+  --studio-primary-strong: #4e8d37;
+  --studio-primary-ring: rgba(92, 158, 60, 0.18);
   --studio-input: #fafbfc;
   --studio-input-focus: #ffffff;
   --studio-subtle: #f0f1f4;
@@ -810,14 +810,14 @@ onBeforeUnmount(() => {
   --studio-text: #e2e8f0;
   --studio-muted: #94a3b8;
   --studio-border: rgba(148, 163, 184, 0.18);
-  --studio-primary: #2dd4bf;
-  --studio-primary-strong: #14b8a6;
-  --studio-primary-ring: rgba(45, 212, 191, 0.24);
+  --studio-primary: #9ed273;
+  --studio-primary-strong: #7fbd52;
+  --studio-primary-ring: rgba(158, 210, 115, 0.24);
   --studio-input: #111827;
   --studio-input-focus: #172033;
   --studio-subtle: #172033;
   --studio-preview: linear-gradient(145deg, #1e293b, #111827 52%, #0f172a);
-  --studio-preview-glow: radial-gradient(circle at 18% 15%, rgba(71, 85, 105, 0.4), transparent 34%), radial-gradient(circle at 84% 78%, rgba(13, 148, 136, 0.18), transparent 42%);
+  --studio-preview-glow: radial-gradient(circle at 18% 15%, rgba(71, 85, 105, 0.4), transparent 34%), radial-gradient(circle at 84% 78%, rgba(92, 158, 60, 0.18), transparent 42%);
 }
 
 .studio-page {

@@ -111,6 +111,242 @@ export default {
     },
     footer: {
       allRightsReserved: 'All rights reserved.'
+    },
+    v2: {
+      eyebrow: 'AI service hub · one simple entry',
+      title: 'Put the AI you need,',
+      accent: 'in one place',
+      description: 'Explore models, manage subscriptions, create images and videos, and track usage from one calm workspace built for everyday AI use.',
+      primaryAction: 'Browse models & pricing',
+      secondaryAction: 'Open creation studio',
+      nav: {
+        models: 'Model Plaza',
+        creation: 'Creation Studio',
+        pricing: 'Plans / Recharge'
+      },
+      trust: {
+        models: 'Mainstream models',
+        billing: 'Clear pricing',
+        creation: 'Image & video creation'
+      },
+      workspace: {
+        label: 'personal workspace',
+        ready: 'ready to use',
+        greeting: 'Your AI workspace',
+        title: 'What will you make today?',
+        models: 'Model choice',
+        creation: 'Creation',
+        usage: 'Usage tracked',
+        featured: 'Popular models',
+        available: 'Ready to use'
+      },
+      flow: {
+        choose: 'Choose',
+        use: 'Create / use',
+        track: 'Track usage'
+      },
+      float: {
+        fastTitle: 'Start quickly',
+        fastDesc: 'Choose and go',
+        clearTitle: 'Clear billing',
+        clearDesc: 'Balance & usage visible'
+      },
+      features: {
+        label: 'Your way to use AI',
+        title: 'Whether you call a model or create directly',
+        description: 'Let the platform handle the complex routing, channels and billing. You choose the workflow that fits.',
+        modelsTitle: 'Explore first, then choose',
+        modelsDesc: 'Compare available models, groups and actual prices in the Model Plaza.',
+        creationTitle: 'Create as soon as you open it',
+        creationDesc: 'Pick an image or video model, add your idea or reference, and make something real.',
+        usageTitle: 'See every unit of usage',
+        usageDesc: 'Keep balance, subscriptions, API keys and usage details in one clear place.'
+      },
+      modules: {
+        label: 'What you can do',
+        title: 'From first experiment to everyday workflow',
+        modelsTitle: 'Model Plaza',
+        modelsDesc: 'Browse models, prices and available groups',
+        subscriptionTitle: 'Plans & recharge',
+        subscriptionDesc: 'Choose services and credits at your own pace',
+        creationTitle: 'Image / video creation',
+        creationDesc: 'Turn prompts and references into work',
+        keysTitle: 'API keys & usage',
+        keysDesc: 'Connect your tools and apps through one entry point'
+      },
+      cta: {
+        label: 'Start here',
+        title: 'Find the right model for your next idea.',
+        description: 'Skip the complicated setup. Open the Model Plaza and start with capabilities and price.',
+        action: 'Open Model Plaza'
+      },
+      footer: 'A simpler way to use AI'
+    },
+    v3: {
+      nav: {
+        models: 'Model Plaza',
+        creation: 'Creation Studio',
+        pricing: 'Pricing'
+      },
+      hero: {
+        kicker: 'AI service hub · one entry, many possibilities',
+        line1: 'Stop running',
+        line2: 'between AIs.',
+        line3: 'Start with choice.',
+        description: 'Bring models, creation and spending into one light workflow. Find the capability that fits, then use it in the way that feels right.',
+        primary: 'Explore the models',
+        secondary: 'Open the studio',
+        proofModels: 'Many models',
+        proofPricing: 'Clear pricing',
+        proofCreation: 'Make directly'
+      },
+      map: {
+        caption: 'your AI route map',
+        models: 'Model Plaza',
+        modelsHint: 'Compare capability & price',
+        creation: 'Creation Studio',
+        creationHint: 'Images & video',
+        pricing: 'Pricing & recharge',
+        pricingHint: 'Choose your pace',
+        apiHint: 'One entry for tools',
+        status: 'all systems ready'
+      },
+      rail: { label: 'Capabilities to choose from' },
+      choices: {
+        label: 'Start here',
+        title: 'Your AI workflow does not have to look one way.',
+        description: 'Trying a new model or turning an idea into a finished piece? Keep the choice in your hands and the complexity in the platform.',
+        modelsMeta: 'EXPLORE / COMPARE',
+        modelsTitle: 'Choose a model',
+        modelsDesc: 'See capability, groups and real prices to find the one that fits.',
+        creationMeta: 'MAKE / CREATE',
+        creationTitle: 'Create directly',
+        creationDesc: 'Start with a prompt or reference and make images or video.',
+        pricingMeta: 'PLAN / RECHARGE',
+        pricingTitle: 'Use it at your pace',
+        pricingDesc: 'Subscriptions, recharge, balance and usage stay easy to see.'
+      },
+      promise: {
+        label: 'We hide the complexity',
+        title: 'You only need to choose.',
+        description: 'The platform handles connections, routing and billing. You stay focused on the thing you are making.',
+        item1Title: 'One entry, switch anytime',
+        item1Desc: 'Keep different models and capabilities together in one Model Plaza.',
+        item2Title: 'Pricing you can understand',
+        item2Desc: 'From plans to usage, balance, credits and spending stay visible.',
+        item3Title: 'From spark to finished work',
+        item3Desc: 'Connect directly to image and video workflows in the Creation Studio.'
+      },
+      cta: {
+        label: 'Start now',
+        title: 'Find the next AI worth using.',
+        description: 'Open the Model Plaza and start with capability and price. Keep what works and make it part of your everyday workflow.',
+        action: 'Enter Model Plaza'
+      },
+      footer: 'Models, creation and usage in one calmer place'
+    },
+    v4: {
+      nav: {
+        models: 'Model Plaza',
+        creation: 'Creation Studio',
+        pricing: 'Pricing'
+      },
+      hero: {
+        eyebrow: 'anytoken · AI model gateway',
+        title: 'Connect leading models.',
+        accent: 'Keep one entry point.',
+        description: 'Use one API key for Claude, GPT, Gemini and more, or work directly in the Model Plaza and Creation Studio. Keep familiar protocols while pricing and usage stay visible.',
+        primary: 'Browse models',
+        secondary: 'Open the studio',
+        proof1Title: 'Unified API',
+        proof1Desc: 'One key for multiple models',
+        proof2Title: 'Familiar protocols',
+        proof2Desc: 'Keep using the SDKs and tools you know',
+        proof3Title: 'Visible usage',
+        proof3Desc: 'Track balance, spend and request details'
+      },
+      surface: {
+        title: 'anytoken workspace',
+        live: 'Service ready',
+        workspace: 'Workspace',
+        models: 'Model Plaza',
+        creation: 'Creation Studio',
+        usage: 'Usage & balance',
+        personal: 'Personal workspace',
+        greeting: 'Where will you start today?',
+        modelsTitle: 'Choose a model that fits',
+        creationTitle: 'Turn an idea into work',
+        usageTitle: 'Your usage at a glance',
+        ready: 'Ready to use',
+        modelAvailable: 'Ready to use',
+        modelFast: 'Fast response',
+        modelPopular: 'Popular choice',
+        modelVisual: 'Made for creation',
+        modelFooter: 'Explore more models and groups',
+        openPlaza: 'Open Model Plaza',
+        creationLabel: 'Creation Studio',
+        creationHeadline: 'Start with an idea.',
+        creationFooter: 'Image and video creation, in one place',
+        openCreation: 'Open Creation Studio',
+        usageBalance: 'Current balance',
+        usageFooter: 'Balance, credits and every unit of usage stay clear',
+        openUsage: 'View usage'
+      },
+      access: {
+        label: 'How it connects',
+        title: 'Change the endpoint. Keep the tools you know.',
+        description: 'Requests move from your code, client or Creation Studio into the anytoken gateway, then route by model and available group with usage recorded on the same path.',
+        clientsLabel: 'Your workflow',
+        gatewayLabel: 'Unified entry',
+        gatewayTitle: 'anytoken gateway',
+        gatewayDesc: 'Model access, routing and usage records in one request path.',
+        gatewayKey: 'One API key',
+        gatewayRoute: 'Model and group routing',
+        gatewayBilling: 'Usage recorded per request',
+        modelsLabel: 'Model services',
+        moreModels: 'More models'
+      },
+      compat: {
+        label: 'Protocol support',
+        title: 'Move your workflow without rebuilding it.',
+        description: 'anytoken exposes common model protocol endpoints for existing apps, scripts and developer tools. Current model and group availability is shown in the Model Plaza.',
+        openaiTitle: 'Chat Completions',
+        openaiDesc: 'Compatible with familiar OpenAI chat calls.',
+        responsesTitle: 'Responses API',
+        responsesDesc: 'Response endpoints for tools and agent workflows.',
+        anthropicTitle: 'Anthropic Messages',
+        anthropicDesc: 'A compatible request path for Claude Messages.',
+        geminiTitle: 'Gemini API',
+        geminiDesc: 'Support for the Gemini generateContent protocol.'
+      },
+      path: {
+        label: 'Where to start',
+        title: 'API access and direct creation start here.',
+        description: 'Enter through the workflow that fits. You do not need to learn every route and billing rule first.',
+        modelsTitle: 'Model Plaza',
+        modelsDesc: 'Compare capability, available groups and current prices.',
+        creationTitle: 'Creation Studio',
+        creationDesc: 'Start image or video creation with a prompt and a reference.',
+        pricingTitle: 'Pricing and usage',
+        pricingDesc: 'Review recharge options, balance and every request record.'
+      },
+      trust: {
+        label: 'Use it clearly',
+        title: 'A gateway should not make spending opaque.',
+        description: 'Important information stays visible from model choice to usage review. The page describes capabilities already present in the product instead of replacing records with inflated promises.',
+        item1Title: 'Pricing and balance',
+        item1Desc: 'Find the relevant price, balance and credit information before and after use.',
+        item2Title: 'Request-level records',
+        item2Desc: 'Review model, token and cost details to see where usage went.',
+        item3Title: 'Availability you can check',
+        item3Desc: 'The Model Plaza shows current models, groups and prices as the source of truth.'
+      },
+      cta: {
+        title: 'Start with one model.',
+        description: 'Open the Model Plaza, compare capability, groups and price, then choose how to connect.',
+        action: 'Open Model Plaza'
+      },
+      footer: 'One entry point for your AI workflow'
     }
   },
 
