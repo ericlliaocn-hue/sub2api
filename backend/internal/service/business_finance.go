@@ -97,6 +97,7 @@ type BusinessFinanceRepository interface {
 	CreateCostConfig(ctx context.Context, input CostConfigInput, createdBy int64) (*CostConfig, error)
 	UpdateCostConfig(ctx context.Context, id int64, input CostConfigInput) (*CostConfig, error)
 	DisableCostConfig(ctx context.Context, id int64) error
+	DeleteCostConfig(ctx context.Context, id int64) error
 	ListExpenses(ctx context.Context, filter ExpenseListFilter) ([]ExpenseEntry, int, error)
 	CreateExpense(ctx context.Context, input ExpenseInput, createdBy int64) (*ExpenseEntry, error)
 	UpdateExpense(ctx context.Context, id int64, input ExpenseInput) (*ExpenseEntry, error)
@@ -139,6 +140,13 @@ func (s *BusinessFinanceService) DisableCostConfig(ctx context.Context, id int64
 		return fmt.Errorf("invalid cost config id")
 	}
 	return s.repo.DisableCostConfig(ctx, id)
+}
+
+func (s *BusinessFinanceService) DeleteCostConfig(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return fmt.Errorf("invalid cost config id")
+	}
+	return s.repo.DeleteCostConfig(ctx, id)
 }
 
 func (s *BusinessFinanceService) ListExpenses(ctx context.Context, filter ExpenseListFilter) ([]ExpenseEntry, int, error) {

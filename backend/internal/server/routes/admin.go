@@ -147,6 +147,7 @@ func registerBusinessFinanceRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 		finance.POST("/cost-configs", h.Admin.BusinessFinance.CreateCostConfig)
 		finance.PUT("/cost-configs/:id", h.Admin.BusinessFinance.UpdateCostConfig)
 		finance.POST("/cost-configs/:id/disable", h.Admin.BusinessFinance.DisableCostConfig)
+		finance.DELETE("/cost-configs/:id", h.Admin.BusinessFinance.DeleteCostConfig)
 
 		finance.GET("/expenses", h.Admin.BusinessFinance.ListExpenses)
 		finance.POST("/expenses", h.Admin.BusinessFinance.CreateExpense)

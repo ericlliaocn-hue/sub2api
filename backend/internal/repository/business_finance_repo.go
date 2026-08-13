@@ -82,6 +82,19 @@ func (r *businessFinanceRepository) DisableCostConfig(ctx context.Context, id in
 	return nil
 }
 
+func (r *businessFinanceRepository) DeleteCostConfig(ctx context.Context, id int64) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM business_cost_configs WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return err
+	} else if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *businessFinanceRepository) ListExpenses(ctx context.Context, filter service.ExpenseListFilter) ([]service.ExpenseEntry, int, error) {
 	where := []string{"1 = 1"}
 	args := make([]any, 0, 5)

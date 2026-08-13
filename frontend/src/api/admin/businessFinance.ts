@@ -138,6 +138,9 @@ const businessFinanceAPI = {
   disableCostConfig(id: number) {
     return apiClient.post(`/admin/business-finance/cost-configs/${id}/disable`)
   },
+  deleteCostConfig(id: number) {
+    return apiClient.delete(`/admin/business-finance/cost-configs/${id}`)
+  },
   listExpenses(params?: {
     page?: number
     page_size?: number

@@ -73,6 +73,7 @@
                     <div class="flex gap-2">
                       <button class="btn btn-secondary btn-sm" @click="editConfig(item)">编辑</button>
                       <button v-if="item.enabled" class="btn btn-danger btn-sm" @click="disableConfig(item.id)">停用</button>
+                      <button class="btn btn-danger btn-sm" @click="deleteConfig(item)">删除</button>
                     </div>
                   </td>
                 </tr>
@@ -307,8 +308,20 @@ async function saveConfig() {
 }
 
 async function disableConfig(id: number) {
-  if (!window.confirm('确定停用这条成本配置吗？')) return
-  try { await businessFinanceAPI.disableCostConfig(id); await loadConfigs(); appStore.showSuccess('成本配置已停用') } catch (error) { appStore.showError(error instanceof Error ? error.message : '停用失败') }
+	if (!window.confirm('确定停用这条成本配置吗？')) return
+	try { await businessFinanceAPI.disableCostConfig(id); await loadConfigs(); appStore.showSuccess('成本配置已停用') } catch (error) { appStore.showError(error instanceof Error ? error.message : '停用失败') }
+}
+
+async function deleteConfig(item: BusinessCostConfig) {
+  if (!window.confirm(`确定永久删除成本配置“${item.name}”吗？删除后无法恢复，也不会再参与成本计算。`)) return
+  try {
+    await businessFinanceAPI.deleteCostConfig(item.id)
+    if (editingConfigId.value === item.id) configFormVisible.value = false
+    await loadConfigs()
+    appStore.showSuccess('成本配置已删除')
+  } catch (error) {
+    appStore.showError(error instanceof Error ? error.message : '删除失败')
+  }
 }
 
 function startNewExpense() {

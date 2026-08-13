@@ -113,6 +113,18 @@ func (h *BusinessFinanceHandler) DisableCostConfig(c *gin.Context) {
 	response.Success(c, gin.H{"id": id, "enabled": false})
 }
 
+func (h *BusinessFinanceHandler) DeleteCostConfig(c *gin.Context) {
+	id, ok := parseFinanceID(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.financeService.DeleteCostConfig(c.Request.Context(), id); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"id": id, "deleted": true})
+}
+
 func (h *BusinessFinanceHandler) ListExpenses(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	filter := service.ExpenseListFilter{
