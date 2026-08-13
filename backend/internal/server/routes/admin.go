@@ -35,6 +35,7 @@ func RegisterAdminRoutes(
 
 		// 经营管理（成本与费用基础）
 		registerBusinessFinanceRoutes(admin, h)
+		registerPromotionRoutes(admin, h)
 
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
@@ -126,6 +127,17 @@ func RegisterAdminRoutes(
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
 	}
+}
+
+func registerPromotionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	p := admin.Group("/promotion")
+	p.GET("/promoters", h.Admin.Promotion.ListPromoters)
+	p.POST("/promoters", h.Admin.Promotion.SavePromoter)
+	p.PUT("/promoters/:id", h.Admin.Promotion.SavePromoter)
+	p.GET("/channels", h.Admin.Promotion.ListChannels)
+	p.POST("/channels", h.Admin.Promotion.SaveChannel)
+	p.PUT("/channels/:id", h.Admin.Promotion.SaveChannel)
+	p.GET("/report", h.Admin.Promotion.Report)
 }
 
 func registerBusinessFinanceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {

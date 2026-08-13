@@ -82,6 +82,18 @@ type AuthService struct {
 	affiliateService      *AffiliateService
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	promotionService      *PromotionService
+}
+
+// SetPromotionService enables first-touch promotion attribution without changing
+// the existing authentication constructor contract used by tests and tools.
+func (s *AuthService) SetPromotionService(promotionService *PromotionService) {
+	s.promotionService = promotionService
+}
+func (s *AuthService) AttributePromotionSource(ctx context.Context, userID int64, source string) {
+	if s != nil && s.promotionService != nil {
+		_ = s.promotionService.AttributeUser(ctx, userID, source)
+	}
 }
 
 type CaptchaProof struct {
@@ -249,6 +261,11 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		}
 		logger.LegacyPrintf("service.auth", "[Auth] Database error creating user: %v", err)
 		return "", nil, ErrServiceUnavailable
+	}
+	// The handler attaches the source to the request context. Attribution is
+	// best-effort and never blocks account creation.
+	if source := promotionSourceFromContext(ctx); source != "" {
+		s.AttributePromotionSource(ctx, user.ID, source)
 	}
 	s.postAuthUserBootstrap(ctx, user, "email", true)
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")

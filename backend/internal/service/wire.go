@@ -59,6 +59,7 @@ func ProvideAuthService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	promotionService *PromotionService,
 ) *AuthService {
 	svc := NewAuthService(
 		entClient,
@@ -77,6 +78,7 @@ func ProvideAuthService(
 	)
 	svc.SetTencentCaptchaService(tencentCaptchaService)
 	svc.SetAliyunCaptchaService(aliyunCaptchaService)
+	svc.SetPromotionService(promotionService)
 	return svc
 }
 
@@ -759,6 +761,7 @@ var ProviderSet = wire.NewSet(
 	NewBatchImageDownloadService,
 	NewCreationHistoryService,
 	NewBusinessFinanceService,
+	NewPromotionService,
 	ProvideBatchImageCleanupService,
 	ProvideBatchImageWorkerRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),

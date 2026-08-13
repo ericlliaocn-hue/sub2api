@@ -758,6 +758,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
     { path: '/admin/business-finance/dashboard', label: t('nav.businessFinanceDashboard'), icon: ChartIcon, hideInSimpleMode: true, exactActive: true },
     { path: '/admin/business-finance', label: t('nav.businessFinance'), icon: ChartIcon, hideInSimpleMode: true, exactActive: true },
+    { path: '/admin/promotion', label: '推广管理', icon: UsersIcon, hideInSimpleMode: true, exactActive: true },
     {
       path: '/admin/creation',
       label: t('nav.creationCenter'),

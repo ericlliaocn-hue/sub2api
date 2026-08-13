@@ -139,7 +139,8 @@ export interface RegisterRequest {
   tencent_captcha_randstr?: string
   promo_code?: string
   invitation_code?: string
-  aff_code?: string
+	aff_code?: string
+	source?: string
 }
 
 export interface AffiliateInvitee {
