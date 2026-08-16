@@ -209,12 +209,14 @@ const configFormVisible = ref(false)
 const expenseFormVisible = ref(false)
 const editingConfigId = ref<number | null>(null)
 const editingExpenseId = ref<number | null>(null)
-const categories: FinanceCategory[] = ['server', 'database', 'redis', 'bandwidth', 'proxy', 'payment_fee', 'marketing', 'affiliate', 'account_purchase', 'customer_service', 'risk_reserve', 'other']
+const categories: FinanceCategory[] = ['server', 'database', 'redis', 'bandwidth', 'domain', 'compliance', 'proxy', 'payment_fee', 'marketing', 'affiliate', 'account_purchase', 'customer_service', 'risk_reserve', 'other']
 const categoryLabels: Record<FinanceCategory, string> = {
   server: '服务器',
   database: '数据库',
   redis: 'redis',
   bandwidth: '带宽',
+  domain: '域名',
+  compliance: '备案服务',
   proxy: '代理',
   payment_fee: '支付手续费',
   marketing: '推广',
