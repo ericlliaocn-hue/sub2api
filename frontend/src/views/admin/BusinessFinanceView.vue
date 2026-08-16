@@ -47,7 +47,6 @@
                   <th class="px-3 py-3">名称</th>
                   <th class="px-3 py-3">类别</th>
                   <th class="px-3 py-3">金额</th>
-                  <th class="px-3 py-3">折算率</th>
                   <th class="px-3 py-3">分摊方式</th>
                   <th class="px-3 py-3">作用范围</th>
                   <th class="px-3 py-3">生效时间</th>
@@ -62,7 +61,6 @@
                   </td>
                   <td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ categoryLabel(item.category) }}</td>
                   <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.amount.toFixed(2) }} {{ item.currency }}</td>
-                  <td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ item.exchange_rate_to_billing_unit }}x</td>
                   <td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ allocationMethodLabel(item.allocation_method) }}</td>
                   <td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ formatScope(item.scope) }}</td>
                   <td class="px-3 py-3 text-gray-500">{{ formatDate(item.effective_from) }}</td>
@@ -78,7 +76,7 @@
                   </td>
                 </tr>
                 <tr v-if="!configs.length">
-                  <td colspan="9" class="px-3 py-10 text-center text-sm text-gray-500">暂无成本配置</td>
+                  <td colspan="8" class="px-3 py-10 text-center text-sm text-gray-500">暂无成本配置</td>
                 </tr>
               </tbody>
             </table>
@@ -104,7 +102,6 @@
             </label>
             <label class="field"><span>金额</span><input v-model.number="configForm.amount" class="input" type="number" min="0" step="0.00000001" required /></label>
             <label class="field"><span>币种</span><input v-model="configForm.currency" class="input" maxlength="3" /></label>
-            <label class="field"><span>折算到系统计费单位</span><input v-model.number="configForm.exchange_rate_to_billing_unit" class="input" type="number" min="0.00000001" step="0.00000001" required /></label>
             <label class="field">
               <span>分摊方式</span>
               <div class="relative">
@@ -143,7 +140,7 @@
             <table class="min-w-full text-left text-sm">
               <thead class="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-dark-700"><tr><th class="px-3 py-3">名称</th><th class="px-3 py-3">类别</th><th class="px-3 py-3">金额</th><th class="px-3 py-3">发生时间</th><th class="px-3 py-3">费用周期</th><th class="px-3 py-3">分摊方式</th><th class="px-3 py-3">作用范围</th><th class="px-3 py-3">状态</th><th class="px-3 py-3">操作</th></tr></thead>
               <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-                <tr v-for="item in expenses" :key="item.id"><td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ item.name }}</div><div class="text-xs text-gray-500">{{ item.notes }}</div></td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ categoryLabel(item.category) }}</td><td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.amount.toFixed(2) }} {{ item.currency }}<div v-if="item.exchange_rate_to_billing_unit !== 1" class="text-xs text-gray-500">折算 {{ (item.amount * item.exchange_rate_to_billing_unit).toFixed(4) }}</div></td><td class="px-3 py-3 text-gray-500">{{ formatDate(item.occurred_at) }}</td><td class="px-3 py-3 text-gray-500">{{ formatPeriod(item.period_start, item.period_end) }}</td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ allocationMethodLabel(item.allocation_method) }}</td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ formatScope(item.scope) }}</td><td class="px-3 py-3"><span class="badge" :class="item.status === 'active' ? 'badge-success' : 'badge-secondary'">{{ item.status === 'active' ? '有效' : '已作废' }}</span></td><td class="px-3 py-3"><div class="flex gap-2"><button v-if="item.status === 'active'" class="btn btn-secondary btn-sm" @click="editExpense(item)">编辑</button><button v-if="item.status === 'active'" class="btn btn-danger btn-sm" @click="voidExpense(item.id)">作废</button></div></td></tr>
+                <tr v-for="item in expenses" :key="item.id"><td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ item.name }}</div><div class="text-xs text-gray-500">{{ item.notes }}</div></td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ categoryLabel(item.category) }}</td><td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.amount.toFixed(2) }} {{ item.currency }}</td><td class="px-3 py-3 text-gray-500">{{ formatDate(item.occurred_at) }}</td><td class="px-3 py-3 text-gray-500">{{ formatPeriod(item.period_start, item.period_end) }}</td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ allocationMethodLabel(item.allocation_method) }}</td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ formatScope(item.scope) }}</td><td class="px-3 py-3"><span class="badge" :class="item.status === 'active' ? 'badge-success' : 'badge-secondary'">{{ item.status === 'active' ? '有效' : '已作废' }}</span></td><td class="px-3 py-3"><div class="flex gap-2"><button v-if="item.status === 'active'" class="btn btn-secondary btn-sm" @click="editExpense(item)">编辑</button><button v-if="item.status === 'active'" class="btn btn-danger btn-sm" @click="voidExpense(item.id)">作废</button></div></td></tr>
                 <tr v-if="!expenses.length"><td colspan="9" class="px-3 py-10 text-center text-sm text-gray-500">暂无费用记录</td></tr>
               </tbody>
             </table>
@@ -166,7 +163,6 @@
             </label>
             <label class="field"><span>金额</span><input v-model.number="expenseForm.amount" class="input" type="number" min="0" step="0.00000001" required /></label>
             <label class="field"><span>币种</span><input v-model="expenseForm.currency" class="input" maxlength="3" /></label>
-            <label class="field"><span>折算到系统计费单位</span><input v-model.number="expenseForm.exchange_rate_to_billing_unit" class="input" type="number" min="0.00000001" step="0.00000001" required /></label>
             <label class="field"><span>发生时间</span><input v-model="expenseForm.occurred_at" class="input" type="datetime-local" required /></label>
             <label class="field"><span>费用周期开始（可选）</span><input v-model="expenseForm.period_start" class="input" type="datetime-local" /></label>
             <label class="field"><span>费用周期结束（可选）</span><input v-model="expenseForm.period_end" class="input" type="datetime-local" /></label>
