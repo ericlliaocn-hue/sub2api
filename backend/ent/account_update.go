@@ -268,6 +268,33 @@ func (_u *AccountUpdate) AddRateMultiplier(v float64) *AccountUpdate {
 	return _u
 }
 
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (_u *AccountUpdate) SetActiveUpstreamRateVersionID(v int64) *AccountUpdate {
+	_u.mutation.ResetActiveUpstreamRateVersionID()
+	_u.mutation.SetActiveUpstreamRateVersionID(v)
+	return _u
+}
+
+// SetNillableActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableActiveUpstreamRateVersionID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetActiveUpstreamRateVersionID(*v)
+	}
+	return _u
+}
+
+// AddActiveUpstreamRateVersionID adds value to the "active_upstream_rate_version_id" field.
+func (_u *AccountUpdate) AddActiveUpstreamRateVersionID(v int64) *AccountUpdate {
+	_u.mutation.AddActiveUpstreamRateVersionID(v)
+	return _u
+}
+
+// ClearActiveUpstreamRateVersionID clears the value of the "active_upstream_rate_version_id" field.
+func (_u *AccountUpdate) ClearActiveUpstreamRateVersionID() *AccountUpdate {
+	_u.mutation.ClearActiveUpstreamRateVersionID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *AccountUpdate) SetStatus(v string) *AccountUpdate {
 	_u.mutation.SetStatus(v)
@@ -868,6 +895,15 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(account.FieldRateMultiplier, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.ActiveUpstreamRateVersionID(); ok {
+		_spec.SetField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedActiveUpstreamRateVersionID(); ok {
+		_spec.AddField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64, value)
+	}
+	if _u.mutation.ActiveUpstreamRateVersionIDCleared() {
+		_spec.ClearField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
 	}
@@ -1405,6 +1441,33 @@ func (_u *AccountUpdateOne) SetNillableRateMultiplier(v *float64) *AccountUpdate
 // AddRateMultiplier adds value to the "rate_multiplier" field.
 func (_u *AccountUpdateOne) AddRateMultiplier(v float64) *AccountUpdateOne {
 	_u.mutation.AddRateMultiplier(v)
+	return _u
+}
+
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (_u *AccountUpdateOne) SetActiveUpstreamRateVersionID(v int64) *AccountUpdateOne {
+	_u.mutation.ResetActiveUpstreamRateVersionID()
+	_u.mutation.SetActiveUpstreamRateVersionID(v)
+	return _u
+}
+
+// SetNillableActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableActiveUpstreamRateVersionID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetActiveUpstreamRateVersionID(*v)
+	}
+	return _u
+}
+
+// AddActiveUpstreamRateVersionID adds value to the "active_upstream_rate_version_id" field.
+func (_u *AccountUpdateOne) AddActiveUpstreamRateVersionID(v int64) *AccountUpdateOne {
+	_u.mutation.AddActiveUpstreamRateVersionID(v)
+	return _u
+}
+
+// ClearActiveUpstreamRateVersionID clears the value of the "active_upstream_rate_version_id" field.
+func (_u *AccountUpdateOne) ClearActiveUpstreamRateVersionID() *AccountUpdateOne {
+	_u.mutation.ClearActiveUpstreamRateVersionID()
 	return _u
 }
 
@@ -2037,6 +2100,15 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(account.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ActiveUpstreamRateVersionID(); ok {
+		_spec.SetField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedActiveUpstreamRateVersionID(); ok {
+		_spec.AddField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64, value)
+	}
+	if _u.mutation.ActiveUpstreamRateVersionIDCleared() {
+		_spec.ClearField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)

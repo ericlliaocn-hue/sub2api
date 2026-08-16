@@ -1453,6 +1453,7 @@
             class="input disabled:cursor-not-allowed disabled:opacity-60"
             data-testid="account-rate-multiplier"
             :disabled="upstreamBillingRateSyncEnabled"
+            @input="rateMultiplierTouched = true"
           />
           <p class="input-hint">
             {{
@@ -1462,6 +1463,12 @@
                   : 'admin.accounts.billingRateMultiplierHint'
               )
             }}
+          </p>
+          <p
+            v-if="upstreamBillingRateSyncEnabled && form.rate_multiplier !== (account?.rate_multiplier ?? 1)"
+            class="mt-1 text-xs text-amber-600 dark:text-amber-400"
+          >
+            手动保存后将自动关闭上游倍率同步，并生成手动倍率版本（计划 Phase 3）。
           </p>
           <div
             v-if="account?.type === 'apikey'"
@@ -1517,6 +1524,132 @@
               ]"
             />
           </button>
+        </div>
+      </div>
+
+      <!-- 上游成本核算（仅 OpenAI 账号；计划 Phase 3/8） -->
+      <div
+        v-if="account?.platform === 'openai'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="mb-3">
+          <span class="input-label mb-0">上游成本核算</span>
+          <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">仅 OpenAI 账号，默认关闭</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-gray-900 dark:text-white">启用上游成本核算</div>
+              <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                按上游声明价格计算账号真实成本；倍率优先使用账号倍率版本，其次为配置的声明倍率。
+              </div>
+            </div>
+            <Toggle v-model="upstreamCostEnabled" />
+          </div>
+
+          <template v-if="upstreamCostEnabled || upstreamCostProfiles.length">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm text-gray-600 dark:text-gray-300">预置模型：</span>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="upstreamCostProfiles.some((p) => p.model === 'gpt-5.6-luna')"
+                @click="addUpstreamCostProfile('gpt-5.6-luna')"
+              >
+                + GPT-5.6 Luna
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="upstreamCostProfiles.some((p) => p.model === 'gpt-5.6-terra')"
+                @click="addUpstreamCostProfile('gpt-5.6-terra')"
+              >
+                + GPT-5.6 Terra
+              </button>
+              <span class="mx-1 text-gray-300 dark:text-dark-600">|</span>
+              <input
+                v-model.trim="customUpstreamCostModel"
+                class="input h-8 w-52 text-xs"
+                placeholder="自定义模型名，如 gpt-5.6-codexapis"
+                @keyup.enter="addCustomUpstreamCostProfile"
+              />
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="!customUpstreamCostModel"
+                @click="addCustomUpstreamCostProfile"
+              >
+                + 新增模型
+              </button>
+            </div>
+
+            <div
+              v-for="(profile, index) in upstreamCostProfiles"
+              :key="profile.model"
+              class="rounded-lg border border-gray-200 p-3 dark:border-dark-600"
+            >
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ profile.model }}</span>
+                <button
+                  type="button"
+                  class="text-xs text-red-500 hover:text-red-600"
+                  @click="removeUpstreamCostProfile(index)"
+                >
+                  移除
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <label class="field">
+                  <span>短上下文输入（$/M）</span>
+                  <input v-model.number="profile.short_prices.input" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>短上下文缓存读</span>
+                  <input v-model.number="profile.short_prices.cache_read" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>短上下文缓存写</span>
+                  <input v-model.number="profile.short_prices.cache_write" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>短上下文输出</span>
+                  <input v-model.number="profile.short_prices.output" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文阈值（0 = 不区分）</span>
+                  <input v-model.number="profile.long_context_threshold" class="input" type="number" min="0" step="1" />
+                </label>
+                <label class="field">
+                  <span>声明倍率</span>
+                  <input v-model.number="profile.declared_multiplier" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>余额取得成本</span>
+                  <input v-model.number="profile.balance_unit_cost" class="input" type="number" min="0.00000001" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文输入</span>
+                  <input v-model.number="profile.long_prices!.input" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文缓存读</span>
+                  <input v-model.number="profile.long_prices!.cache_read" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文缓存写</span>
+                  <input v-model.number="profile.long_prices!.cache_write" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文输出</span>
+                  <input v-model.number="profile.long_prices!.output" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+              </div>
+            </div>
+            <p v-if="!upstreamCostProfiles.length" class="text-xs text-gray-500">
+              尚未添加模型，请从预置模型或自定义模型名添加。
+            </p>
+          </template>
         </div>
       </div>
 
@@ -2676,7 +2809,8 @@ import type {
   OpenAICompactMode,
   OpenAIResponsesMode,
   OpenAIEndpointCapability,
-  OllamaCloudUsageState
+  OllamaCloudUsageState,
+  UpstreamCostProfileInput
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -2864,6 +2998,124 @@ const autoPause5hDisabled = ref(false)
 const autoPause7dDisabled = ref(false)
 const upstreamBillingAutoProbeEnabled = ref(false)
 const upstreamBillingRateSyncEnabled = ref(false)
+const rateMultiplierTouched = ref(false)
+
+// 上游成本核算（仅 OpenAI 账号；计划 Phase 3/8）。默认关闭，配置属于账号资产。
+const upstreamCostEnabled = ref(false)
+const upstreamCostProfiles = ref<UpstreamCostProfileInput[]>([])
+const upstreamCostLoaded = ref(false)
+const UPSTREAM_COST_PRESETS: Record<
+  string,
+  {
+    short: { input: number; cache_read: number; cache_write: number; output: number }
+    long: { input: number; cache_read: number; cache_write: number; output: number }
+    threshold: number
+    declared: number
+    balance: number
+  }
+> = {
+  'gpt-5.6-luna': {
+    short: { input: 0.2, cache_read: 0.02, cache_write: 0.25, output: 1.2 },
+    long: { input: 0.4, cache_read: 0.04, cache_write: 0.5, output: 1.8 },
+    threshold: 272000,
+    declared: 0.035,
+    balance: 1
+  },
+  'gpt-5.6-terra': {
+    short: { input: 2, cache_read: 0.2, cache_write: 2.5, output: 12 },
+    long: { input: 4, cache_read: 0.4, cache_write: 5, output: 18 },
+    threshold: 272000,
+    declared: 0.035,
+    balance: 1
+  }
+}
+
+function emptyUpstreamCostProfile(model: string): UpstreamCostProfileInput {
+  const preset = UPSTREAM_COST_PRESETS[model] || UPSTREAM_COST_PRESETS['gpt-5.6-luna']
+  return {
+    model,
+    short_prices: { ...preset.short },
+    long_context_threshold: preset.threshold,
+    long_prices: { ...preset.long },
+    declared_multiplier: preset.declared,
+    balance_unit_cost: preset.balance,
+    notes: ''
+  }
+}
+
+function addUpstreamCostProfile(model = 'gpt-5.6-luna') {
+  if (upstreamCostProfiles.value.some((p) => p.model === model)) {
+    return
+  }
+  upstreamCostProfiles.value.push(emptyUpstreamCostProfile(model))
+}
+
+function removeUpstreamCostProfile(index: number) {
+  upstreamCostProfiles.value.splice(index, 1)
+}
+
+const customUpstreamCostModel = ref('')
+
+function addCustomUpstreamCostProfile() {
+  const model = customUpstreamCostModel.value.trim().toLowerCase()
+  customUpstreamCostModel.value = ''
+  if (!model) {
+    return
+  }
+  if (upstreamCostProfiles.value.some((p) => p.model === model)) {
+    return
+  }
+  upstreamCostProfiles.value.push(emptyUpstreamCostProfile(model))
+}
+
+function buildUpstreamCostProfilesPayload(): UpstreamCostProfileInput[] | undefined {
+  if (upstreamCostProfiles.value.length === 0) {
+    return undefined
+  }
+  return upstreamCostProfiles.value.map((profile) => ({
+    model: profile.model,
+    short_prices: { ...profile.short_prices },
+    long_context_threshold: profile.long_context_threshold ?? 0,
+    long_prices: profile.long_prices ? { ...profile.long_prices } : { ...profile.short_prices },
+    declared_multiplier: profile.declared_multiplier ?? 1,
+    balance_unit_cost: profile.balance_unit_cost ?? 1,
+    notes: profile.notes ?? ''
+  }))
+}
+
+function loadUpstreamCostForm(account: Account | null) {
+  const extra = (account?.extra as Record<string, unknown> | undefined) || {}
+  upstreamCostEnabled.value = extra.upstream_cost_enabled === true
+  upstreamCostProfiles.value = []
+  const rawProfiles = extra.upstream_cost_profiles as Record<string, unknown> | undefined
+  if (rawProfiles && typeof rawProfiles === 'object') {
+    for (const [model, raw] of Object.entries(rawProfiles)) {
+      const profile = raw as Record<string, unknown>
+      const short = (profile.short_prices as Record<string, unknown>) || {}
+      const long = (profile.long_prices as Record<string, unknown>) || {}
+      upstreamCostProfiles.value.push({
+        model,
+        short_prices: {
+          input: Number(short.input ?? 0),
+          cache_read: Number(short.cache_read ?? 0),
+          cache_write: Number(short.cache_write ?? 0),
+          output: Number(short.output ?? 0)
+        },
+        long_context_threshold: Number(profile.long_context_threshold ?? 0),
+        long_prices: {
+          input: Number(long.input ?? 0),
+          cache_read: Number(long.cache_read ?? 0),
+          cache_write: Number(long.cache_write ?? 0),
+          output: Number(long.output ?? 0)
+        },
+        declared_multiplier: Number(profile.declared_multiplier ?? 1),
+        balance_unit_cost: Number(profile.balance_unit_cost ?? 1),
+        notes: String(profile.notes ?? '')
+      })
+    }
+  }
+  upstreamCostLoaded.value = true
+}
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const allowOverages = ref(false) // For antigravity accounts: enable AI Credits overages
 const antigravityProjectId = ref('')
@@ -3331,6 +3583,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   form.load_factor = newAccount.load_factor ?? null
   form.priority = newAccount.priority
   form.rate_multiplier = newAccount.rate_multiplier ?? 1
+  rateMultiplierTouched.value = false
+  loadUpstreamCostForm(newAccount)
   form.status = (newAccount.status === 'active' || newAccount.status === 'inactive' || newAccount.status === 'error')
     ? newAccount.status
     : 'active'
@@ -4144,11 +4398,23 @@ const handleSubmit = async () => {
       updatePayload.load_factor = 0
     }
     updatePayload.auto_pause_on_expired = autoPauseOnExpired.value
+    // 上游成本配置独立字段（计划 Phase 3/8）：对所有 OpenAI 账号生效，
+    // 不限于 apikey 类型（codex 等 OAuth 账号同样可配置）。
+    if (props.account.platform === 'openai') {
+      updatePayload.upstream_cost_enabled = upstreamCostEnabled.value
+      updatePayload.upstream_cost_profiles = buildUpstreamCostProfilesPayload()
+    }
     if (props.account.type === 'apikey') {
       updatePayload.upstream_billing_probe_enabled = upstreamBillingAutoProbeEnabled.value
       updatePayload.upstream_billing_rate_sync_enabled = upstreamBillingRateSyncEnabled.value
-      if (upstreamBillingRateSyncEnabled.value) {
+      if (!rateMultiplierTouched.value) {
+        // 仅编辑价格、凭据等其它字段时不能把表单回显值误当成一次手工倍率
+        // 修改，否则会无故生成 manual 版本并遮蔽 declared_multiplier fallback。
         delete updatePayload.rate_multiplier
+      } else if (upstreamBillingRateSyncEnabled.value) {
+        // 手动保存自动切换到手动模式（计划 Phase 3）：同步开启时用户仍可修改倍率，
+        // 后端会生成 manual 版本并自动关闭 rate sync；此处把倍率带上并关闭同步开关。
+        updatePayload.upstream_billing_rate_sync_enabled = false
       }
     }
 

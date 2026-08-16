@@ -514,12 +514,43 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 	return account, nil
 }
 
+// prepareUpstreamCostConfigForCreate validates the dedicated upstream cost
+// fields and records the enabled flag on the account extra. It returns the
+// price version inputs for the repository to persist in the create
+// transaction.
+func prepareUpstreamCostConfigForCreate(input *CreateAccountInput, accountExtra map[string]any) ([]UpstreamCostVersionInput, error) {
+	provided := input.UpstreamCostEnabled != nil || len(input.UpstreamCostProfiles) > 0
+	if !provided {
+		return nil, nil
+	}
+	if err := ValidateUpstreamCostProfiles(input.Platform, input.UpstreamCostEnabled, input.UpstreamCostProfiles); err != nil {
+		return nil, err
+	}
+	enabled := len(input.UpstreamCostProfiles) > 0
+	if input.UpstreamCostEnabled != nil {
+		enabled = *input.UpstreamCostEnabled
+	}
+	accountExtra[UpstreamCostEnabledExtraKey] = enabled
+	inputs := make([]UpstreamCostVersionInput, 0, len(input.UpstreamCostProfiles))
+	for i := range input.UpstreamCostProfiles {
+		inputs = append(inputs, input.UpstreamCostProfiles[i].ToUpstreamCostVersionInput(0))
+	}
+	return inputs, nil
+}
+
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
 	accountExtra, err := normalizeOpenAILongContextBillingExtra(input.Platform, input.Extra)
 	if err != nil {
 		return nil, err
 	}
 	accountExtra, err = normalizeGrokMediaEligibilityExtra(input.Platform, accountExtra)
+	if err != nil {
+		return nil, err
+	}
+
+	// 上游成本配置走独立字段（upstream_cost_enabled / upstream_cost_profiles），
+	// 不要求前端直接拼 extra（计划 Phase 3）。
+	costInputs, err := prepareUpstreamCostConfigForCreate(input, accountExtra)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +587,16 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err != nil {
 		return nil, err
 	}
-	if err := s.accountRepo.Create(ctx, account); err != nil {
+	if len(costInputs) > 0 || input.UpstreamCostEnabled != nil {
+		// 同事务创建：账号 + 上游价格版本 + 初始倍率版本 + 当前版本指针。
+		creator, ok := s.accountRepo.(AccountUpstreamCostRepository)
+		if !ok {
+			return nil, errors.New("upstream cost configuration repository is not configured")
+		}
+		if err := creator.CreateWithUpstreamCostConfig(ctx, account, costInputs, input.CreatedBy); err != nil {
+			return nil, err
+		}
+	} else if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, err
 	}
 
@@ -593,6 +633,28 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 
 	return account, nil
+}
+
+// prepareUpstreamCostConfigForUpdate validates the dedicated upstream cost
+// fields on an account edit. A non-nil profiles slice means the caller wants
+// the full active set replaced; nil means prices are not being edited (only
+// the enabled flag may change). This distinction prevents a save that only
+// toggles the switch from wiping the configured price set.
+func prepareUpstreamCostConfigForUpdate(account *Account, input *UpdateAccountInput) ([]UpstreamCostVersionInput, *bool, error) {
+	if input.UpstreamCostProfiles == nil && input.UpstreamCostEnabled == nil {
+		return nil, nil, nil
+	}
+	if err := ValidateUpstreamCostProfiles(account.Platform, input.UpstreamCostEnabled, input.UpstreamCostProfiles); err != nil {
+		return nil, nil, err
+	}
+	if input.UpstreamCostProfiles == nil {
+		return nil, input.UpstreamCostEnabled, nil
+	}
+	inputs := make([]UpstreamCostVersionInput, 0, len(input.UpstreamCostProfiles))
+	for i := range input.UpstreamCostProfiles {
+		inputs = append(inputs, input.UpstreamCostProfiles[i].ToUpstreamCostVersionInput(0))
+	}
+	return inputs, input.UpstreamCostEnabled, nil
 }
 
 func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error) {
@@ -792,12 +854,13 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		if *input.RateMultiplier < 0 {
 			return nil, errors.New("rate_multiplier must be >= 0")
 		}
-		// 同步开启时倍率归上游所有，手工值活不过下一次成功探测（表现为"改了又自己
-		// 变回去"），与批量路径一样直接拒绝。判断的是本次请求生效后的状态：上面
-		// 已把请求携带的两个开关落进 account.Extra，所以"同一请求关闭同步 + 改倍率"
-		// （用户显式收回所有权）会走到这里时读到 false，正常放行。
+		// 手动保存自动关闭自动倍率同步（计划 §1.4 / Phase 3）：同步开启时倍率归
+		// 上游所有，手工值会被下一次成功探测覆盖；手动保存即收回所有权，落一个
+		// manual 版本并把 rate sync 关掉，而不是静默接受或直接拒绝。
 		if upstreamBillingRateSyncEnabled(account) {
-			return nil, ErrUpstreamBillingRateSyncConflict
+			disabled := false
+			requestedRateSyncEnabledUpdate = &disabled
+			account.Extra[UpstreamBillingRateSyncEnabledExtraKey] = false
 		}
 		account.RateMultiplier = input.RateMultiplier
 	}
@@ -823,6 +886,12 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	}
 	if input.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *input.AutoPauseOnExpired
+	}
+
+	// 上游成本配置走独立字段（Phase 3）：价格变化生成价格新版本，开关单独持久化。
+	costInputs, costEnabledUpdate, err := prepareUpstreamCostConfigForUpdate(account, input)
+	if err != nil {
+		return nil, err
 	}
 
 	// 先验证分组是否存在（在任何写操作之前）
@@ -875,6 +944,17 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			if err := s.accountRepo.UpdateExtra(ctx, account.ID, settings); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	// 成本价格变化生成价格新版本（同一账号编辑请求内独立事务，失败回滚价格版本写入）。
+	if len(costInputs) > 0 || costEnabledUpdate != nil {
+		profileRepo, ok := s.accountRepo.(AccountUpstreamCostRepository)
+		if !ok {
+			return nil, errors.New("upstream cost configuration repository is not configured")
+		}
+		if err := profileRepo.ReplaceUpstreamCostProfiles(ctx, id, costInputs, costEnabledUpdate, input.CreatedBy); err != nil {
+			return nil, err
 		}
 	}
 

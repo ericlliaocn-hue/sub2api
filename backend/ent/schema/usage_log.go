@@ -119,7 +119,29 @@ func (UsageLog) Fields() []ent.Field {
 		field.Float("account_rate_multiplier").
 			Optional().
 			Nillable().
-			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Int64("account_rate_version_id").
+			Optional().
+			Nillable().
+			Comment("请求开始时锁定的账号上游倍率版本 ID"),
+		field.String("account_rate_source").
+			MaxLen(32).
+			Optional().
+			Nillable().
+			Comment("请求开始时锁定的账号上游倍率来源"),
+		field.JSON("account_rate_snapshot", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("请求开始时锁定的账号上游倍率快照"),
+		field.Float("upstream_cost").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Comment("请求开始时锁定的手工上游成本"),
+		field.JSON("upstream_cost_snapshot", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("上游成本版本、旧价和倍率计算快照"),
 
 		// 其他字段
 		field.Int8("billing_type").

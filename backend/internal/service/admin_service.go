@@ -353,6 +353,12 @@ type CreateAccountInput struct {
 	ExpiresAt          *int64
 	AutoPauseOnExpired *bool
 	ProbeEnabled       *bool
+	// UpstreamCostEnabled / UpstreamCostProfiles 是上游成本配置的独立字段，
+	// 不要求前端直接拼 extra（计划 Phase 3）。仅 OpenAI 账号支持。
+	UpstreamCostEnabled  *bool
+	UpstreamCostProfiles []UpstreamCostProfileInput
+	// CreatedBy 记录创建价格版本的操作者；0 表示系统路径。
+	CreatedBy int64
 	// SkipDefaultGroupBind prevents auto-binding to platform default group when GroupIDs is empty.
 	SkipDefaultGroupBind bool
 	// SkipMixedChannelCheck skips the mixed channel risk check when binding groups.
@@ -370,22 +376,28 @@ type ShadowOptions struct {
 }
 
 type UpdateAccountInput struct {
-	Name                  string
-	Notes                 *string
-	Type                  string // Account type: oauth, setup-token, apikey
-	Credentials           map[string]any
-	Extra                 map[string]any
-	ProxyID               *int64
-	Concurrency           *int     // 使用指针区分"未提供"和"设置为0"
-	Priority              *int     // 使用指针区分"未提供"和"设置为0"
-	RateMultiplier        *float64 // 账号计费倍率（>=0，允许 0）
-	LoadFactor            *int
-	Status                string
-	GroupIDs              *[]int64
-	ExpiresAt             *int64
-	AutoPauseOnExpired    *bool
-	ProbeEnabled          *bool
-	RateSyncEnabled       *bool
+	Name               string
+	Notes              *string
+	Type               string // Account type: oauth, setup-token, apikey
+	Credentials        map[string]any
+	Extra              map[string]any
+	ProxyID            *int64
+	Concurrency        *int     // 使用指针区分"未提供"和"设置为0"
+	Priority           *int     // 使用指针区分"未提供"和"设置为0"
+	RateMultiplier     *float64 // 账号计费倍率（>=0，允许 0）
+	LoadFactor         *int
+	Status             string
+	GroupIDs           *[]int64
+	ExpiresAt          *int64
+	AutoPauseOnExpired *bool
+	ProbeEnabled       *bool
+	RateSyncEnabled    *bool
+	// UpstreamCostEnabled / UpstreamCostProfiles 是上游成本配置的独立字段
+	// （计划 Phase 3）。profiles 非 nil 表示替换整个激活集合。
+	UpstreamCostEnabled  *bool
+	UpstreamCostProfiles []UpstreamCostProfileInput
+	// CreatedBy 记录创建价格版本的操作者；0 表示系统路径。
+	CreatedBy             int64
 	SkipMixedChannelCheck bool // 跳过混合渠道检查（用户已确认风险）
 }
 

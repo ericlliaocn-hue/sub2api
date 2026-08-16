@@ -50,6 +50,17 @@ type businessExpenseRequest struct {
 	Notes            string         `json:"notes"`
 }
 
+type upstreamCostVersionRequest struct {
+	AccountID            int64                      `json:"account_id"`
+	Model                string                     `json:"model"`
+	ShortPrices          service.UpstreamCostPrices `json:"short_prices"`
+	LongContextThreshold int                        `json:"long_context_threshold"`
+	LongPrices           service.UpstreamCostPrices `json:"long_prices"`
+	DeclaredMultiplier   float64                    `json:"declared_multiplier"`
+	BalanceUnitCost      float64                    `json:"balance_unit_cost"`
+	Notes                string                     `json:"notes"`
+}
+
 func (h *BusinessFinanceHandler) ListCostConfigs(c *gin.Context) {
 	items, err := h.financeService.ListCostConfigs(c.Request.Context())
 	if err != nil {
@@ -204,6 +215,42 @@ func (h *BusinessFinanceHandler) VoidExpense(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"id": id, "status": "void"})
+}
+
+func (h *BusinessFinanceHandler) ListUpstreamCostVersions(c *gin.Context) {
+	var accountID int64
+	var err error
+	if value := strings.TrimSpace(c.Query("account_id")); value != "" {
+		accountID, err = strconv.ParseInt(value, 10, 64)
+		if err != nil || accountID <= 0 {
+			response.BadRequest(c, "Invalid account_id")
+			return
+		}
+	}
+	items, err := h.financeService.ListUpstreamCostVersions(c.Request.Context(), accountID, c.Query("model"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
+func (h *BusinessFinanceHandler) CreateUpstreamCostVersion(c *gin.Context) {
+	var req upstreamCostVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	item, err := h.financeService.CreateUpstreamCostVersion(c.Request.Context(), service.UpstreamCostVersionInput{
+		AccountID: req.AccountID, Model: req.Model, ShortPrices: req.ShortPrices,
+		LongContextThreshold: req.LongContextThreshold, LongPrices: req.LongPrices,
+		DeclaredMultiplier: req.DeclaredMultiplier, BalanceUnitCost: req.BalanceUnitCost, Notes: req.Notes,
+	}, financeOperatorID(c))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, item)
 }
 
 func (h *BusinessFinanceHandler) GetReport(c *gin.Context) {

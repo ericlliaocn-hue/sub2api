@@ -290,6 +290,40 @@ func (_c *BatchImageJobCreate) SetNillableHoldID(v *string) *BatchImageJobCreate
 	return _c
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (_c *BatchImageJobCreate) SetAccountRateVersionID(v int64) *BatchImageJobCreate {
+	_c.mutation.SetAccountRateVersionID(v)
+	return _c
+}
+
+// SetNillableAccountRateVersionID sets the "account_rate_version_id" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableAccountRateVersionID(v *int64) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetAccountRateVersionID(*v)
+	}
+	return _c
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (_c *BatchImageJobCreate) SetAccountRateSource(v string) *BatchImageJobCreate {
+	_c.mutation.SetAccountRateSource(v)
+	return _c
+}
+
+// SetNillableAccountRateSource sets the "account_rate_source" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableAccountRateSource(v *string) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetAccountRateSource(*v)
+	}
+	return _c
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (_c *BatchImageJobCreate) SetAccountRateSnapshot(v map[string]interface{}) *BatchImageJobCreate {
+	_c.mutation.SetAccountRateSnapshot(v)
+	return _c
+}
+
 // SetIdempotencyKey sets the "idempotency_key" field.
 func (_c *BatchImageJobCreate) SetIdempotencyKey(v string) *BatchImageJobCreate {
 	_c.mutation.SetIdempotencyKey(v)
@@ -721,6 +755,11 @@ func (_c *BatchImageJobCreate) check() error {
 			return &ValidationError{Name: "hold_id", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.hold_id": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.AccountRateSource(); ok {
+		if err := batchimagejob.AccountRateSourceValidator(v); err != nil {
+			return &ValidationError{Name: "account_rate_source", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.account_rate_source": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.IdempotencyKey(); ok {
 		if err := batchimagejob.IdempotencyKeyValidator(v); err != nil {
 			return &ValidationError{Name: "idempotency_key", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.idempotency_key": %w`, err)}
@@ -867,6 +906,18 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.HoldID(); ok {
 		_spec.SetField(batchimagejob.FieldHoldID, field.TypeString, value)
 		_node.HoldID = &value
+	}
+	if value, ok := _c.mutation.AccountRateVersionID(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64, value)
+		_node.AccountRateVersionID = &value
+	}
+	if value, ok := _c.mutation.AccountRateSource(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateSource, field.TypeString, value)
+		_node.AccountRateSource = &value
+	}
+	if value, ok := _c.mutation.AccountRateSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateSnapshot, field.TypeJSON, value)
+		_node.AccountRateSnapshot = value
 	}
 	if value, ok := _c.mutation.IdempotencyKey(); ok {
 		_spec.SetField(batchimagejob.FieldIdempotencyKey, field.TypeString, value)
@@ -1361,6 +1412,66 @@ func (u *BatchImageJobUpsert) UpdateHoldID() *BatchImageJobUpsert {
 // ClearHoldID clears the value of the "hold_id" field.
 func (u *BatchImageJobUpsert) ClearHoldID() *BatchImageJobUpsert {
 	u.SetNull(batchimagejob.FieldHoldID)
+	return u
+}
+
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (u *BatchImageJobUpsert) SetAccountRateVersionID(v int64) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldAccountRateVersionID, v)
+	return u
+}
+
+// UpdateAccountRateVersionID sets the "account_rate_version_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateAccountRateVersionID() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldAccountRateVersionID)
+	return u
+}
+
+// AddAccountRateVersionID adds v to the "account_rate_version_id" field.
+func (u *BatchImageJobUpsert) AddAccountRateVersionID(v int64) *BatchImageJobUpsert {
+	u.Add(batchimagejob.FieldAccountRateVersionID, v)
+	return u
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (u *BatchImageJobUpsert) ClearAccountRateVersionID() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldAccountRateVersionID)
+	return u
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (u *BatchImageJobUpsert) SetAccountRateSource(v string) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldAccountRateSource, v)
+	return u
+}
+
+// UpdateAccountRateSource sets the "account_rate_source" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateAccountRateSource() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldAccountRateSource)
+	return u
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (u *BatchImageJobUpsert) ClearAccountRateSource() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldAccountRateSource)
+	return u
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (u *BatchImageJobUpsert) SetAccountRateSnapshot(v map[string]interface{}) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldAccountRateSnapshot, v)
+	return u
+}
+
+// UpdateAccountRateSnapshot sets the "account_rate_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateAccountRateSnapshot() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldAccountRateSnapshot)
+	return u
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (u *BatchImageJobUpsert) ClearAccountRateSnapshot() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldAccountRateSnapshot)
 	return u
 }
 
@@ -2143,6 +2254,76 @@ func (u *BatchImageJobUpsertOne) UpdateHoldID() *BatchImageJobUpsertOne {
 func (u *BatchImageJobUpsertOne) ClearHoldID() *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearHoldID()
+	})
+}
+
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (u *BatchImageJobUpsertOne) SetAccountRateVersionID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAccountRateVersionID(v)
+	})
+}
+
+// AddAccountRateVersionID adds v to the "account_rate_version_id" field.
+func (u *BatchImageJobUpsertOne) AddAccountRateVersionID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddAccountRateVersionID(v)
+	})
+}
+
+// UpdateAccountRateVersionID sets the "account_rate_version_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateAccountRateVersionID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAccountRateVersionID()
+	})
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (u *BatchImageJobUpsertOne) ClearAccountRateVersionID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearAccountRateVersionID()
+	})
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (u *BatchImageJobUpsertOne) SetAccountRateSource(v string) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAccountRateSource(v)
+	})
+}
+
+// UpdateAccountRateSource sets the "account_rate_source" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateAccountRateSource() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAccountRateSource()
+	})
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (u *BatchImageJobUpsertOne) ClearAccountRateSource() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearAccountRateSource()
+	})
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (u *BatchImageJobUpsertOne) SetAccountRateSnapshot(v map[string]interface{}) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAccountRateSnapshot(v)
+	})
+}
+
+// UpdateAccountRateSnapshot sets the "account_rate_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateAccountRateSnapshot() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAccountRateSnapshot()
+	})
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (u *BatchImageJobUpsertOne) ClearAccountRateSnapshot() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearAccountRateSnapshot()
 	})
 }
 
@@ -3141,6 +3322,76 @@ func (u *BatchImageJobUpsertBulk) UpdateHoldID() *BatchImageJobUpsertBulk {
 func (u *BatchImageJobUpsertBulk) ClearHoldID() *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearHoldID()
+	})
+}
+
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (u *BatchImageJobUpsertBulk) SetAccountRateVersionID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAccountRateVersionID(v)
+	})
+}
+
+// AddAccountRateVersionID adds v to the "account_rate_version_id" field.
+func (u *BatchImageJobUpsertBulk) AddAccountRateVersionID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddAccountRateVersionID(v)
+	})
+}
+
+// UpdateAccountRateVersionID sets the "account_rate_version_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateAccountRateVersionID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAccountRateVersionID()
+	})
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (u *BatchImageJobUpsertBulk) ClearAccountRateVersionID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearAccountRateVersionID()
+	})
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (u *BatchImageJobUpsertBulk) SetAccountRateSource(v string) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAccountRateSource(v)
+	})
+}
+
+// UpdateAccountRateSource sets the "account_rate_source" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateAccountRateSource() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAccountRateSource()
+	})
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (u *BatchImageJobUpsertBulk) ClearAccountRateSource() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearAccountRateSource()
+	})
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (u *BatchImageJobUpsertBulk) SetAccountRateSnapshot(v map[string]interface{}) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAccountRateSnapshot(v)
+	})
+}
+
+// UpdateAccountRateSnapshot sets the "account_rate_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateAccountRateSnapshot() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAccountRateSnapshot()
+	})
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (u *BatchImageJobUpsertBulk) ClearAccountRateSnapshot() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearAccountRateSnapshot()
 	})
 }
 

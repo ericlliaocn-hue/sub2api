@@ -327,6 +327,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		usageLog.RateMultiplier = multiplier
 	}
 	usageLog.AccountRateMultiplier = &accountRateMultiplier
+	rateVersionID, rateSource, rateSnapshot := account.RateVersionFields()
+	usageLog.AccountRateVersionID = rateVersionID
+	usageLog.AccountRateSource = rateSource
+	usageLog.AccountRateSnapshot = rateSnapshot
 	usageLog.BillingType = billingType
 	usageLog.Stream = result.Stream
 	if input.CyberBlocked {
@@ -380,6 +384,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			tokens, cost.TotalCost,
 		)
 	}
+	applyManualUpstreamCost(usageLog, account, result.UpstreamModel, result.Model, tokens)
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
@@ -396,6 +401,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	billingErr := func() error {
+		rateVersionID, rateSource, rateSnapshot := account.RateVersionFields()
 		_, err := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
 			Cost:                  cost,
 			User:                  user,
@@ -405,6 +411,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
 			IsSubscriptionBill:    isSubscriptionBilling,
 			AccountRateMultiplier: accountRateMultiplier,
+			AccountRateVersionID:  rateVersionID,
+			AccountRateSource:     derefString(rateSource),
+			AccountRateSnapshot:   rateSnapshot,
 			APIKeyService:         input.APIKeyService,
 			Platform:              quotaPlatform,
 		}, s.billingDeps(), s.usageBillingRepo)

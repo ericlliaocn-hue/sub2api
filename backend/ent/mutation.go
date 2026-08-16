@@ -2282,60 +2282,62 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 // AccountMutation represents an operation that mutates the Account nodes in the graph.
 type AccountMutation struct {
 	config
-	op                          Op
-	typ                         string
-	id                          *int64
-	created_at                  *time.Time
-	updated_at                  *time.Time
-	deleted_at                  *time.Time
-	name                        *string
-	notes                       *string
-	platform                    *string
-	_type                       *string
-	credentials                 *map[string]interface{}
-	extra                       *map[string]interface{}
-	proxy_fallback_origin_id    *int64
-	addproxy_fallback_origin_id *int64
-	concurrency                 *int
-	addconcurrency              *int
-	load_factor                 *int
-	addload_factor              *int
-	priority                    *int
-	addpriority                 *int
-	rate_multiplier             *float64
-	addrate_multiplier          *float64
-	status                      *string
-	error_message               *string
-	last_used_at                *time.Time
-	expires_at                  *time.Time
-	auto_pause_on_expired       *bool
-	schedulable                 *bool
-	rate_limited_at             *time.Time
-	rate_limit_reset_at         *time.Time
-	overload_until              *time.Time
-	temp_unschedulable_until    *time.Time
-	temp_unschedulable_reason   *string
-	session_window_start        *time.Time
-	session_window_end          *time.Time
-	session_window_status       *string
-	quota_dimension             *account.QuotaDimension
-	clearedFields               map[string]struct{}
-	groups                      map[int64]struct{}
-	removedgroups               map[int64]struct{}
-	clearedgroups               bool
-	proxy                       *int64
-	clearedproxy                bool
-	parent                      *int64
-	clearedparent               bool
-	children                    map[int64]struct{}
-	removedchildren             map[int64]struct{}
-	clearedchildren             bool
-	usage_logs                  map[int64]struct{}
-	removedusage_logs           map[int64]struct{}
-	clearedusage_logs           bool
-	done                        bool
-	oldValue                    func(context.Context) (*Account, error)
-	predicates                  []predicate.Account
+	op                                 Op
+	typ                                string
+	id                                 *int64
+	created_at                         *time.Time
+	updated_at                         *time.Time
+	deleted_at                         *time.Time
+	name                               *string
+	notes                              *string
+	platform                           *string
+	_type                              *string
+	credentials                        *map[string]interface{}
+	extra                              *map[string]interface{}
+	proxy_fallback_origin_id           *int64
+	addproxy_fallback_origin_id        *int64
+	concurrency                        *int
+	addconcurrency                     *int
+	load_factor                        *int
+	addload_factor                     *int
+	priority                           *int
+	addpriority                        *int
+	rate_multiplier                    *float64
+	addrate_multiplier                 *float64
+	active_upstream_rate_version_id    *int64
+	addactive_upstream_rate_version_id *int64
+	status                             *string
+	error_message                      *string
+	last_used_at                       *time.Time
+	expires_at                         *time.Time
+	auto_pause_on_expired              *bool
+	schedulable                        *bool
+	rate_limited_at                    *time.Time
+	rate_limit_reset_at                *time.Time
+	overload_until                     *time.Time
+	temp_unschedulable_until           *time.Time
+	temp_unschedulable_reason          *string
+	session_window_start               *time.Time
+	session_window_end                 *time.Time
+	session_window_status              *string
+	quota_dimension                    *account.QuotaDimension
+	clearedFields                      map[string]struct{}
+	groups                             map[int64]struct{}
+	removedgroups                      map[int64]struct{}
+	clearedgroups                      bool
+	proxy                              *int64
+	clearedproxy                       bool
+	parent                             *int64
+	clearedparent                      bool
+	children                           map[int64]struct{}
+	removedchildren                    map[int64]struct{}
+	clearedchildren                    bool
+	usage_logs                         map[int64]struct{}
+	removedusage_logs                  map[int64]struct{}
+	clearedusage_logs                  bool
+	done                               bool
+	oldValue                           func(context.Context) (*Account, error)
+	predicates                         []predicate.Account
 }
 
 var _ ent.Mutation = (*AccountMutation)(nil)
@@ -3141,6 +3143,76 @@ func (m *AccountMutation) AddedRateMultiplier() (r float64, exists bool) {
 func (m *AccountMutation) ResetRateMultiplier() {
 	m.rate_multiplier = nil
 	m.addrate_multiplier = nil
+}
+
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (m *AccountMutation) SetActiveUpstreamRateVersionID(i int64) {
+	m.active_upstream_rate_version_id = &i
+	m.addactive_upstream_rate_version_id = nil
+}
+
+// ActiveUpstreamRateVersionID returns the value of the "active_upstream_rate_version_id" field in the mutation.
+func (m *AccountMutation) ActiveUpstreamRateVersionID() (r int64, exists bool) {
+	v := m.active_upstream_rate_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActiveUpstreamRateVersionID returns the old "active_upstream_rate_version_id" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldActiveUpstreamRateVersionID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActiveUpstreamRateVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActiveUpstreamRateVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActiveUpstreamRateVersionID: %w", err)
+	}
+	return oldValue.ActiveUpstreamRateVersionID, nil
+}
+
+// AddActiveUpstreamRateVersionID adds i to the "active_upstream_rate_version_id" field.
+func (m *AccountMutation) AddActiveUpstreamRateVersionID(i int64) {
+	if m.addactive_upstream_rate_version_id != nil {
+		*m.addactive_upstream_rate_version_id += i
+	} else {
+		m.addactive_upstream_rate_version_id = &i
+	}
+}
+
+// AddedActiveUpstreamRateVersionID returns the value that was added to the "active_upstream_rate_version_id" field in this mutation.
+func (m *AccountMutation) AddedActiveUpstreamRateVersionID() (r int64, exists bool) {
+	v := m.addactive_upstream_rate_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearActiveUpstreamRateVersionID clears the value of the "active_upstream_rate_version_id" field.
+func (m *AccountMutation) ClearActiveUpstreamRateVersionID() {
+	m.active_upstream_rate_version_id = nil
+	m.addactive_upstream_rate_version_id = nil
+	m.clearedFields[account.FieldActiveUpstreamRateVersionID] = struct{}{}
+}
+
+// ActiveUpstreamRateVersionIDCleared returns if the "active_upstream_rate_version_id" field was cleared in this mutation.
+func (m *AccountMutation) ActiveUpstreamRateVersionIDCleared() bool {
+	_, ok := m.clearedFields[account.FieldActiveUpstreamRateVersionID]
+	return ok
+}
+
+// ResetActiveUpstreamRateVersionID resets all changes to the "active_upstream_rate_version_id" field.
+func (m *AccountMutation) ResetActiveUpstreamRateVersionID() {
+	m.active_upstream_rate_version_id = nil
+	m.addactive_upstream_rate_version_id = nil
+	delete(m.clearedFields, account.FieldActiveUpstreamRateVersionID)
 }
 
 // SetStatus sets the "status" field.
@@ -4138,7 +4210,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4183,6 +4255,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.rate_multiplier != nil {
 		fields = append(fields, account.FieldRateMultiplier)
+	}
+	if m.active_upstream_rate_version_id != nil {
+		fields = append(fields, account.FieldActiveUpstreamRateVersionID)
 	}
 	if m.status != nil {
 		fields = append(fields, account.FieldStatus)
@@ -4270,6 +4345,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.Priority()
 	case account.FieldRateMultiplier:
 		return m.RateMultiplier()
+	case account.FieldActiveUpstreamRateVersionID:
+		return m.ActiveUpstreamRateVersionID()
 	case account.FieldStatus:
 		return m.Status()
 	case account.FieldErrorMessage:
@@ -4341,6 +4418,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldPriority(ctx)
 	case account.FieldRateMultiplier:
 		return m.OldRateMultiplier(ctx)
+	case account.FieldActiveUpstreamRateVersionID:
+		return m.OldActiveUpstreamRateVersionID(ctx)
 	case account.FieldStatus:
 		return m.OldStatus(ctx)
 	case account.FieldErrorMessage:
@@ -4487,6 +4566,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRateMultiplier(v)
 		return nil
+	case account.FieldActiveUpstreamRateVersionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActiveUpstreamRateVersionID(v)
+		return nil
 	case account.FieldStatus:
 		v, ok := value.(string)
 		if !ok {
@@ -4622,6 +4708,9 @@ func (m *AccountMutation) AddedFields() []string {
 	if m.addrate_multiplier != nil {
 		fields = append(fields, account.FieldRateMultiplier)
 	}
+	if m.addactive_upstream_rate_version_id != nil {
+		fields = append(fields, account.FieldActiveUpstreamRateVersionID)
+	}
 	return fields
 }
 
@@ -4640,6 +4729,8 @@ func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedPriority()
 	case account.FieldRateMultiplier:
 		return m.AddedRateMultiplier()
+	case account.FieldActiveUpstreamRateVersionID:
+		return m.AddedActiveUpstreamRateVersionID()
 	}
 	return nil, false
 }
@@ -4684,6 +4775,13 @@ func (m *AccountMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddRateMultiplier(v)
 		return nil
+	case account.FieldActiveUpstreamRateVersionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActiveUpstreamRateVersionID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Account numeric field %s", name)
 }
@@ -4706,6 +4804,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(account.FieldLoadFactor) {
 		fields = append(fields, account.FieldLoadFactor)
+	}
+	if m.FieldCleared(account.FieldActiveUpstreamRateVersionID) {
+		fields = append(fields, account.FieldActiveUpstreamRateVersionID)
 	}
 	if m.FieldCleared(account.FieldErrorMessage) {
 		fields = append(fields, account.FieldErrorMessage)
@@ -4771,6 +4872,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldLoadFactor:
 		m.ClearLoadFactor()
+		return nil
+	case account.FieldActiveUpstreamRateVersionID:
+		m.ClearActiveUpstreamRateVersionID()
 		return nil
 	case account.FieldErrorMessage:
 		m.ClearErrorMessage()
@@ -4860,6 +4964,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldRateMultiplier:
 		m.ResetRateMultiplier()
+		return nil
+	case account.FieldActiveUpstreamRateVersionID:
+		m.ResetActiveUpstreamRateVersionID()
 		return nil
 	case account.FieldStatus:
 		m.ResetStatus()
@@ -11307,65 +11414,69 @@ func (m *BatchImageItemMutation) ResetEdge(name string) error {
 // BatchImageJobMutation represents an operation that mutates the BatchImageJob nodes in the graph.
 type BatchImageJobMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int64
-	batch_id            *string
-	user_id             *int64
-	adduser_id          *int64
-	api_key_id          *int64
-	addapi_key_id       *int64
-	account_id          *int64
-	addaccount_id       *int64
-	provider            *string
-	model               *string
-	task_name           *string
-	status              *string
-	provider_job_name   *string
-	provider_input_ref  *string
-	provider_output_ref *string
-	gcs_input_uri       *string
-	gcs_output_uri      *string
-	item_count          *int
-	additem_count       *int
-	success_count       *int
-	addsuccess_count    *int
-	fail_count          *int
-	addfail_count       *int
-	cancelled_count     *int
-	addcancelled_count  *int
-	estimated_cost      *float64
-	addestimated_cost   *float64
-	hold_amount         *float64
-	addhold_amount      *float64
-	actual_cost         *float64
-	addactual_cost      *float64
-	currency            *string
-	hold_id             *string
-	idempotency_key     *string
-	request_hash        *string
-	manifest_hash       *string
-	retry_count         *int
-	addretry_count      *int
-	version             *int
-	addversion          *int
-	output_expires_at   *time.Time
-	input_deleted_at    *time.Time
-	output_deleted_at   *time.Time
-	downloaded_at       *time.Time
-	user_deleted_at     *time.Time
-	last_error_code     *string
-	last_error_message  *string
-	created_at          *time.Time
-	updated_at          *time.Time
-	submitted_at        *time.Time
-	started_at          *time.Time
-	finished_at         *time.Time
-	settled_at          *time.Time
-	clearedFields       map[string]struct{}
-	done                bool
-	oldValue            func(context.Context) (*BatchImageJob, error)
-	predicates          []predicate.BatchImageJob
+	op                         Op
+	typ                        string
+	id                         *int64
+	batch_id                   *string
+	user_id                    *int64
+	adduser_id                 *int64
+	api_key_id                 *int64
+	addapi_key_id              *int64
+	account_id                 *int64
+	addaccount_id              *int64
+	provider                   *string
+	model                      *string
+	task_name                  *string
+	status                     *string
+	provider_job_name          *string
+	provider_input_ref         *string
+	provider_output_ref        *string
+	gcs_input_uri              *string
+	gcs_output_uri             *string
+	item_count                 *int
+	additem_count              *int
+	success_count              *int
+	addsuccess_count           *int
+	fail_count                 *int
+	addfail_count              *int
+	cancelled_count            *int
+	addcancelled_count         *int
+	estimated_cost             *float64
+	addestimated_cost          *float64
+	hold_amount                *float64
+	addhold_amount             *float64
+	actual_cost                *float64
+	addactual_cost             *float64
+	currency                   *string
+	hold_id                    *string
+	account_rate_version_id    *int64
+	addaccount_rate_version_id *int64
+	account_rate_source        *string
+	account_rate_snapshot      *map[string]interface{}
+	idempotency_key            *string
+	request_hash               *string
+	manifest_hash              *string
+	retry_count                *int
+	addretry_count             *int
+	version                    *int
+	addversion                 *int
+	output_expires_at          *time.Time
+	input_deleted_at           *time.Time
+	output_deleted_at          *time.Time
+	downloaded_at              *time.Time
+	user_deleted_at            *time.Time
+	last_error_code            *string
+	last_error_message         *string
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	submitted_at               *time.Time
+	started_at                 *time.Time
+	finished_at                *time.Time
+	settled_at                 *time.Time
+	clearedFields              map[string]struct{}
+	done                       bool
+	oldValue                   func(context.Context) (*BatchImageJob, error)
+	predicates                 []predicate.BatchImageJob
 }
 
 var _ ent.Mutation = (*BatchImageJobMutation)(nil)
@@ -12592,6 +12703,174 @@ func (m *BatchImageJobMutation) ResetHoldID() {
 	delete(m.clearedFields, batchimagejob.FieldHoldID)
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (m *BatchImageJobMutation) SetAccountRateVersionID(i int64) {
+	m.account_rate_version_id = &i
+	m.addaccount_rate_version_id = nil
+}
+
+// AccountRateVersionID returns the value of the "account_rate_version_id" field in the mutation.
+func (m *BatchImageJobMutation) AccountRateVersionID() (r int64, exists bool) {
+	v := m.account_rate_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRateVersionID returns the old "account_rate_version_id" field's value of the BatchImageJob entity.
+// If the BatchImageJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BatchImageJobMutation) OldAccountRateVersionID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRateVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRateVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRateVersionID: %w", err)
+	}
+	return oldValue.AccountRateVersionID, nil
+}
+
+// AddAccountRateVersionID adds i to the "account_rate_version_id" field.
+func (m *BatchImageJobMutation) AddAccountRateVersionID(i int64) {
+	if m.addaccount_rate_version_id != nil {
+		*m.addaccount_rate_version_id += i
+	} else {
+		m.addaccount_rate_version_id = &i
+	}
+}
+
+// AddedAccountRateVersionID returns the value that was added to the "account_rate_version_id" field in this mutation.
+func (m *BatchImageJobMutation) AddedAccountRateVersionID() (r int64, exists bool) {
+	v := m.addaccount_rate_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (m *BatchImageJobMutation) ClearAccountRateVersionID() {
+	m.account_rate_version_id = nil
+	m.addaccount_rate_version_id = nil
+	m.clearedFields[batchimagejob.FieldAccountRateVersionID] = struct{}{}
+}
+
+// AccountRateVersionIDCleared returns if the "account_rate_version_id" field was cleared in this mutation.
+func (m *BatchImageJobMutation) AccountRateVersionIDCleared() bool {
+	_, ok := m.clearedFields[batchimagejob.FieldAccountRateVersionID]
+	return ok
+}
+
+// ResetAccountRateVersionID resets all changes to the "account_rate_version_id" field.
+func (m *BatchImageJobMutation) ResetAccountRateVersionID() {
+	m.account_rate_version_id = nil
+	m.addaccount_rate_version_id = nil
+	delete(m.clearedFields, batchimagejob.FieldAccountRateVersionID)
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (m *BatchImageJobMutation) SetAccountRateSource(s string) {
+	m.account_rate_source = &s
+}
+
+// AccountRateSource returns the value of the "account_rate_source" field in the mutation.
+func (m *BatchImageJobMutation) AccountRateSource() (r string, exists bool) {
+	v := m.account_rate_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRateSource returns the old "account_rate_source" field's value of the BatchImageJob entity.
+// If the BatchImageJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BatchImageJobMutation) OldAccountRateSource(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRateSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRateSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRateSource: %w", err)
+	}
+	return oldValue.AccountRateSource, nil
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (m *BatchImageJobMutation) ClearAccountRateSource() {
+	m.account_rate_source = nil
+	m.clearedFields[batchimagejob.FieldAccountRateSource] = struct{}{}
+}
+
+// AccountRateSourceCleared returns if the "account_rate_source" field was cleared in this mutation.
+func (m *BatchImageJobMutation) AccountRateSourceCleared() bool {
+	_, ok := m.clearedFields[batchimagejob.FieldAccountRateSource]
+	return ok
+}
+
+// ResetAccountRateSource resets all changes to the "account_rate_source" field.
+func (m *BatchImageJobMutation) ResetAccountRateSource() {
+	m.account_rate_source = nil
+	delete(m.clearedFields, batchimagejob.FieldAccountRateSource)
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (m *BatchImageJobMutation) SetAccountRateSnapshot(value map[string]interface{}) {
+	m.account_rate_snapshot = &value
+}
+
+// AccountRateSnapshot returns the value of the "account_rate_snapshot" field in the mutation.
+func (m *BatchImageJobMutation) AccountRateSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.account_rate_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRateSnapshot returns the old "account_rate_snapshot" field's value of the BatchImageJob entity.
+// If the BatchImageJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BatchImageJobMutation) OldAccountRateSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRateSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRateSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRateSnapshot: %w", err)
+	}
+	return oldValue.AccountRateSnapshot, nil
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (m *BatchImageJobMutation) ClearAccountRateSnapshot() {
+	m.account_rate_snapshot = nil
+	m.clearedFields[batchimagejob.FieldAccountRateSnapshot] = struct{}{}
+}
+
+// AccountRateSnapshotCleared returns if the "account_rate_snapshot" field was cleared in this mutation.
+func (m *BatchImageJobMutation) AccountRateSnapshotCleared() bool {
+	_, ok := m.clearedFields[batchimagejob.FieldAccountRateSnapshot]
+	return ok
+}
+
+// ResetAccountRateSnapshot resets all changes to the "account_rate_snapshot" field.
+func (m *BatchImageJobMutation) ResetAccountRateSnapshot() {
+	m.account_rate_snapshot = nil
+	delete(m.clearedFields, batchimagejob.FieldAccountRateSnapshot)
+}
+
 // SetIdempotencyKey sets the "idempotency_key" field.
 func (m *BatchImageJobMutation) SetIdempotencyKey(s string) {
 	m.idempotency_key = &s
@@ -13496,7 +13775,7 @@ func (m *BatchImageJobMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BatchImageJobMutation) Fields() []string {
-	fields := make([]string, 0, 40)
+	fields := make([]string, 0, 43)
 	if m.batch_id != nil {
 		fields = append(fields, batchimagejob.FieldBatchID)
 	}
@@ -13562,6 +13841,15 @@ func (m *BatchImageJobMutation) Fields() []string {
 	}
 	if m.hold_id != nil {
 		fields = append(fields, batchimagejob.FieldHoldID)
+	}
+	if m.account_rate_version_id != nil {
+		fields = append(fields, batchimagejob.FieldAccountRateVersionID)
+	}
+	if m.account_rate_source != nil {
+		fields = append(fields, batchimagejob.FieldAccountRateSource)
+	}
+	if m.account_rate_snapshot != nil {
+		fields = append(fields, batchimagejob.FieldAccountRateSnapshot)
 	}
 	if m.idempotency_key != nil {
 		fields = append(fields, batchimagejob.FieldIdempotencyKey)
@@ -13669,6 +13957,12 @@ func (m *BatchImageJobMutation) Field(name string) (ent.Value, bool) {
 		return m.Currency()
 	case batchimagejob.FieldHoldID:
 		return m.HoldID()
+	case batchimagejob.FieldAccountRateVersionID:
+		return m.AccountRateVersionID()
+	case batchimagejob.FieldAccountRateSource:
+		return m.AccountRateSource()
+	case batchimagejob.FieldAccountRateSnapshot:
+		return m.AccountRateSnapshot()
 	case batchimagejob.FieldIdempotencyKey:
 		return m.IdempotencyKey()
 	case batchimagejob.FieldRequestHash:
@@ -13758,6 +14052,12 @@ func (m *BatchImageJobMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldCurrency(ctx)
 	case batchimagejob.FieldHoldID:
 		return m.OldHoldID(ctx)
+	case batchimagejob.FieldAccountRateVersionID:
+		return m.OldAccountRateVersionID(ctx)
+	case batchimagejob.FieldAccountRateSource:
+		return m.OldAccountRateSource(ctx)
+	case batchimagejob.FieldAccountRateSnapshot:
+		return m.OldAccountRateSnapshot(ctx)
 	case batchimagejob.FieldIdempotencyKey:
 		return m.OldIdempotencyKey(ctx)
 	case batchimagejob.FieldRequestHash:
@@ -13957,6 +14257,27 @@ func (m *BatchImageJobMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetHoldID(v)
 		return nil
+	case batchimagejob.FieldAccountRateVersionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRateVersionID(v)
+		return nil
+	case batchimagejob.FieldAccountRateSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRateSource(v)
+		return nil
+	case batchimagejob.FieldAccountRateSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRateSnapshot(v)
+		return nil
 	case batchimagejob.FieldIdempotencyKey:
 		v, ok := value.(string)
 		if !ok {
@@ -14121,6 +14442,9 @@ func (m *BatchImageJobMutation) AddedFields() []string {
 	if m.addactual_cost != nil {
 		fields = append(fields, batchimagejob.FieldActualCost)
 	}
+	if m.addaccount_rate_version_id != nil {
+		fields = append(fields, batchimagejob.FieldAccountRateVersionID)
+	}
 	if m.addretry_count != nil {
 		fields = append(fields, batchimagejob.FieldRetryCount)
 	}
@@ -14155,6 +14479,8 @@ func (m *BatchImageJobMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedHoldAmount()
 	case batchimagejob.FieldActualCost:
 		return m.AddedActualCost()
+	case batchimagejob.FieldAccountRateVersionID:
+		return m.AddedAccountRateVersionID()
 	case batchimagejob.FieldRetryCount:
 		return m.AddedRetryCount()
 	case batchimagejob.FieldVersion:
@@ -14238,6 +14564,13 @@ func (m *BatchImageJobMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddActualCost(v)
 		return nil
+	case batchimagejob.FieldAccountRateVersionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountRateVersionID(v)
+		return nil
 	case batchimagejob.FieldRetryCount:
 		v, ok := value.(int)
 		if !ok {
@@ -14289,6 +14622,15 @@ func (m *BatchImageJobMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(batchimagejob.FieldHoldID) {
 		fields = append(fields, batchimagejob.FieldHoldID)
+	}
+	if m.FieldCleared(batchimagejob.FieldAccountRateVersionID) {
+		fields = append(fields, batchimagejob.FieldAccountRateVersionID)
+	}
+	if m.FieldCleared(batchimagejob.FieldAccountRateSource) {
+		fields = append(fields, batchimagejob.FieldAccountRateSource)
+	}
+	if m.FieldCleared(batchimagejob.FieldAccountRateSnapshot) {
+		fields = append(fields, batchimagejob.FieldAccountRateSnapshot)
 	}
 	if m.FieldCleared(batchimagejob.FieldIdempotencyKey) {
 		fields = append(fields, batchimagejob.FieldIdempotencyKey)
@@ -14375,6 +14717,15 @@ func (m *BatchImageJobMutation) ClearField(name string) error {
 		return nil
 	case batchimagejob.FieldHoldID:
 		m.ClearHoldID()
+		return nil
+	case batchimagejob.FieldAccountRateVersionID:
+		m.ClearAccountRateVersionID()
+		return nil
+	case batchimagejob.FieldAccountRateSource:
+		m.ClearAccountRateSource()
+		return nil
+	case batchimagejob.FieldAccountRateSnapshot:
+		m.ClearAccountRateSnapshot()
 		return nil
 	case batchimagejob.FieldIdempotencyKey:
 		m.ClearIdempotencyKey()
@@ -14491,6 +14842,15 @@ func (m *BatchImageJobMutation) ResetField(name string) error {
 		return nil
 	case batchimagejob.FieldHoldID:
 		m.ResetHoldID()
+		return nil
+	case batchimagejob.FieldAccountRateVersionID:
+		m.ResetAccountRateVersionID()
+		return nil
+	case batchimagejob.FieldAccountRateSource:
+		m.ResetAccountRateSource()
+		return nil
+	case batchimagejob.FieldAccountRateSnapshot:
+		m.ResetAccountRateSnapshot()
 		return nil
 	case batchimagejob.FieldIdempotencyKey:
 		m.ResetIdempotencyKey()
@@ -43392,6 +43752,13 @@ type UsageLogMutation struct {
 	long_context_billing_applied *bool
 	account_rate_multiplier      *float64
 	addaccount_rate_multiplier   *float64
+	account_rate_version_id      *int64
+	addaccount_rate_version_id   *int64
+	account_rate_source          *string
+	account_rate_snapshot        *map[string]interface{}
+	upstream_cost                *float64
+	addupstream_cost             *float64
+	upstream_cost_snapshot       *map[string]interface{}
 	billing_type                 *int8
 	addbilling_type              *int8
 	stream                       *bool
@@ -45054,6 +45421,293 @@ func (m *UsageLogMutation) ResetAccountRateMultiplier() {
 	delete(m.clearedFields, usagelog.FieldAccountRateMultiplier)
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (m *UsageLogMutation) SetAccountRateVersionID(i int64) {
+	m.account_rate_version_id = &i
+	m.addaccount_rate_version_id = nil
+}
+
+// AccountRateVersionID returns the value of the "account_rate_version_id" field in the mutation.
+func (m *UsageLogMutation) AccountRateVersionID() (r int64, exists bool) {
+	v := m.account_rate_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRateVersionID returns the old "account_rate_version_id" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldAccountRateVersionID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRateVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRateVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRateVersionID: %w", err)
+	}
+	return oldValue.AccountRateVersionID, nil
+}
+
+// AddAccountRateVersionID adds i to the "account_rate_version_id" field.
+func (m *UsageLogMutation) AddAccountRateVersionID(i int64) {
+	if m.addaccount_rate_version_id != nil {
+		*m.addaccount_rate_version_id += i
+	} else {
+		m.addaccount_rate_version_id = &i
+	}
+}
+
+// AddedAccountRateVersionID returns the value that was added to the "account_rate_version_id" field in this mutation.
+func (m *UsageLogMutation) AddedAccountRateVersionID() (r int64, exists bool) {
+	v := m.addaccount_rate_version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (m *UsageLogMutation) ClearAccountRateVersionID() {
+	m.account_rate_version_id = nil
+	m.addaccount_rate_version_id = nil
+	m.clearedFields[usagelog.FieldAccountRateVersionID] = struct{}{}
+}
+
+// AccountRateVersionIDCleared returns if the "account_rate_version_id" field was cleared in this mutation.
+func (m *UsageLogMutation) AccountRateVersionIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldAccountRateVersionID]
+	return ok
+}
+
+// ResetAccountRateVersionID resets all changes to the "account_rate_version_id" field.
+func (m *UsageLogMutation) ResetAccountRateVersionID() {
+	m.account_rate_version_id = nil
+	m.addaccount_rate_version_id = nil
+	delete(m.clearedFields, usagelog.FieldAccountRateVersionID)
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (m *UsageLogMutation) SetAccountRateSource(s string) {
+	m.account_rate_source = &s
+}
+
+// AccountRateSource returns the value of the "account_rate_source" field in the mutation.
+func (m *UsageLogMutation) AccountRateSource() (r string, exists bool) {
+	v := m.account_rate_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRateSource returns the old "account_rate_source" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldAccountRateSource(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRateSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRateSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRateSource: %w", err)
+	}
+	return oldValue.AccountRateSource, nil
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (m *UsageLogMutation) ClearAccountRateSource() {
+	m.account_rate_source = nil
+	m.clearedFields[usagelog.FieldAccountRateSource] = struct{}{}
+}
+
+// AccountRateSourceCleared returns if the "account_rate_source" field was cleared in this mutation.
+func (m *UsageLogMutation) AccountRateSourceCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldAccountRateSource]
+	return ok
+}
+
+// ResetAccountRateSource resets all changes to the "account_rate_source" field.
+func (m *UsageLogMutation) ResetAccountRateSource() {
+	m.account_rate_source = nil
+	delete(m.clearedFields, usagelog.FieldAccountRateSource)
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (m *UsageLogMutation) SetAccountRateSnapshot(value map[string]interface{}) {
+	m.account_rate_snapshot = &value
+}
+
+// AccountRateSnapshot returns the value of the "account_rate_snapshot" field in the mutation.
+func (m *UsageLogMutation) AccountRateSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.account_rate_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountRateSnapshot returns the old "account_rate_snapshot" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldAccountRateSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountRateSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountRateSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountRateSnapshot: %w", err)
+	}
+	return oldValue.AccountRateSnapshot, nil
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (m *UsageLogMutation) ClearAccountRateSnapshot() {
+	m.account_rate_snapshot = nil
+	m.clearedFields[usagelog.FieldAccountRateSnapshot] = struct{}{}
+}
+
+// AccountRateSnapshotCleared returns if the "account_rate_snapshot" field was cleared in this mutation.
+func (m *UsageLogMutation) AccountRateSnapshotCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldAccountRateSnapshot]
+	return ok
+}
+
+// ResetAccountRateSnapshot resets all changes to the "account_rate_snapshot" field.
+func (m *UsageLogMutation) ResetAccountRateSnapshot() {
+	m.account_rate_snapshot = nil
+	delete(m.clearedFields, usagelog.FieldAccountRateSnapshot)
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (m *UsageLogMutation) SetUpstreamCost(f float64) {
+	m.upstream_cost = &f
+	m.addupstream_cost = nil
+}
+
+// UpstreamCost returns the value of the "upstream_cost" field in the mutation.
+func (m *UsageLogMutation) UpstreamCost() (r float64, exists bool) {
+	v := m.upstream_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamCost returns the old "upstream_cost" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldUpstreamCost(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamCost: %w", err)
+	}
+	return oldValue.UpstreamCost, nil
+}
+
+// AddUpstreamCost adds f to the "upstream_cost" field.
+func (m *UsageLogMutation) AddUpstreamCost(f float64) {
+	if m.addupstream_cost != nil {
+		*m.addupstream_cost += f
+	} else {
+		m.addupstream_cost = &f
+	}
+}
+
+// AddedUpstreamCost returns the value that was added to the "upstream_cost" field in this mutation.
+func (m *UsageLogMutation) AddedUpstreamCost() (r float64, exists bool) {
+	v := m.addupstream_cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUpstreamCost clears the value of the "upstream_cost" field.
+func (m *UsageLogMutation) ClearUpstreamCost() {
+	m.upstream_cost = nil
+	m.addupstream_cost = nil
+	m.clearedFields[usagelog.FieldUpstreamCost] = struct{}{}
+}
+
+// UpstreamCostCleared returns if the "upstream_cost" field was cleared in this mutation.
+func (m *UsageLogMutation) UpstreamCostCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldUpstreamCost]
+	return ok
+}
+
+// ResetUpstreamCost resets all changes to the "upstream_cost" field.
+func (m *UsageLogMutation) ResetUpstreamCost() {
+	m.upstream_cost = nil
+	m.addupstream_cost = nil
+	delete(m.clearedFields, usagelog.FieldUpstreamCost)
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (m *UsageLogMutation) SetUpstreamCostSnapshot(value map[string]interface{}) {
+	m.upstream_cost_snapshot = &value
+}
+
+// UpstreamCostSnapshot returns the value of the "upstream_cost_snapshot" field in the mutation.
+func (m *UsageLogMutation) UpstreamCostSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.upstream_cost_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamCostSnapshot returns the old "upstream_cost_snapshot" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldUpstreamCostSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamCostSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamCostSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamCostSnapshot: %w", err)
+	}
+	return oldValue.UpstreamCostSnapshot, nil
+}
+
+// ClearUpstreamCostSnapshot clears the value of the "upstream_cost_snapshot" field.
+func (m *UsageLogMutation) ClearUpstreamCostSnapshot() {
+	m.upstream_cost_snapshot = nil
+	m.clearedFields[usagelog.FieldUpstreamCostSnapshot] = struct{}{}
+}
+
+// UpstreamCostSnapshotCleared returns if the "upstream_cost_snapshot" field was cleared in this mutation.
+func (m *UsageLogMutation) UpstreamCostSnapshotCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldUpstreamCostSnapshot]
+	return ok
+}
+
+// ResetUpstreamCostSnapshot resets all changes to the "upstream_cost_snapshot" field.
+func (m *UsageLogMutation) ResetUpstreamCostSnapshot() {
+	m.upstream_cost_snapshot = nil
+	delete(m.clearedFields, usagelog.FieldUpstreamCostSnapshot)
+}
+
 // SetBillingType sets the "billing_type" field.
 func (m *UsageLogMutation) SetBillingType(i int8) {
 	m.billing_type = &i
@@ -46101,7 +46755,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 47)
+	fields := make([]string, 0, 52)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -46191,6 +46845,21 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.account_rate_multiplier != nil {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
+	}
+	if m.account_rate_version_id != nil {
+		fields = append(fields, usagelog.FieldAccountRateVersionID)
+	}
+	if m.account_rate_source != nil {
+		fields = append(fields, usagelog.FieldAccountRateSource)
+	}
+	if m.account_rate_snapshot != nil {
+		fields = append(fields, usagelog.FieldAccountRateSnapshot)
+	}
+	if m.upstream_cost != nil {
+		fields = append(fields, usagelog.FieldUpstreamCost)
+	}
+	if m.upstream_cost_snapshot != nil {
+		fields = append(fields, usagelog.FieldUpstreamCostSnapshot)
 	}
 	if m.billing_type != nil {
 		fields = append(fields, usagelog.FieldBillingType)
@@ -46311,6 +46980,16 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.LongContextBillingApplied()
 	case usagelog.FieldAccountRateMultiplier:
 		return m.AccountRateMultiplier()
+	case usagelog.FieldAccountRateVersionID:
+		return m.AccountRateVersionID()
+	case usagelog.FieldAccountRateSource:
+		return m.AccountRateSource()
+	case usagelog.FieldAccountRateSnapshot:
+		return m.AccountRateSnapshot()
+	case usagelog.FieldUpstreamCost:
+		return m.UpstreamCost()
+	case usagelog.FieldUpstreamCostSnapshot:
+		return m.UpstreamCostSnapshot()
 	case usagelog.FieldBillingType:
 		return m.BillingType()
 	case usagelog.FieldStream:
@@ -46414,6 +47093,16 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldLongContextBillingApplied(ctx)
 	case usagelog.FieldAccountRateMultiplier:
 		return m.OldAccountRateMultiplier(ctx)
+	case usagelog.FieldAccountRateVersionID:
+		return m.OldAccountRateVersionID(ctx)
+	case usagelog.FieldAccountRateSource:
+		return m.OldAccountRateSource(ctx)
+	case usagelog.FieldAccountRateSnapshot:
+		return m.OldAccountRateSnapshot(ctx)
+	case usagelog.FieldUpstreamCost:
+		return m.OldUpstreamCost(ctx)
+	case usagelog.FieldUpstreamCostSnapshot:
+		return m.OldUpstreamCostSnapshot(ctx)
 	case usagelog.FieldBillingType:
 		return m.OldBillingType(ctx)
 	case usagelog.FieldStream:
@@ -46667,6 +47356,41 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAccountRateMultiplier(v)
 		return nil
+	case usagelog.FieldAccountRateVersionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRateVersionID(v)
+		return nil
+	case usagelog.FieldAccountRateSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRateSource(v)
+		return nil
+	case usagelog.FieldAccountRateSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountRateSnapshot(v)
+		return nil
+	case usagelog.FieldUpstreamCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamCost(v)
+		return nil
+	case usagelog.FieldUpstreamCostSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamCostSnapshot(v)
+		return nil
 	case usagelog.FieldBillingType:
 		v, ok := value.(int8)
 		if !ok {
@@ -46839,6 +47563,12 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addaccount_rate_multiplier != nil {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
+	if m.addaccount_rate_version_id != nil {
+		fields = append(fields, usagelog.FieldAccountRateVersionID)
+	}
+	if m.addupstream_cost != nil {
+		fields = append(fields, usagelog.FieldUpstreamCost)
+	}
 	if m.addbilling_type != nil {
 		fields = append(fields, usagelog.FieldBillingType)
 	}
@@ -46895,6 +47625,10 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
 		return m.AddedAccountRateMultiplier()
+	case usagelog.FieldAccountRateVersionID:
+		return m.AddedAccountRateVersionID()
+	case usagelog.FieldUpstreamCost:
+		return m.AddedUpstreamCost()
 	case usagelog.FieldBillingType:
 		return m.AddedBillingType()
 	case usagelog.FieldDurationMs:
@@ -47021,6 +47755,20 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddAccountRateMultiplier(v)
 		return nil
+	case usagelog.FieldAccountRateVersionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountRateVersionID(v)
+		return nil
+	case usagelog.FieldUpstreamCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpstreamCost(v)
+		return nil
 	case usagelog.FieldBillingType:
 		v, ok := value.(int8)
 		if !ok {
@@ -47104,6 +47852,21 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldAccountRateMultiplier) {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
+	if m.FieldCleared(usagelog.FieldAccountRateVersionID) {
+		fields = append(fields, usagelog.FieldAccountRateVersionID)
+	}
+	if m.FieldCleared(usagelog.FieldAccountRateSource) {
+		fields = append(fields, usagelog.FieldAccountRateSource)
+	}
+	if m.FieldCleared(usagelog.FieldAccountRateSnapshot) {
+		fields = append(fields, usagelog.FieldAccountRateSnapshot)
+	}
+	if m.FieldCleared(usagelog.FieldUpstreamCost) {
+		fields = append(fields, usagelog.FieldUpstreamCost)
+	}
+	if m.FieldCleared(usagelog.FieldUpstreamCostSnapshot) {
+		fields = append(fields, usagelog.FieldUpstreamCostSnapshot)
+	}
 	if m.FieldCleared(usagelog.FieldDurationMs) {
 		fields = append(fields, usagelog.FieldDurationMs)
 	}
@@ -47183,6 +47946,21 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ClearAccountRateMultiplier()
+		return nil
+	case usagelog.FieldAccountRateVersionID:
+		m.ClearAccountRateVersionID()
+		return nil
+	case usagelog.FieldAccountRateSource:
+		m.ClearAccountRateSource()
+		return nil
+	case usagelog.FieldAccountRateSnapshot:
+		m.ClearAccountRateSnapshot()
+		return nil
+	case usagelog.FieldUpstreamCost:
+		m.ClearUpstreamCost()
+		return nil
+	case usagelog.FieldUpstreamCostSnapshot:
+		m.ClearUpstreamCostSnapshot()
 		return nil
 	case usagelog.FieldDurationMs:
 		m.ClearDurationMs()
@@ -47314,6 +48092,21 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ResetAccountRateMultiplier()
+		return nil
+	case usagelog.FieldAccountRateVersionID:
+		m.ResetAccountRateVersionID()
+		return nil
+	case usagelog.FieldAccountRateSource:
+		m.ResetAccountRateSource()
+		return nil
+	case usagelog.FieldAccountRateSnapshot:
+		m.ResetAccountRateSnapshot()
+		return nil
+	case usagelog.FieldUpstreamCost:
+		m.ResetUpstreamCost()
+		return nil
+	case usagelog.FieldUpstreamCostSnapshot:
+		m.ResetUpstreamCostSnapshot()
 		return nil
 	case usagelog.FieldBillingType:
 		m.ResetBillingType()

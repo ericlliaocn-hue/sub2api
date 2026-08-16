@@ -102,6 +102,8 @@ type BusinessFinanceRepository interface {
 	CreateExpense(ctx context.Context, input ExpenseInput, createdBy int64) (*ExpenseEntry, error)
 	UpdateExpense(ctx context.Context, id int64, input ExpenseInput) (*ExpenseEntry, error)
 	VoidExpense(ctx context.Context, id int64) error
+	ListUpstreamCostVersions(ctx context.Context, accountID int64, model string) ([]UpstreamCostVersion, error)
+	CreateUpstreamCostVersion(ctx context.Context, input UpstreamCostVersionInput, createdBy int64) (*UpstreamCostVersion, error)
 	GetBusinessFinanceReport(ctx context.Context, filter FinanceReportFilter) (*FinanceReport, error)
 	GetBusinessFinanceGrowth(ctx context.Context, filter FinanceReportFilter) (*FinanceGrowthReport, error)
 }
@@ -187,6 +189,26 @@ func (s *BusinessFinanceService) VoidExpense(ctx context.Context, id int64) erro
 		return fmt.Errorf("invalid expense id")
 	}
 	return s.repo.VoidExpense(ctx, id)
+}
+
+func (s *BusinessFinanceService) ListUpstreamCostVersions(ctx context.Context, accountID int64, model string) ([]UpstreamCostVersion, error) {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if model != "" {
+		if _, ok := supportedManualUpstreamCostModels[model]; !ok {
+			return nil, fmt.Errorf("unsupported upstream cost model")
+		}
+	}
+	if accountID < 0 {
+		return nil, fmt.Errorf("invalid account id")
+	}
+	return s.repo.ListUpstreamCostVersions(ctx, accountID, model)
+}
+
+func (s *BusinessFinanceService) CreateUpstreamCostVersion(ctx context.Context, input UpstreamCostVersionInput, createdBy int64) (*UpstreamCostVersion, error) {
+	if err := validateUpstreamCostVersionInput(&input); err != nil {
+		return nil, err
+	}
+	return s.repo.CreateUpstreamCostVersion(ctx, input, createdBy)
 }
 
 func validateCostConfigInput(input *CostConfigInput) error {

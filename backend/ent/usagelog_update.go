@@ -623,6 +623,104 @@ func (_u *UsageLogUpdate) ClearAccountRateMultiplier() *UsageLogUpdate {
 	return _u
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (_u *UsageLogUpdate) SetAccountRateVersionID(v int64) *UsageLogUpdate {
+	_u.mutation.ResetAccountRateVersionID()
+	_u.mutation.SetAccountRateVersionID(v)
+	return _u
+}
+
+// SetNillableAccountRateVersionID sets the "account_rate_version_id" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAccountRateVersionID(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAccountRateVersionID(*v)
+	}
+	return _u
+}
+
+// AddAccountRateVersionID adds value to the "account_rate_version_id" field.
+func (_u *UsageLogUpdate) AddAccountRateVersionID(v int64) *UsageLogUpdate {
+	_u.mutation.AddAccountRateVersionID(v)
+	return _u
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (_u *UsageLogUpdate) ClearAccountRateVersionID() *UsageLogUpdate {
+	_u.mutation.ClearAccountRateVersionID()
+	return _u
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (_u *UsageLogUpdate) SetAccountRateSource(v string) *UsageLogUpdate {
+	_u.mutation.SetAccountRateSource(v)
+	return _u
+}
+
+// SetNillableAccountRateSource sets the "account_rate_source" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAccountRateSource(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAccountRateSource(*v)
+	}
+	return _u
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (_u *UsageLogUpdate) ClearAccountRateSource() *UsageLogUpdate {
+	_u.mutation.ClearAccountRateSource()
+	return _u
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (_u *UsageLogUpdate) SetAccountRateSnapshot(v map[string]interface{}) *UsageLogUpdate {
+	_u.mutation.SetAccountRateSnapshot(v)
+	return _u
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (_u *UsageLogUpdate) ClearAccountRateSnapshot() *UsageLogUpdate {
+	_u.mutation.ClearAccountRateSnapshot()
+	return _u
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (_u *UsageLogUpdate) SetUpstreamCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetUpstreamCost()
+	_u.mutation.SetUpstreamCost(v)
+	return _u
+}
+
+// SetNillableUpstreamCost sets the "upstream_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableUpstreamCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetUpstreamCost(*v)
+	}
+	return _u
+}
+
+// AddUpstreamCost adds value to the "upstream_cost" field.
+func (_u *UsageLogUpdate) AddUpstreamCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddUpstreamCost(v)
+	return _u
+}
+
+// ClearUpstreamCost clears the value of the "upstream_cost" field.
+func (_u *UsageLogUpdate) ClearUpstreamCost() *UsageLogUpdate {
+	_u.mutation.ClearUpstreamCost()
+	return _u
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (_u *UsageLogUpdate) SetUpstreamCostSnapshot(v map[string]interface{}) *UsageLogUpdate {
+	_u.mutation.SetUpstreamCostSnapshot(v)
+	return _u
+}
+
+// ClearUpstreamCostSnapshot clears the value of the "upstream_cost_snapshot" field.
+func (_u *UsageLogUpdate) ClearUpstreamCostSnapshot() *UsageLogUpdate {
+	_u.mutation.ClearUpstreamCostSnapshot()
+	return _u
+}
+
 // SetBillingType sets the "billing_type" field.
 func (_u *UsageLogUpdate) SetBillingType(v int8) *UsageLogUpdate {
 	_u.mutation.ResetBillingType()
@@ -1076,6 +1174,11 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountRateSource(); ok {
+		if err := usagelog.AccountRateSourceValidator(v); err != nil {
+			return &ValidationError{Name: "account_rate_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.account_rate_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -1281,6 +1384,42 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.AccountRateMultiplierCleared() {
 		_spec.ClearField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AccountRateVersionID(); ok {
+		_spec.SetField(usagelog.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedAccountRateVersionID(); ok {
+		_spec.AddField(usagelog.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if _u.mutation.AccountRateVersionIDCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateVersionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.AccountRateSource(); ok {
+		_spec.SetField(usagelog.FieldAccountRateSource, field.TypeString, value)
+	}
+	if _u.mutation.AccountRateSourceCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountRateSnapshot(); ok {
+		_spec.SetField(usagelog.FieldAccountRateSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.AccountRateSnapshotCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.UpstreamCost(); ok {
+		_spec.SetField(usagelog.FieldUpstreamCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedUpstreamCost(); ok {
+		_spec.AddField(usagelog.FieldUpstreamCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.UpstreamCostCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.UpstreamCostSnapshot(); ok {
+		_spec.SetField(usagelog.FieldUpstreamCostSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.UpstreamCostSnapshotCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamCostSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.BillingType(); ok {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
@@ -2137,6 +2276,104 @@ func (_u *UsageLogUpdateOne) ClearAccountRateMultiplier() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (_u *UsageLogUpdateOne) SetAccountRateVersionID(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetAccountRateVersionID()
+	_u.mutation.SetAccountRateVersionID(v)
+	return _u
+}
+
+// SetNillableAccountRateVersionID sets the "account_rate_version_id" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAccountRateVersionID(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAccountRateVersionID(*v)
+	}
+	return _u
+}
+
+// AddAccountRateVersionID adds value to the "account_rate_version_id" field.
+func (_u *UsageLogUpdateOne) AddAccountRateVersionID(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddAccountRateVersionID(v)
+	return _u
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (_u *UsageLogUpdateOne) ClearAccountRateVersionID() *UsageLogUpdateOne {
+	_u.mutation.ClearAccountRateVersionID()
+	return _u
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (_u *UsageLogUpdateOne) SetAccountRateSource(v string) *UsageLogUpdateOne {
+	_u.mutation.SetAccountRateSource(v)
+	return _u
+}
+
+// SetNillableAccountRateSource sets the "account_rate_source" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAccountRateSource(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAccountRateSource(*v)
+	}
+	return _u
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (_u *UsageLogUpdateOne) ClearAccountRateSource() *UsageLogUpdateOne {
+	_u.mutation.ClearAccountRateSource()
+	return _u
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (_u *UsageLogUpdateOne) SetAccountRateSnapshot(v map[string]interface{}) *UsageLogUpdateOne {
+	_u.mutation.SetAccountRateSnapshot(v)
+	return _u
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (_u *UsageLogUpdateOne) ClearAccountRateSnapshot() *UsageLogUpdateOne {
+	_u.mutation.ClearAccountRateSnapshot()
+	return _u
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (_u *UsageLogUpdateOne) SetUpstreamCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetUpstreamCost()
+	_u.mutation.SetUpstreamCost(v)
+	return _u
+}
+
+// SetNillableUpstreamCost sets the "upstream_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableUpstreamCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetUpstreamCost(*v)
+	}
+	return _u
+}
+
+// AddUpstreamCost adds value to the "upstream_cost" field.
+func (_u *UsageLogUpdateOne) AddUpstreamCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddUpstreamCost(v)
+	return _u
+}
+
+// ClearUpstreamCost clears the value of the "upstream_cost" field.
+func (_u *UsageLogUpdateOne) ClearUpstreamCost() *UsageLogUpdateOne {
+	_u.mutation.ClearUpstreamCost()
+	return _u
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (_u *UsageLogUpdateOne) SetUpstreamCostSnapshot(v map[string]interface{}) *UsageLogUpdateOne {
+	_u.mutation.SetUpstreamCostSnapshot(v)
+	return _u
+}
+
+// ClearUpstreamCostSnapshot clears the value of the "upstream_cost_snapshot" field.
+func (_u *UsageLogUpdateOne) ClearUpstreamCostSnapshot() *UsageLogUpdateOne {
+	_u.mutation.ClearUpstreamCostSnapshot()
+	return _u
+}
+
 // SetBillingType sets the "billing_type" field.
 func (_u *UsageLogUpdateOne) SetBillingType(v int8) *UsageLogUpdateOne {
 	_u.mutation.ResetBillingType()
@@ -2603,6 +2840,11 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountRateSource(); ok {
+		if err := usagelog.AccountRateSourceValidator(v); err != nil {
+			return &ValidationError{Name: "account_rate_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.account_rate_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -2825,6 +3067,42 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.AccountRateMultiplierCleared() {
 		_spec.ClearField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AccountRateVersionID(); ok {
+		_spec.SetField(usagelog.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedAccountRateVersionID(); ok {
+		_spec.AddField(usagelog.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if _u.mutation.AccountRateVersionIDCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateVersionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.AccountRateSource(); ok {
+		_spec.SetField(usagelog.FieldAccountRateSource, field.TypeString, value)
+	}
+	if _u.mutation.AccountRateSourceCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountRateSnapshot(); ok {
+		_spec.SetField(usagelog.FieldAccountRateSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.AccountRateSnapshotCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.UpstreamCost(); ok {
+		_spec.SetField(usagelog.FieldUpstreamCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedUpstreamCost(); ok {
+		_spec.AddField(usagelog.FieldUpstreamCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.UpstreamCostCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.UpstreamCostSnapshot(); ok {
+		_spec.SetField(usagelog.FieldUpstreamCostSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.UpstreamCostSnapshotCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamCostSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.BillingType(); ok {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)

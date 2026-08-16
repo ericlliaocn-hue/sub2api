@@ -53,7 +53,9 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "accounts", "rate_limit_reset_at", "timestamp with time zone", 0, true)
 	requireColumn(t, tx, "accounts", "overload_until", "timestamp with time zone", 0, true)
 	requireColumn(t, tx, "accounts", "session_window_status", "character varying", 20, true)
+	requireColumn(t, tx, "accounts", "active_upstream_rate_version_id", "bigint", 0, true)
 	requireIndex(t, tx, "accounts", "idx_accounts_autopause_expiry_due")
+	requireForeignKeyOnDelete(t, tx, "accounts", "active_upstream_rate_version_id", "account_upstream_rate_versions", "SET NULL")
 
 	// groups: OpenAI Live 默认关闭，管理员显式开启后才可访问。
 	requireColumn(t, tx, "groups", "allow_live", "boolean", 0, false)
@@ -78,7 +80,49 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "usage_logs", "video_duration_seconds", "integer", 0, true)
 	requireColumn(t, tx, "usage_logs", "upstream_response_model", "character varying", 200, true)
 	requireColumn(t, tx, "usage_logs", "upstream_model_mismatch", "boolean", 0, true)
+	requireColumn(t, tx, "usage_logs", "account_rate_multiplier", "numeric", 0, true)
+	requireNumericColumn(t, tx, "usage_logs", "account_rate_multiplier", 20, 10)
+	requireColumn(t, tx, "usage_logs", "account_rate_version_id", "bigint", 0, true)
+	requireColumn(t, tx, "usage_logs", "account_rate_source", "character varying", 32, true)
+	requireColumn(t, tx, "usage_logs", "account_rate_snapshot", "jsonb", 0, true)
+	requireColumn(t, tx, "usage_logs", "upstream_cost", "numeric", 0, true)
+	requireColumn(t, tx, "usage_logs", "upstream_cost_snapshot", "jsonb", 0, true)
 	requireIndex(t, tx, "usage_logs", usageLogsUpstreamModelMismatchIndex)
+	requireForeignKeyOnDelete(t, tx, "usage_logs", "account_rate_version_id", "account_upstream_rate_versions", "SET NULL")
+
+	var upstreamCostVersionsRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.upstream_cost_versions')").Scan(&upstreamCostVersionsRegclass))
+	require.True(t, upstreamCostVersionsRegclass.Valid, "expected upstream_cost_versions table to exist")
+	requireColumn(t, tx, "upstream_cost_versions", "declared_multiplier", "numeric", 0, false)
+	requireColumn(t, tx, "upstream_cost_versions", "balance_unit_cost", "numeric", 0, false)
+	requireIndex(t, tx, "upstream_cost_versions", "upstream_cost_versions_account_model_effective_idx")
+
+	var accountRateVersionsRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.account_upstream_rate_versions')").Scan(&accountRateVersionsRegclass))
+	require.True(t, accountRateVersionsRegclass.Valid, "expected account_upstream_rate_versions table to exist")
+	requireColumn(t, tx, "account_upstream_rate_versions", "account_id", "bigint", 0, false)
+	requireColumn(t, tx, "account_upstream_rate_versions", "version_no", "bigint", 0, false)
+	requireColumn(t, tx, "account_upstream_rate_versions", "rate_multiplier", "numeric", 0, false)
+	requireNumericColumn(t, tx, "account_upstream_rate_versions", "rate_multiplier", 20, 10)
+	requireColumn(t, tx, "account_upstream_rate_versions", "source", "character varying", 32, false)
+	requireColumn(t, tx, "account_upstream_rate_versions", "effective_from", "timestamp with time zone", 0, false)
+	requireColumn(t, tx, "account_upstream_rate_versions", "effective_to", "timestamp with time zone", 0, true)
+	requireColumn(t, tx, "account_upstream_rate_versions", "observed_at", "timestamp with time zone", 0, true)
+	requireColumn(t, tx, "account_upstream_rate_versions", "snapshot", "jsonb", 0, false)
+	requireColumn(t, tx, "account_upstream_rate_versions", "change_reason", "character varying", 64, false)
+	requireColumn(t, tx, "account_upstream_rate_versions", "created_by", "bigint", 0, true)
+	requireColumn(t, tx, "account_upstream_rate_versions", "created_at", "timestamp with time zone", 0, false)
+	requireColumnDefaultContains(t, tx, "account_upstream_rate_versions", "snapshot", "{}")
+	requireColumnDefaultContains(t, tx, "account_upstream_rate_versions", "created_at", "now()")
+	requireIndex(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_account_effective_idx")
+	requireIndex(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_account_current_uidx")
+	requireIndex(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_account_version_key")
+	requireForeignKeyOnDelete(t, tx, "account_upstream_rate_versions", "account_id", "accounts", "RESTRICT")
+	requireForeignKeyOnDelete(t, tx, "account_upstream_rate_versions", "created_by", "users", "SET NULL")
+	requireConstraintDefinitionContains(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_version_no_positive", "version_no", "> 0")
+	requireConstraintDefinitionContains(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_rate_multiplier_non_negative", "rate_multiplier", ">= ", "0")
+	requireConstraintDefinitionContains(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_source_check", "default", "manual", "upstream_probe")
+	requireConstraintDefinitionContains(t, tx, "account_upstream_rate_versions", "account_upstream_rate_versions_effective_window_check", "effective_to", "effective_from")
 
 	var mismatchIndexDef string
 	require.NoError(t, tx.QueryRowContext(context.Background(), `
@@ -370,4 +414,20 @@ WHERE table_schema = 'public'
 	} else {
 		require.Equal(t, "NO", row.Nullable, "nullable mismatch for %s.%s", table, column)
 	}
+}
+
+func requireNumericColumn(t *testing.T, tx *sql.Tx, table, column string, precision, scale int64) {
+	t.Helper()
+
+	var actualPrecision, actualScale sql.NullInt64
+	err := tx.QueryRowContext(context.Background(), `
+SELECT numeric_precision, numeric_scale
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = $1
+  AND column_name = $2
+`, table, column).Scan(&actualPrecision, &actualScale)
+	require.NoError(t, err, "query numeric precision for %s.%s", table, column)
+	require.Equal(t, precision, actualPrecision.Int64, "numeric precision mismatch for %s.%s", table, column)
+	require.Equal(t, scale, actualScale.Int64, "numeric scale mismatch for %s.%s", table, column)
 }

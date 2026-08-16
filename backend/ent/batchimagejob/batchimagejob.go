@@ -57,6 +57,12 @@ const (
 	FieldCurrency = "currency"
 	// FieldHoldID holds the string denoting the hold_id field in the database.
 	FieldHoldID = "hold_id"
+	// FieldAccountRateVersionID holds the string denoting the account_rate_version_id field in the database.
+	FieldAccountRateVersionID = "account_rate_version_id"
+	// FieldAccountRateSource holds the string denoting the account_rate_source field in the database.
+	FieldAccountRateSource = "account_rate_source"
+	// FieldAccountRateSnapshot holds the string denoting the account_rate_snapshot field in the database.
+	FieldAccountRateSnapshot = "account_rate_snapshot"
 	// FieldIdempotencyKey holds the string denoting the idempotency_key field in the database.
 	FieldIdempotencyKey = "idempotency_key"
 	// FieldRequestHash holds the string denoting the request_hash field in the database.
@@ -122,6 +128,9 @@ var Columns = []string{
 	FieldActualCost,
 	FieldCurrency,
 	FieldHoldID,
+	FieldAccountRateVersionID,
+	FieldAccountRateSource,
+	FieldAccountRateSnapshot,
 	FieldIdempotencyKey,
 	FieldRequestHash,
 	FieldManifestHash,
@@ -191,6 +200,8 @@ var (
 	CurrencyValidator func(string) error
 	// HoldIDValidator is a validator for the "hold_id" field. It is called by the builders before save.
 	HoldIDValidator func(string) error
+	// AccountRateSourceValidator is a validator for the "account_rate_source" field. It is called by the builders before save.
+	AccountRateSourceValidator func(string) error
 	// IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
 	IdempotencyKeyValidator func(string) error
 	// RequestHashValidator is a validator for the "request_hash" field. It is called by the builders before save.
@@ -327,6 +338,16 @@ func ByCurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByHoldID orders the results by the hold_id field.
 func ByHoldID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldHoldID, opts...).ToFunc()
+}
+
+// ByAccountRateVersionID orders the results by the account_rate_version_id field.
+func ByAccountRateVersionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountRateVersionID, opts...).ToFunc()
+}
+
+// ByAccountRateSource orders the results by the account_rate_source field.
+func ByAccountRateSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountRateSource, opts...).ToFunc()
 }
 
 // ByIdempotencyKey orders the results by the idempotency_key field.

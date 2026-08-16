@@ -10,6 +10,13 @@ func optionalTrimmedStringPtr(raw string) *string {
 	return &trimmed
 }
 
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
 func forwardResultBillingModel(requestedModel, upstreamModel string) string {
 	if trimmed := strings.TrimSpace(requestedModel); trimmed != "" {
 		return trimmed

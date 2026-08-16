@@ -432,9 +432,10 @@ func TestUpdateAccountRateSyncControlsProbeAndManualMode(t *testing.T) {
 	require.Equal(t, false, updated.Extra[UpstreamBillingRateSyncEnabledExtraKey])
 }
 
-// 单账号编辑必须和批量路径语义一致：同步开启时倍率归上游所有，手工值会在下一次
-// 成功探测时被覆盖，因此直接拒绝而不是静默接受。
-func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
+// 手动保存自动关闭自动倍率同步（计划 §1.4 / Phase 3）：同步开启时手工倍率
+// 会被下一次成功探测覆盖，手动保存即收回所有权——落 manual 版本并关掉同步，
+// 而不是直接拒绝。
+func TestUpdateAccountManualRateAutoDisablesRateSync(t *testing.T) {
 	newRepo := func(accountID int64, extra map[string]any) *upstreamBillingProbeAccountRepo {
 		initialRate := 0.25
 		return &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
@@ -454,30 +455,34 @@ func TestUpdateAccountRejectsManualRateWhileRateSyncEnabled(t *testing.T) {
 		UpstreamBillingRateSyncEnabledExtraKey: true,
 	}
 
-	t.Run("sync enabled rejects manual rate", func(t *testing.T) {
+	t.Run("sync enabled auto disables sync on manual rate", func(t *testing.T) {
 		accountID := int64(153)
 		repo := newRepo(accountID, mergeMap(nil, syncEnabled))
 
-		_, err := (&adminServiceImpl{accountRepo: repo}).UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
+		updated, err := (&adminServiceImpl{accountRepo: repo}).UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
 			RateMultiplier: &manualRate,
 		})
 
-		require.ErrorIs(t, err, ErrUpstreamBillingRateSyncConflict)
-		require.Equal(t, 0.25, *repo.accounts[accountID].RateMultiplier)
+		require.NoError(t, err)
+		require.NotNil(t, updated.RateMultiplier)
+		require.Equal(t, manualRate, *updated.RateMultiplier)
+		require.Equal(t, false, updated.Extra[UpstreamBillingRateSyncEnabledExtraKey])
 	})
 
-	t.Run("enabling sync in the same request rejects manual rate", func(t *testing.T) {
+	t.Run("enabling sync in the same request yields manual rate and sync off", func(t *testing.T) {
 		accountID := int64(154)
 		repo := newRepo(accountID, map[string]any{})
 		enable := true
 
-		_, err := (&adminServiceImpl{accountRepo: repo}).UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
+		updated, err := (&adminServiceImpl{accountRepo: repo}).UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
 			RateSyncEnabled: &enable,
 			RateMultiplier:  &manualRate,
 		})
 
-		require.ErrorIs(t, err, ErrUpstreamBillingRateSyncConflict)
-		require.Equal(t, 0.25, *repo.accounts[accountID].RateMultiplier)
+		require.NoError(t, err)
+		require.NotNil(t, updated.RateMultiplier)
+		require.Equal(t, manualRate, *updated.RateMultiplier)
+		require.Equal(t, false, updated.Extra[UpstreamBillingRateSyncEnabledExtraKey])
 	})
 
 	// 用户显式收回所有权：同一请求关闭同步并改倍率必须放行。

@@ -25,6 +25,7 @@ import (
 	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
 	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbproxy "github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -90,9 +91,26 @@ func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedul
 }
 
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
-	if err := createAccountRecord(ctx, r.client, account); err != nil {
+	// Every new account must get its first rate version (default 1.0 or the
+	// manual rate) in the same transaction that creates the row, so request
+	// billing can always resolve an active version (plan §2.4).
+	ctx, client, tx, ownsTx, err := beginAccountWriteTx(ctx, r.client)
+	if err != nil {
 		return err
 	}
+	if ownsTx {
+		defer func() { _ = tx.Rollback() }()
+	}
+	if err := r.createAccountWithInitialRateVersion(ctx, client, account); err != nil {
+		return err
+	}
+	if ownsTx {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+	}
+	// The account row and its first version are durable; the scheduler outbox
+	// stays best-effort (matches the pre-existing Create contract).
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, buildSchedulerGroupPayload(account.GroupIDs)); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue account create failed: account=%d err=%v", account.ID, err)
 	}
@@ -190,6 +208,9 @@ func (r *accountRepository) CreateWithAccountGroups(ctx context.Context, account
 	}
 
 	if err := createAccountRecord(ctx, txClient, account); err != nil {
+		return err
+	}
+	if _, err := r.applyUpstreamRateVersionChangeInTx(ctx, txClient, initialUpstreamRateVersionChange(account)); err != nil {
 		return err
 	}
 	groupIDs := make([]int64, 0, len(groups))
@@ -399,7 +420,10 @@ func (r *accountRepository) ListCRSAccountIDs(ctx context.Context) (map[string]i
 }
 
 func (r *accountRepository) Update(ctx context.Context, account *service.Account) error {
-	return r.updateAccount(ctx, account, nil, nil, account.RateMultiplier)
+	// Generic account updates preserve the persisted compatibility rate. Manual
+	// rate changes must use UpdateWithAccountBillingSettings so they create a
+	// version through ApplyUpstreamRateVersionChange.
+	return r.updateAccount(ctx, account, nil, nil, nil)
 }
 
 // UpdateWithAccountBillingSettings applies an admin account edit while
@@ -456,8 +480,24 @@ func (r *accountRepository) updateAccount(
 	if err != nil {
 		return translatePersistenceError(err, service.ErrAccountNotFound, nil)
 	}
-	if err := enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, buildSchedulerGroupPayload(account.GroupIDs)); err != nil {
-		return err
+
+	var rateVersionResult *service.UpstreamRateVersionChangeResult
+	if explicitRateMultiplier != nil {
+		rateVersionResult, err = r.ApplyUpstreamRateVersionChange(ctx, service.UpstreamRateVersionChange{
+			AccountID:      account.ID,
+			RateMultiplier: *explicitRateMultiplier,
+			Source:         domain.UpstreamRateSourceManual,
+			ChangeReason:   domain.UpstreamRateChangeManualUpdate,
+			OutboxPayload:  buildSchedulerGroupPayload(account.GroupIDs),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if rateVersionResult == nil || !rateVersionResult.Changed {
+		if err := enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, buildSchedulerGroupPayload(account.GroupIDs)); err != nil {
+			return err
+		}
 	}
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
@@ -507,9 +547,8 @@ func (r *accountRepository) updateLockedAccount(
 		SetSchedulable(schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 
-	if explicitRateMultiplier != nil {
-		builder.SetRateMultiplier(*explicitRateMultiplier)
-	}
+	// explicitRateMultiplier is persisted through ApplyUpstreamRateVersionChange
+	// below so the compatibility cache and immutable version stay atomic.
 	if account.LoadFactor != nil {
 		builder.SetLoadFactor(*account.LoadFactor)
 	} else {
@@ -2680,17 +2719,30 @@ func (r *accountRepository) updateUpstreamBillingProbeSnapshotInTx(
 	if account.ProxyID != nil {
 		proxyID = *account.ProxyID
 	}
+
+	var rateVersionResult *service.UpstreamRateVersionChangeResult
+	if rateMultiplier != nil {
+		versionSnapshot, snapshotErr := probeSnapshotVersionPayload(snapshot)
+		if snapshotErr != nil {
+			return snapshotErr
+		}
+		rateVersionResult, err = r.ApplyUpstreamRateVersionChange(ctx, service.UpstreamRateVersionChange{
+			AccountID:      account.ID,
+			RateMultiplier: *rateMultiplier,
+			Source:         domain.UpstreamRateSourceUpstreamProbe,
+			ObservedAt:     probeSnapshotObservedAt(snapshot),
+			Snapshot:       versionSnapshot,
+			ChangeReason:   domain.UpstreamRateChangeProbeChanged,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	result, err := client.ExecContext(ctx, `
 		UPDATE accounts
 		SET
 			extra = COALESCE(extra, '{}'::jsonb) || $1::jsonb,
-			rate_multiplier = CASE
-				WHEN $10::numeric IS NOT NULL
-					AND extra @> '{"upstream_billing_probe_enabled": true}'::jsonb
-					AND extra @> '{"upstream_billing_rate_sync_enabled": true}'::jsonb
-				THEN $10::numeric
-				ELSE rate_multiplier
-			END,
 			updated_at = NOW()
 		WHERE id = $2
 			AND platform = $3
@@ -2701,7 +2753,7 @@ func (r *accountRepository) updateUpstreamBillingProbeSnapshotInTx(
 			AND COALESCE(extra -> 'upstream_billing_probe_enabled', 'null'::jsonb) = $8::jsonb
 			AND COALESCE(extra -> 'upstream_billing_rate_sync_enabled', 'null'::jsonb) = $9::jsonb
 			AND deleted_at IS NULL
-	`, string(payload), account.ID, account.Platform, account.Type, string(credentials), proxyID, string(expectedSnapshotJSON), string(expectedEnabledJSON), string(expectedRateSyncEnabledJSON), rateMultiplier)
+	`, string(payload), account.ID, account.Platform, account.Type, string(credentials), proxyID, string(expectedSnapshotJSON), string(expectedEnabledJSON), string(expectedRateSyncEnabledJSON))
 	if err != nil {
 		return err
 	}
@@ -2712,7 +2764,10 @@ func (r *accountRepository) updateUpstreamBillingProbeSnapshotInTx(
 	if affected == 0 {
 		return service.ErrUpstreamBillingProbeIdentityChanged
 	}
-	return enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, nil)
+	if rateVersionResult == nil || !rateVersionResult.Changed {
+		return enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, nil)
+	}
+	return nil
 }
 
 func lockAndMatchProbeProxyIdentity(ctx context.Context, client *dbent.Client, account *service.Account) (bool, error) {
@@ -2827,11 +2882,6 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		args = append(args, *updates.Priority)
 		idx++
 	}
-	if updates.RateMultiplier != nil {
-		setClauses = append(setClauses, "rate_multiplier = $"+itoa(idx))
-		args = append(args, *updates.RateMultiplier)
-		idx++
-	}
 	if updates.LoadFactor != nil {
 		if *updates.LoadFactor <= 0 {
 			setClauses = append(setClauses, "load_factor = NULL")
@@ -2922,7 +2972,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		setClauses = append(setClauses, "extra = "+extraExpression)
 	}
 
-	if len(setClauses) == 0 {
+	if len(setClauses) == 0 && updates.RateMultiplier == nil {
 		return 0, nil
 	}
 
@@ -2976,6 +3026,22 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		}
 		if rows != expectedRows {
 			return 0, service.ErrUpstreamBillingProbeAccountInvalid
+		}
+	}
+	if rows > 0 && updates.RateMultiplier != nil {
+		updatedIDs, err := listBulkUpdatedAccountIDs(ctx, exec, ids, updates.ProbeEnabled != nil)
+		if err != nil {
+			return 0, err
+		}
+		for _, accountID := range updatedIDs {
+			if _, err := r.ApplyUpstreamRateVersionChange(ctx, service.UpstreamRateVersionChange{
+				AccountID:      accountID,
+				RateMultiplier: *updates.RateMultiplier,
+				Source:         domain.UpstreamRateSourceManual,
+				ChangeReason:   domain.UpstreamRateChangeManualUpdate,
+			}); err != nil {
+				return 0, err
+			}
 		}
 	}
 	if rows > 0 {
@@ -3100,12 +3166,23 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 	if err != nil {
 		return nil, err
 	}
+	// 请求开始时固定倍率快照（Phase 5）：账号加载即带上当前倍率版本。
+	rateVersionsByAccount, err := loadActiveUpstreamRateVersions(ctx, r.client, accountIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	outAccounts := make([]service.Account, 0, len(accounts))
 	for _, acc := range accounts {
 		out := accountEntityToService(acc)
 		if out == nil {
 			continue
+		}
+		if version, ok := rateVersionsByAccount[acc.ID]; ok && version != nil {
+			out.ActiveUpstreamRateVersionID = &version.ID
+			out.ActiveUpstreamRateSource = string(version.Source)
+			out.ActiveUpstreamRateSnapshot = copyJSONMap(version.Snapshot)
+			out.RateMultiplier = &version.RateMultiplier
 		}
 		if acc.ProxyID != nil {
 			if proxy, ok := proxyMap[*acc.ProxyID]; ok {

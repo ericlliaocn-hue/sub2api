@@ -83,3 +83,40 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 		})
 	}
 }
+
+// Phase 5: 请求开始时固定的账号倍率版本快照必须原样进入扣费命令，
+// 扣费不得在请求结束时重读当前倍率。
+func TestBuildUsageBillingCommand_CarriesRateVersionSnapshot(t *testing.T) {
+	t.Parallel()
+
+	versionID := int64(77)
+	source := "manual"
+	snapshot := map[string]any{"applied_multiplier": 1.5}
+	p := &postUsageBillingParams{
+		Cost:                  &CostBreakdown{TotalCost: 1.0, ActualCost: 1.0},
+		User:                  &User{ID: 1},
+		APIKey:                &APIKey{ID: 2},
+		Account:               &Account{ID: 3},
+		AccountRateMultiplier: 1.5,
+		AccountRateVersionID:  &versionID,
+		AccountRateSource:     source,
+		AccountRateSnapshot:   snapshot,
+	}
+
+	cmd := buildUsageBillingCommand("req-rate-version", nil, p)
+	if cmd == nil {
+		t.Fatal("buildUsageBillingCommand returned nil")
+	}
+	if cmd.AccountRateVersionID == nil || *cmd.AccountRateVersionID != versionID {
+		t.Errorf("AccountRateVersionID = %v, want %d", cmd.AccountRateVersionID, versionID)
+	}
+	if cmd.AccountRateSource != source {
+		t.Errorf("AccountRateSource = %q, want %q", cmd.AccountRateSource, source)
+	}
+	if cmd.AccountRateMultiplier != 1.5 {
+		t.Errorf("AccountRateMultiplier = %v, want 1.5", cmd.AccountRateMultiplier)
+	}
+	if cmd.AccountRateSnapshot["applied_multiplier"] != 1.5 {
+		t.Errorf("AccountRateSnapshot lost, got %v", cmd.AccountRateSnapshot)
+	}
+}

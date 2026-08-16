@@ -279,6 +279,8 @@ export default {
     accountCost: '成本',
     userBilled: '用户扣费',
     accountBilled: '账号计费',
+    normalizedCostMultiplier: '换算成本倍率',
+    costVersion: '成本版本',
     resetNow: '现在',
     resetPending: '待刷新',
     accountMultiplier: '账号倍率',

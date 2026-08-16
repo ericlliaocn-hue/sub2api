@@ -74,6 +74,16 @@ const (
 	FieldLongContextBillingApplied = "long_context_billing_applied"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
 	FieldAccountRateMultiplier = "account_rate_multiplier"
+	// FieldAccountRateVersionID holds the string denoting the account_rate_version_id field in the database.
+	FieldAccountRateVersionID = "account_rate_version_id"
+	// FieldAccountRateSource holds the string denoting the account_rate_source field in the database.
+	FieldAccountRateSource = "account_rate_source"
+	// FieldAccountRateSnapshot holds the string denoting the account_rate_snapshot field in the database.
+	FieldAccountRateSnapshot = "account_rate_snapshot"
+	// FieldUpstreamCost holds the string denoting the upstream_cost field in the database.
+	FieldUpstreamCost = "upstream_cost"
+	// FieldUpstreamCostSnapshot holds the string denoting the upstream_cost_snapshot field in the database.
+	FieldUpstreamCostSnapshot = "upstream_cost_snapshot"
 	// FieldBillingType holds the string denoting the billing_type field in the database.
 	FieldBillingType = "billing_type"
 	// FieldStream holds the string denoting the stream field in the database.
@@ -190,6 +200,11 @@ var Columns = []string{
 	FieldRateMultiplier,
 	FieldLongContextBillingApplied,
 	FieldAccountRateMultiplier,
+	FieldAccountRateVersionID,
+	FieldAccountRateSource,
+	FieldAccountRateSnapshot,
+	FieldUpstreamCost,
+	FieldUpstreamCostSnapshot,
 	FieldBillingType,
 	FieldStream,
 	FieldDurationMs,
@@ -264,6 +279,8 @@ var (
 	DefaultRateMultiplier float64
 	// DefaultLongContextBillingApplied holds the default value on creation for the "long_context_billing_applied" field.
 	DefaultLongContextBillingApplied bool
+	// AccountRateSourceValidator is a validator for the "account_rate_source" field. It is called by the builders before save.
+	AccountRateSourceValidator func(string) error
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
 	DefaultBillingType int8
 	// DefaultStream holds the default value on creation for the "stream" field.
@@ -448,6 +465,21 @@ func ByLongContextBillingApplied(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountRateMultiplier orders the results by the account_rate_multiplier field.
 func ByAccountRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountRateMultiplier, opts...).ToFunc()
+}
+
+// ByAccountRateVersionID orders the results by the account_rate_version_id field.
+func ByAccountRateVersionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountRateVersionID, opts...).ToFunc()
+}
+
+// ByAccountRateSource orders the results by the account_rate_source field.
+func ByAccountRateSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountRateSource, opts...).ToFunc()
+}
+
+// ByUpstreamCost orders the results by the upstream_cost field.
+func ByUpstreamCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamCost, opts...).ToFunc()
 }
 
 // ByBillingType orders the results by the billing_type field.

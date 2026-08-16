@@ -80,8 +80,13 @@ type postUsageBillingParams struct {
 	RequestPayloadHash    string
 	IsSubscriptionBill    bool
 	AccountRateMultiplier float64
-	APIKeyService         APIKeyQuotaUpdater
-	Platform              string // 来自 APIKey 关联 Group 的平台标识
+	// AccountRateVersionID / AccountRateSource / AccountRateSnapshot 是请求开始时
+	// 固定的账号倍率版本快照（Phase 5），与 usage log 共用同一份。
+	AccountRateVersionID *int64
+	AccountRateSource    string
+	AccountRateSnapshot  map[string]any
+	APIKeyService        APIKeyQuotaUpdater
+	Platform             string // 来自 APIKey 关联 Group 的平台标识
 }
 
 // PlatformFromAPIKey 从 APIKey 关联的 Group 推导 platform 名称。
@@ -239,12 +244,16 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	}
 
 	cmd := &UsageBillingCommand{
-		RequestID:          requestID,
-		APIKeyID:           p.APIKey.ID,
-		UserID:             p.User.ID,
-		AccountID:          p.Account.ID,
-		AccountType:        p.Account.Type,
-		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
+		RequestID:             requestID,
+		APIKeyID:              p.APIKey.ID,
+		UserID:                p.User.ID,
+		AccountID:             p.Account.ID,
+		AccountType:           p.Account.Type,
+		RequestPayloadHash:    strings.TrimSpace(p.RequestPayloadHash),
+		AccountRateMultiplier: p.AccountRateMultiplier,
+		AccountRateVersionID:  p.AccountRateVersionID,
+		AccountRateSource:     p.AccountRateSource,
+		AccountRateSnapshot:   p.AccountRateSnapshot,
 	}
 	if usageLog != nil {
 		cmd.Model = usageLog.Model
@@ -737,22 +746,24 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	usageLog := s.buildRecordUsageLog(ctx, input, result, apiKey, user, account, subscription,
 		requestedModel, multiplier, imageMultiplier, accountRateMultiplier, billingType, cacheTTLOverridden, cost, opts)
 
+	accountCostTokens := UsageTokens{
+		InputTokens:         result.Usage.InputTokens,
+		OutputTokens:        result.Usage.OutputTokens,
+		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:     result.Usage.CacheReadInputTokens,
+		ImageOutputTokens:   result.Usage.ImageOutputTokens,
+	}
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）
 	if apiKey.GroupID != nil {
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
 			// Anthropic's input_tokens excludes cache_read and cache_creation (billed separately);
 			// OpenAI gateway uses actualInputTokens which also excludes cache_read for the same reason.
-			UsageTokens{
-				InputTokens:         result.Usage.InputTokens,
-				OutputTokens:        result.Usage.OutputTokens,
-				CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-				CacheReadTokens:     result.Usage.CacheReadInputTokens,
-				ImageOutputTokens:   result.Usage.ImageOutputTokens,
-			},
+			accountCostTokens,
 			cost.TotalCost,
 		)
 	}
+	applyManualUpstreamCost(usageLog, account, result.UpstreamModel, result.Model, accountCostTokens)
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
@@ -772,6 +783,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		}
 	}
 	requestID := usageLog.RequestID
+	rateVersionID, rateSource, rateSnapshot := account.RateVersionFields()
 	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
 		Cost:                  cost,
 		User:                  user,
@@ -781,6 +793,9 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
 		IsSubscriptionBill:    isSubscriptionBilling,
 		AccountRateMultiplier: accountRateMultiplier,
+		AccountRateVersionID:  rateVersionID,
+		AccountRateSource:     derefString(rateSource),
+		AccountRateSnapshot:   rateSnapshot,
 		APIKeyService:         input.APIKeyService,
 		Platform:              quotaPlatform,
 	}, s.billingDeps(), s.usageBillingRepo)
@@ -990,6 +1005,7 @@ func (s *GatewayService) buildRecordUsageLog(
 ) *UsageLog {
 	durationMs := int(result.Duration.Milliseconds())
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+	rateVersionID, rateSource, rateSnapshot := account.RateVersionFields()
 	sentModel := upstreamSentModel(result.Model, result.UpstreamModel)
 	if result.UpstreamResponseModelConflict {
 		slog.Warn("upstream_response_model_conflict",
@@ -1022,6 +1038,9 @@ func (s *GatewayService) buildRecordUsageLog(
 		ImageOutputTokens:     result.Usage.ImageOutputTokens,
 		RateMultiplier:        multiplier,
 		AccountRateMultiplier: &accountRateMultiplier,
+		AccountRateVersionID:  rateVersionID,
+		AccountRateSource:     rateSource,
+		AccountRateSnapshot:   rateSnapshot,
 		BillingType:           billingType,
 		BillingMode:           resolveBillingMode(result, cost),
 		Stream:                result.Stream,

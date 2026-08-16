@@ -133,7 +133,7 @@
         </div>
       </section>
 
-      <section v-else class="space-y-6">
+      <section v-else-if="activeTab === 'expenses'" class="space-y-6">
         <div class="card p-6">
           <div class="mb-4 flex items-center justify-between gap-3">
             <div><h2 class="font-semibold text-gray-900 dark:text-white">费用台账</h2></div>
@@ -185,6 +185,7 @@
           </form>
         </div>
       </section>
+
     </div>
   </AppLayout>
 </template>
@@ -257,6 +258,7 @@ const expenseForm = reactive<BusinessExpenseInput>({ category: 'server', name: '
 const configScopeJSON = ref('{}')
 const expenseScopeJSON = ref('{}')
 
+
 async function loadConfigs() {
   const { data } = await businessFinanceAPI.listCostConfigs()
   configs.value = data
@@ -268,6 +270,7 @@ async function loadExpenses() {
   expenseTotal.value = data.total || 0
 }
 
+
 async function reload() {
   loading.value = true
   try {
@@ -278,6 +281,12 @@ async function reload() {
     loading.value = false
   }
 }
+
+
+
+
+
+
 
 function startNewConfig() {
   editingConfigId.value = null

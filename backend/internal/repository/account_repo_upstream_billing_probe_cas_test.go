@@ -5,9 +5,11 @@ import (
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 
@@ -42,7 +44,7 @@ func TestUpdateUpstreamBillingProbeSnapshotRequiresSameIdentityAndSnapshot(t *te
 				WillReturnRows(sqlmock.NewRows([]string{"protocol", "host", "port", "username", "password", "status"}).
 					AddRow("http", "127.0.0.1", 3128, "user", "pass", service.StatusActive))
 			mock.ExpectExec(`(?s)`+regexp.QuoteMeta("UPDATE accounts")+`.*`+regexp.QuoteMeta("WHERE id = $2")+`.*`+regexp.QuoteMeta("AND platform = $3")+`.*`+regexp.QuoteMeta("AND type = $4")+`.*`+regexp.QuoteMeta("AND credentials = $5::jsonb")+`.*`+regexp.QuoteMeta("AND proxy_id IS NOT DISTINCT FROM $6")+`.*`+regexp.QuoteMeta("COALESCE(extra -> 'upstream_billing_probe', 'null'::jsonb) = $7::jsonb")+`.*`+regexp.QuoteMeta("COALESCE(extra -> 'upstream_billing_probe_enabled', 'null'::jsonb) = $8::jsonb")+`.*`+regexp.QuoteMeta("COALESCE(extra -> 'upstream_billing_rate_sync_enabled', 'null'::jsonb) = $9::jsonb")).
-				WithArgs(sqlmock.AnyArg(), int64(17), service.PlatformOpenAI, service.AccountTypeAPIKey, `{"api_key":"sk-test","base_url":"http://127.0.0.1:8080"}`, int64(9), `{"status":"stale"}`, "null", "null", nil).
+				WithArgs(sqlmock.AnyArg(), int64(17), service.PlatformOpenAI, service.AccountTypeAPIKey, `{"api_key":"sk-test","base_url":"http://127.0.0.1:8080"}`, int64(9), `{"status":"stale"}`, "null", "null").
 				WillReturnResult(sqlmock.NewResult(0, tt.affected))
 			if tt.affected > 0 {
 				mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).
@@ -98,12 +100,27 @@ func TestUpdateUpstreamBillingProbeSnapshotCommitsSnapshotAndOutboxAtomically(t 
 	t.Cleanup(func() { _ = client.Close() })
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`(?s)`+regexp.QuoteMeta("UPDATE accounts")+`.*`+regexp.QuoteMeta("rate_multiplier = CASE")+`.*`+regexp.QuoteMeta("THEN $10::numeric")+`.*`+regexp.QuoteMeta("AND credentials = $5::jsonb")+`.*`+regexp.QuoteMeta("AND proxy_id IS NOT DISTINCT FROM $6")+`.*`+regexp.QuoteMeta("COALESCE(extra -> 'upstream_billing_probe', 'null'::jsonb) = $7::jsonb")).
-		WithArgs(sqlmock.AnyArg(), int64(17), service.PlatformOpenAI, service.AccountTypeAPIKey, `{"api_key":"sk-test"}`, nil, "null", "true", "true", 0.065).
+	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT active_upstream_rate_version_id, rate_multiplier") + `.*` + regexp.QuoteMeta("FOR UPDATE")).
+		WithArgs(int64(17)).
+		WillReturnRows(sqlmock.NewRows([]string{"active_upstream_rate_version_id", "rate_multiplier"}).AddRow(nil, 1.0))
+	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT id, account_id, version_no, rate_multiplier, source") + `.*` + regexp.QuoteMeta("account_upstream_rate_versions") + `.*` + regexp.QuoteMeta("FOR UPDATE")).
+		WithArgs(int64(17)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "account_id", "version_no", "rate_multiplier", "source", "effective_from", "effective_to", "observed_at", "snapshot", "change_reason", "created_by", "created_at"}))
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(version_no\), 0\) \+ 1`).
+		WithArgs(int64(17)).
+		WillReturnRows(sqlmock.NewRows([]string{"next_version"}).AddRow(int64(1)))
+	mock.ExpectQuery(`(?s)`+regexp.QuoteMeta("INSERT INTO account_upstream_rate_versions")+`.*RETURNING id, created_at`).
+		WithArgs(int64(17), int64(1), 0.065, string(domain.UpstreamRateSourceUpstreamProbe), sqlmock.AnyArg(), nil, sqlmock.AnyArg(), string(domain.UpstreamRateChangeProbeChanged), nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(101), time.Now()))
+	mock.ExpectExec("(?s)"+regexp.QuoteMeta("UPDATE accounts")+".*"+regexp.QuoteMeta("active_upstream_rate_version_id")+".*"+regexp.QuoteMeta("rate_multiplier")).
+		WithArgs(int64(101), 0.065, int64(17)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).
 		WithArgs(service.SchedulerOutboxEventAccountChanged, int64(17), nil, nil, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("(?s)"+regexp.QuoteMeta("UPDATE accounts")+".*"+regexp.QuoteMeta("extra = COALESCE")+".*"+regexp.QuoteMeta("WHERE id = $2")).
+		WithArgs(sqlmock.AnyArg(), int64(17), service.PlatformOpenAI, service.AccountTypeAPIKey, `{"api_key":"sk-test"}`, nil, "null", "true", "true").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
 	repo := newAccountRepositoryWithSQL(client, db, nil)
@@ -175,8 +192,20 @@ func TestUpdateUpstreamBillingProbeSnapshotRollsBackWhenOutboxFails(t *testing.T
 	t.Cleanup(func() { _ = client.Close() })
 
 	mock.ExpectBegin()
-	mock.ExpectExec(`(?s)`+regexp.QuoteMeta("UPDATE accounts")+`.*`+regexp.QuoteMeta("AND proxy_id IS NOT DISTINCT FROM $6")+`.*`+regexp.QuoteMeta("COALESCE(extra -> 'upstream_billing_probe', 'null'::jsonb) = $7::jsonb")).
-		WithArgs(sqlmock.AnyArg(), int64(18), service.PlatformOpenAI, service.AccountTypeAPIKey, `{"api_key":"sk-test"}`, nil, "null", "true", "true", 0.7).
+	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT active_upstream_rate_version_id, rate_multiplier") + `.*` + regexp.QuoteMeta("FOR UPDATE")).
+		WithArgs(int64(18)).
+		WillReturnRows(sqlmock.NewRows([]string{"active_upstream_rate_version_id", "rate_multiplier"}).AddRow(nil, 1.0))
+	mock.ExpectQuery(`(?s)` + regexp.QuoteMeta("SELECT id, account_id, version_no, rate_multiplier, source") + `.*` + regexp.QuoteMeta("account_upstream_rate_versions") + `.*` + regexp.QuoteMeta("FOR UPDATE")).
+		WithArgs(int64(18)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "account_id", "version_no", "rate_multiplier", "source", "effective_from", "effective_to", "observed_at", "snapshot", "change_reason", "created_by", "created_at"}))
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(version_no\), 0\) \+ 1`).
+		WithArgs(int64(18)).
+		WillReturnRows(sqlmock.NewRows([]string{"next_version"}).AddRow(int64(1)))
+	mock.ExpectQuery(`(?s)`+regexp.QuoteMeta("INSERT INTO account_upstream_rate_versions")+`.*RETURNING id, created_at`).
+		WithArgs(int64(18), int64(1), 0.7, string(domain.UpstreamRateSourceUpstreamProbe), sqlmock.AnyArg(), nil, sqlmock.AnyArg(), string(domain.UpstreamRateChangeProbeChanged), nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(102), time.Now()))
+	mock.ExpectExec("(?s)"+regexp.QuoteMeta("UPDATE accounts")+".*"+regexp.QuoteMeta("active_upstream_rate_version_id")+".*"+regexp.QuoteMeta("rate_multiplier")).
+		WithArgs(int64(102), 0.7, int64(18)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO scheduler_outbox")).WillReturnError(errors.New("outbox failed"))
 	mock.ExpectRollback()

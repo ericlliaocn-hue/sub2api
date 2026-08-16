@@ -112,6 +112,10 @@ func (Account) Fields() []ent.Field {
 		field.Float("rate_multiplier").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
+		field.Int64("active_upstream_rate_version_id").
+			Optional().
+			Nillable().
+			Comment("当前生效的上游倍率版本 ID"),
 
 		// status: 账户状态，如 "active", "error", "disabled"
 		field.String("status").

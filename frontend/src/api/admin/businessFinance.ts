@@ -94,6 +94,31 @@ export interface BusinessExpenseInput {
   notes?: string
 }
 
+export interface UpstreamCostPrices {
+  input: number
+  cache_read: number
+  cache_write: number
+  output: number
+}
+
+export interface UpstreamCostVersion {
+  id: number
+  account_id: number
+  account_name: string
+  model: 'gpt-5.6-luna' | 'gpt-5.6-terra'
+  short_prices: UpstreamCostPrices
+  long_context_threshold: number
+  long_prices: UpstreamCostPrices
+  declared_multiplier: number
+  balance_unit_cost: number
+  notes: string
+  effective_from: string
+  created_by?: number | null
+  created_at: string
+}
+
+export type UpstreamCostVersionInput = Omit<UpstreamCostVersion, 'id' | 'account_name' | 'effective_from' | 'created_by' | 'created_at'>
+
 export interface FinanceMetric {
   requests: number
   tokens: number
@@ -159,6 +184,12 @@ const businessFinanceAPI = {
   },
   voidExpense(id: number) {
     return apiClient.post(`/admin/business-finance/expenses/${id}/void`)
+  },
+  listUpstreamCostVersions(params?: { account_id?: number; model?: string }) {
+    return apiClient.get<UpstreamCostVersion[]>('/admin/business-finance/upstream-cost-versions', { params })
+  },
+  createUpstreamCostVersion(input: UpstreamCostVersionInput) {
+    return apiClient.post<UpstreamCostVersion>('/admin/business-finance/upstream-cost-versions', input)
   },
   getReport(params?: { start_time?: string; end_time?: string; dimension?: string; group_id?: number; channel_id?: number; model?: string; min_margin?: number }) {
     return apiClient.get<FinanceReport>('/admin/business-finance/report', { params })

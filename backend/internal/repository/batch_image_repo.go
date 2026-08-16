@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -750,6 +751,7 @@ INSERT INTO batch_image_jobs (
     batch_discount_multiplier, hold_multiplier, billable_unit_price, hold_unit_price,
     pricing_snapshot_version,
     currency, hold_id,
+    account_rate_version_id, account_rate_source, account_rate_snapshot,
     idempotency_key, request_hash, manifest_hash, retry_count, session_id, output_expires_at
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9,
@@ -760,7 +762,8 @@ INSERT INTO batch_image_jobs (
     $25, $26, $27, $28,
     $29,
     $30, $31,
-    $32, $33, $34, $35, $36, $37
+    $32, $33, $34,
+    $35, $36, $37, $38, $39, $40
 )
 RETURNING `+batchImageJobColumns,
 		params.BatchID, params.UserID, params.APIKeyID, params.AccountID, params.Provider, params.Model, params.TaskName, params.ParentBatchID, params.Status,
@@ -771,6 +774,7 @@ RETURNING `+batchImageJobColumns,
 		params.BatchDiscountMultiplier, params.HoldMultiplier, params.BillableUnitPrice, params.HoldUnitPrice,
 		params.PricingSnapshotVersion,
 		params.Currency, params.HoldID,
+		batchImageNullInt64(params.AccountRateVersionID), batchImageNullString(&params.AccountRateSource), batchImageNullAnyJSON(params.AccountRateSnapshot),
 		params.IdempotencyKey, params.RequestHash, params.ManifestHash, params.RetryCount, params.SessionID, params.OutputExpiresAt,
 	))
 }
@@ -824,6 +828,7 @@ base_unit_price, group_rate_multiplier, account_rate_multiplier,
 batch_discount_multiplier, hold_multiplier, billable_unit_price, hold_unit_price,
 pricing_snapshot_version,
 currency, hold_id,
+account_rate_version_id, account_rate_source, account_rate_snapshot,
 idempotency_key, request_hash, manifest_hash,
 retry_count, version, session_id, output_expires_at, input_deleted_at, output_deleted_at, downloaded_at, user_deleted_at,
 last_error_code, last_error_message,
@@ -839,6 +844,9 @@ func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 	var holdAmount, actualCost sql.NullFloat64
 	var holdID, idempotencyKey, requestHash, manifestHash sql.NullString
 	var sessionID sql.NullString
+	var accountRateVersionID sql.NullInt64
+	var accountRateSource sql.NullString
+	var accountRateSnapshot sql.NullString
 	var outputExpiresAt, inputDeletedAt, outputDeletedAt, downloadedAt, userDeletedAt sql.NullTime
 	var lastErrorCode, lastErrorMessage sql.NullString
 	var submittedAt, startedAt, finishedAt, settledAt sql.NullTime
@@ -852,6 +860,7 @@ func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 		&job.BatchDiscountMultiplier, &job.HoldMultiplier, &job.BillableUnitPrice, &job.HoldUnitPrice,
 		&job.PricingSnapshotVersion,
 		&job.Currency, &holdID,
+		&accountRateVersionID, &accountRateSource, &accountRateSnapshot,
 		&idempotencyKey, &requestHash, &manifestHash,
 		&job.RetryCount, &job.Version, &sessionID, &outputExpiresAt, &inputDeletedAt, &outputDeletedAt, &downloadedAt, &userDeletedAt,
 		&lastErrorCode, &lastErrorMessage,
@@ -876,6 +885,9 @@ func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 	job.RequestHash = batchImageNullStringPtr(requestHash)
 	job.ManifestHash = batchImageNullStringPtr(manifestHash)
 	job.SessionID = batchImageNullStringPtr(sessionID)
+	job.AccountRateVersionID = batchImageNullInt64Ptr(accountRateVersionID)
+	job.AccountRateSource = batchImageDerefString(batchImageNullStringPtr(accountRateSource))
+	job.AccountRateSnapshot = batchImageAnyMapFromNullJSON(accountRateSnapshot)
 	job.OutputExpiresAt = batchImageNullTimePtr(outputExpiresAt)
 	job.InputDeletedAt = batchImageNullTimePtr(inputDeletedAt)
 	job.OutputDeletedAt = batchImageNullTimePtr(outputDeletedAt)
@@ -956,11 +968,54 @@ func batchImageNullStringPtr(v sql.NullString) *string {
 	return &v.String
 }
 
+func batchImageDerefString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
 func batchImageNullInt64Ptr(v sql.NullInt64) *int64 {
 	if !v.Valid {
 		return nil
 	}
 	return &v.Int64
+}
+
+func batchImageNullInt64(v *int64) sql.NullInt64 {
+	if v == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: *v, Valid: true}
+}
+
+func batchImageNullString(v *string) sql.NullString {
+	if v == nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: *v, Valid: true}
+}
+
+func batchImageNullAnyJSON(value map[string]any) any {
+	if len(value) == 0 {
+		return nil
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return string(encoded)
+}
+
+func batchImageAnyMapFromNullJSON(raw sql.NullString) map[string]any {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return nil
+	}
+	var out map[string]any
+	if err := json.Unmarshal([]byte(raw.String), &out); err != nil {
+		return nil
+	}
+	return out
 }
 
 func batchImageNullIntPtr(v sql.NullInt64) *int {

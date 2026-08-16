@@ -407,6 +407,60 @@ func (_c *UsageLogCreate) SetNillableAccountRateMultiplier(v *float64) *UsageLog
 	return _c
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (_c *UsageLogCreate) SetAccountRateVersionID(v int64) *UsageLogCreate {
+	_c.mutation.SetAccountRateVersionID(v)
+	return _c
+}
+
+// SetNillableAccountRateVersionID sets the "account_rate_version_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAccountRateVersionID(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetAccountRateVersionID(*v)
+	}
+	return _c
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (_c *UsageLogCreate) SetAccountRateSource(v string) *UsageLogCreate {
+	_c.mutation.SetAccountRateSource(v)
+	return _c
+}
+
+// SetNillableAccountRateSource sets the "account_rate_source" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAccountRateSource(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetAccountRateSource(*v)
+	}
+	return _c
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (_c *UsageLogCreate) SetAccountRateSnapshot(v map[string]interface{}) *UsageLogCreate {
+	_c.mutation.SetAccountRateSnapshot(v)
+	return _c
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (_c *UsageLogCreate) SetUpstreamCost(v float64) *UsageLogCreate {
+	_c.mutation.SetUpstreamCost(v)
+	return _c
+}
+
+// SetNillableUpstreamCost sets the "upstream_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableUpstreamCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetUpstreamCost(*v)
+	}
+	return _c
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (_c *UsageLogCreate) SetUpstreamCostSnapshot(v map[string]interface{}) *UsageLogCreate {
+	_c.mutation.SetUpstreamCostSnapshot(v)
+	return _c
+}
+
 // SetBillingType sets the "billing_type" field.
 func (_c *UsageLogCreate) SetBillingType(v int8) *UsageLogCreate {
 	_c.mutation.SetBillingType(v)
@@ -878,6 +932,11 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.LongContextBillingApplied(); !ok {
 		return &ValidationError{Name: "long_context_billing_applied", err: errors.New(`ent: missing required field "UsageLog.long_context_billing_applied"`)}
 	}
+	if v, ok := _c.mutation.AccountRateSource(); ok {
+		if err := usagelog.AccountRateSourceValidator(v); err != nil {
+			return &ValidationError{Name: "account_rate_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.account_rate_source": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.BillingType(); !ok {
 		return &ValidationError{Name: "billing_type", err: errors.New(`ent: missing required field "UsageLog.billing_type"`)}
 	}
@@ -1066,6 +1125,26 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AccountRateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
 		_node.AccountRateMultiplier = &value
+	}
+	if value, ok := _c.mutation.AccountRateVersionID(); ok {
+		_spec.SetField(usagelog.FieldAccountRateVersionID, field.TypeInt64, value)
+		_node.AccountRateVersionID = &value
+	}
+	if value, ok := _c.mutation.AccountRateSource(); ok {
+		_spec.SetField(usagelog.FieldAccountRateSource, field.TypeString, value)
+		_node.AccountRateSource = &value
+	}
+	if value, ok := _c.mutation.AccountRateSnapshot(); ok {
+		_spec.SetField(usagelog.FieldAccountRateSnapshot, field.TypeJSON, value)
+		_node.AccountRateSnapshot = value
+	}
+	if value, ok := _c.mutation.UpstreamCost(); ok {
+		_spec.SetField(usagelog.FieldUpstreamCost, field.TypeFloat64, value)
+		_node.UpstreamCost = &value
+	}
+	if value, ok := _c.mutation.UpstreamCostSnapshot(); ok {
+		_spec.SetField(usagelog.FieldUpstreamCostSnapshot, field.TypeJSON, value)
+		_node.UpstreamCostSnapshot = value
 	}
 	if value, ok := _c.mutation.BillingType(); ok {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
@@ -1785,6 +1864,108 @@ func (u *UsageLogUpsert) AddAccountRateMultiplier(v float64) *UsageLogUpsert {
 // ClearAccountRateMultiplier clears the value of the "account_rate_multiplier" field.
 func (u *UsageLogUpsert) ClearAccountRateMultiplier() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldAccountRateMultiplier)
+	return u
+}
+
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (u *UsageLogUpsert) SetAccountRateVersionID(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldAccountRateVersionID, v)
+	return u
+}
+
+// UpdateAccountRateVersionID sets the "account_rate_version_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAccountRateVersionID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAccountRateVersionID)
+	return u
+}
+
+// AddAccountRateVersionID adds v to the "account_rate_version_id" field.
+func (u *UsageLogUpsert) AddAccountRateVersionID(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldAccountRateVersionID, v)
+	return u
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (u *UsageLogUpsert) ClearAccountRateVersionID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldAccountRateVersionID)
+	return u
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (u *UsageLogUpsert) SetAccountRateSource(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldAccountRateSource, v)
+	return u
+}
+
+// UpdateAccountRateSource sets the "account_rate_source" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAccountRateSource() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAccountRateSource)
+	return u
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (u *UsageLogUpsert) ClearAccountRateSource() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldAccountRateSource)
+	return u
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (u *UsageLogUpsert) SetAccountRateSnapshot(v map[string]interface{}) *UsageLogUpsert {
+	u.Set(usagelog.FieldAccountRateSnapshot, v)
+	return u
+}
+
+// UpdateAccountRateSnapshot sets the "account_rate_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAccountRateSnapshot() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAccountRateSnapshot)
+	return u
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (u *UsageLogUpsert) ClearAccountRateSnapshot() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldAccountRateSnapshot)
+	return u
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (u *UsageLogUpsert) SetUpstreamCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldUpstreamCost, v)
+	return u
+}
+
+// UpdateUpstreamCost sets the "upstream_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateUpstreamCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldUpstreamCost)
+	return u
+}
+
+// AddUpstreamCost adds v to the "upstream_cost" field.
+func (u *UsageLogUpsert) AddUpstreamCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldUpstreamCost, v)
+	return u
+}
+
+// ClearUpstreamCost clears the value of the "upstream_cost" field.
+func (u *UsageLogUpsert) ClearUpstreamCost() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldUpstreamCost)
+	return u
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (u *UsageLogUpsert) SetUpstreamCostSnapshot(v map[string]interface{}) *UsageLogUpsert {
+	u.Set(usagelog.FieldUpstreamCostSnapshot, v)
+	return u
+}
+
+// UpdateUpstreamCostSnapshot sets the "upstream_cost_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateUpstreamCostSnapshot() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldUpstreamCostSnapshot)
+	return u
+}
+
+// ClearUpstreamCostSnapshot clears the value of the "upstream_cost_snapshot" field.
+func (u *UsageLogUpsert) ClearUpstreamCostSnapshot() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldUpstreamCostSnapshot)
 	return u
 }
 
@@ -2726,6 +2907,125 @@ func (u *UsageLogUpsertOne) UpdateAccountRateMultiplier() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearAccountRateMultiplier() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearAccountRateMultiplier()
+	})
+}
+
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (u *UsageLogUpsertOne) SetAccountRateVersionID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountRateVersionID(v)
+	})
+}
+
+// AddAccountRateVersionID adds v to the "account_rate_version_id" field.
+func (u *UsageLogUpsertOne) AddAccountRateVersionID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAccountRateVersionID(v)
+	})
+}
+
+// UpdateAccountRateVersionID sets the "account_rate_version_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAccountRateVersionID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountRateVersionID()
+	})
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (u *UsageLogUpsertOne) ClearAccountRateVersionID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountRateVersionID()
+	})
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (u *UsageLogUpsertOne) SetAccountRateSource(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountRateSource(v)
+	})
+}
+
+// UpdateAccountRateSource sets the "account_rate_source" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAccountRateSource() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountRateSource()
+	})
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (u *UsageLogUpsertOne) ClearAccountRateSource() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountRateSource()
+	})
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (u *UsageLogUpsertOne) SetAccountRateSnapshot(v map[string]interface{}) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountRateSnapshot(v)
+	})
+}
+
+// UpdateAccountRateSnapshot sets the "account_rate_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAccountRateSnapshot() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountRateSnapshot()
+	})
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (u *UsageLogUpsertOne) ClearAccountRateSnapshot() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountRateSnapshot()
+	})
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (u *UsageLogUpsertOne) SetUpstreamCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUpstreamCost(v)
+	})
+}
+
+// AddUpstreamCost adds v to the "upstream_cost" field.
+func (u *UsageLogUpsertOne) AddUpstreamCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddUpstreamCost(v)
+	})
+}
+
+// UpdateUpstreamCost sets the "upstream_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateUpstreamCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUpstreamCost()
+	})
+}
+
+// ClearUpstreamCost clears the value of the "upstream_cost" field.
+func (u *UsageLogUpsertOne) ClearUpstreamCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearUpstreamCost()
+	})
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (u *UsageLogUpsertOne) SetUpstreamCostSnapshot(v map[string]interface{}) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUpstreamCostSnapshot(v)
+	})
+}
+
+// UpdateUpstreamCostSnapshot sets the "upstream_cost_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateUpstreamCostSnapshot() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUpstreamCostSnapshot()
+	})
+}
+
+// ClearUpstreamCostSnapshot clears the value of the "upstream_cost_snapshot" field.
+func (u *UsageLogUpsertOne) ClearUpstreamCostSnapshot() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearUpstreamCostSnapshot()
 	})
 }
 
@@ -3882,6 +4182,125 @@ func (u *UsageLogUpsertBulk) UpdateAccountRateMultiplier() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearAccountRateMultiplier() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearAccountRateMultiplier()
+	})
+}
+
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (u *UsageLogUpsertBulk) SetAccountRateVersionID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountRateVersionID(v)
+	})
+}
+
+// AddAccountRateVersionID adds v to the "account_rate_version_id" field.
+func (u *UsageLogUpsertBulk) AddAccountRateVersionID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAccountRateVersionID(v)
+	})
+}
+
+// UpdateAccountRateVersionID sets the "account_rate_version_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAccountRateVersionID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountRateVersionID()
+	})
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (u *UsageLogUpsertBulk) ClearAccountRateVersionID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountRateVersionID()
+	})
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (u *UsageLogUpsertBulk) SetAccountRateSource(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountRateSource(v)
+	})
+}
+
+// UpdateAccountRateSource sets the "account_rate_source" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAccountRateSource() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountRateSource()
+	})
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (u *UsageLogUpsertBulk) ClearAccountRateSource() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountRateSource()
+	})
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (u *UsageLogUpsertBulk) SetAccountRateSnapshot(v map[string]interface{}) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountRateSnapshot(v)
+	})
+}
+
+// UpdateAccountRateSnapshot sets the "account_rate_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAccountRateSnapshot() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountRateSnapshot()
+	})
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (u *UsageLogUpsertBulk) ClearAccountRateSnapshot() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountRateSnapshot()
+	})
+}
+
+// SetUpstreamCost sets the "upstream_cost" field.
+func (u *UsageLogUpsertBulk) SetUpstreamCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUpstreamCost(v)
+	})
+}
+
+// AddUpstreamCost adds v to the "upstream_cost" field.
+func (u *UsageLogUpsertBulk) AddUpstreamCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddUpstreamCost(v)
+	})
+}
+
+// UpdateUpstreamCost sets the "upstream_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateUpstreamCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUpstreamCost()
+	})
+}
+
+// ClearUpstreamCost clears the value of the "upstream_cost" field.
+func (u *UsageLogUpsertBulk) ClearUpstreamCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearUpstreamCost()
+	})
+}
+
+// SetUpstreamCostSnapshot sets the "upstream_cost_snapshot" field.
+func (u *UsageLogUpsertBulk) SetUpstreamCostSnapshot(v map[string]interface{}) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUpstreamCostSnapshot(v)
+	})
+}
+
+// UpdateUpstreamCostSnapshot sets the "upstream_cost_snapshot" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateUpstreamCostSnapshot() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUpstreamCostSnapshot()
+	})
+}
+
+// ClearUpstreamCostSnapshot clears the value of the "upstream_cost_snapshot" field.
+func (u *UsageLogUpsertBulk) ClearUpstreamCostSnapshot() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearUpstreamCostSnapshot()
 	})
 }
 

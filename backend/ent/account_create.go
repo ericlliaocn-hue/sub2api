@@ -195,6 +195,20 @@ func (_c *AccountCreate) SetNillableRateMultiplier(v *float64) *AccountCreate {
 	return _c
 }
 
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (_c *AccountCreate) SetActiveUpstreamRateVersionID(v int64) *AccountCreate {
+	_c.mutation.SetActiveUpstreamRateVersionID(v)
+	return _c
+}
+
+// SetNillableActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableActiveUpstreamRateVersionID(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetActiveUpstreamRateVersionID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *AccountCreate) SetStatus(v string) *AccountCreate {
 	_c.mutation.SetStatus(v)
@@ -741,6 +755,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		_spec.SetField(account.FieldRateMultiplier, field.TypeFloat64, value)
 		_node.RateMultiplier = value
 	}
+	if value, ok := _c.mutation.ActiveUpstreamRateVersionID(); ok {
+		_spec.SetField(account.FieldActiveUpstreamRateVersionID, field.TypeInt64, value)
+		_node.ActiveUpstreamRateVersionID = &value
+	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
 		_node.Status = value
@@ -1164,6 +1182,30 @@ func (u *AccountUpsert) UpdateRateMultiplier() *AccountUpsert {
 // AddRateMultiplier adds v to the "rate_multiplier" field.
 func (u *AccountUpsert) AddRateMultiplier(v float64) *AccountUpsert {
 	u.Add(account.FieldRateMultiplier, v)
+	return u
+}
+
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (u *AccountUpsert) SetActiveUpstreamRateVersionID(v int64) *AccountUpsert {
+	u.Set(account.FieldActiveUpstreamRateVersionID, v)
+	return u
+}
+
+// UpdateActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateActiveUpstreamRateVersionID() *AccountUpsert {
+	u.SetExcluded(account.FieldActiveUpstreamRateVersionID)
+	return u
+}
+
+// AddActiveUpstreamRateVersionID adds v to the "active_upstream_rate_version_id" field.
+func (u *AccountUpsert) AddActiveUpstreamRateVersionID(v int64) *AccountUpsert {
+	u.Add(account.FieldActiveUpstreamRateVersionID, v)
+	return u
+}
+
+// ClearActiveUpstreamRateVersionID clears the value of the "active_upstream_rate_version_id" field.
+func (u *AccountUpsert) ClearActiveUpstreamRateVersionID() *AccountUpsert {
+	u.SetNull(account.FieldActiveUpstreamRateVersionID)
 	return u
 }
 
@@ -1739,6 +1781,34 @@ func (u *AccountUpsertOne) AddRateMultiplier(v float64) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateRateMultiplier() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (u *AccountUpsertOne) SetActiveUpstreamRateVersionID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetActiveUpstreamRateVersionID(v)
+	})
+}
+
+// AddActiveUpstreamRateVersionID adds v to the "active_upstream_rate_version_id" field.
+func (u *AccountUpsertOne) AddActiveUpstreamRateVersionID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddActiveUpstreamRateVersionID(v)
+	})
+}
+
+// UpdateActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateActiveUpstreamRateVersionID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateActiveUpstreamRateVersionID()
+	})
+}
+
+// ClearActiveUpstreamRateVersionID clears the value of the "active_upstream_rate_version_id" field.
+func (u *AccountUpsertOne) ClearActiveUpstreamRateVersionID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearActiveUpstreamRateVersionID()
 	})
 }
 
@@ -2524,6 +2594,34 @@ func (u *AccountUpsertBulk) AddRateMultiplier(v float64) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateRateMultiplier() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field.
+func (u *AccountUpsertBulk) SetActiveUpstreamRateVersionID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetActiveUpstreamRateVersionID(v)
+	})
+}
+
+// AddActiveUpstreamRateVersionID adds v to the "active_upstream_rate_version_id" field.
+func (u *AccountUpsertBulk) AddActiveUpstreamRateVersionID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddActiveUpstreamRateVersionID(v)
+	})
+}
+
+// UpdateActiveUpstreamRateVersionID sets the "active_upstream_rate_version_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateActiveUpstreamRateVersionID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateActiveUpstreamRateVersionID()
+	})
+}
+
+// ClearActiveUpstreamRateVersionID clears the value of the "active_upstream_rate_version_id" field.
+func (u *AccountUpsertBulk) ClearActiveUpstreamRateVersionID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearActiveUpstreamRateVersionID()
 	})
 }
 

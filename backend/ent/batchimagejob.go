@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -61,6 +62,12 @@ type BatchImageJob struct {
 	Currency string `json:"currency,omitempty"`
 	// HoldID holds the value of the "hold_id" field.
 	HoldID *string `json:"hold_id,omitempty"`
+	// 创建 job 时固定的账号倍率版本 ID（Phase 5）
+	AccountRateVersionID *int64 `json:"account_rate_version_id,omitempty"`
+	// 创建 job 时固定的账号倍率来源
+	AccountRateSource *string `json:"account_rate_source,omitempty"`
+	// 创建 job 时固定的账号倍率快照
+	AccountRateSnapshot map[string]interface{} `json:"account_rate_snapshot,omitempty"`
 	// IdempotencyKey holds the value of the "idempotency_key" field.
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// RequestHash holds the value of the "request_hash" field.
@@ -105,11 +112,13 @@ func (*BatchImageJob) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case batchimagejob.FieldAccountRateSnapshot:
+			values[i] = new([]byte)
 		case batchimagejob.FieldEstimatedCost, batchimagejob.FieldHoldAmount, batchimagejob.FieldActualCost:
 			values[i] = new(sql.NullFloat64)
-		case batchimagejob.FieldID, batchimagejob.FieldUserID, batchimagejob.FieldAPIKeyID, batchimagejob.FieldAccountID, batchimagejob.FieldItemCount, batchimagejob.FieldSuccessCount, batchimagejob.FieldFailCount, batchimagejob.FieldCancelledCount, batchimagejob.FieldRetryCount, batchimagejob.FieldVersion:
+		case batchimagejob.FieldID, batchimagejob.FieldUserID, batchimagejob.FieldAPIKeyID, batchimagejob.FieldAccountID, batchimagejob.FieldItemCount, batchimagejob.FieldSuccessCount, batchimagejob.FieldFailCount, batchimagejob.FieldCancelledCount, batchimagejob.FieldAccountRateVersionID, batchimagejob.FieldRetryCount, batchimagejob.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case batchimagejob.FieldBatchID, batchimagejob.FieldProvider, batchimagejob.FieldModel, batchimagejob.FieldTaskName, batchimagejob.FieldStatus, batchimagejob.FieldProviderJobName, batchimagejob.FieldProviderInputRef, batchimagejob.FieldProviderOutputRef, batchimagejob.FieldGcsInputURI, batchimagejob.FieldGcsOutputURI, batchimagejob.FieldCurrency, batchimagejob.FieldHoldID, batchimagejob.FieldIdempotencyKey, batchimagejob.FieldRequestHash, batchimagejob.FieldManifestHash, batchimagejob.FieldLastErrorCode, batchimagejob.FieldLastErrorMessage:
+		case batchimagejob.FieldBatchID, batchimagejob.FieldProvider, batchimagejob.FieldModel, batchimagejob.FieldTaskName, batchimagejob.FieldStatus, batchimagejob.FieldProviderJobName, batchimagejob.FieldProviderInputRef, batchimagejob.FieldProviderOutputRef, batchimagejob.FieldGcsInputURI, batchimagejob.FieldGcsOutputURI, batchimagejob.FieldCurrency, batchimagejob.FieldHoldID, batchimagejob.FieldAccountRateSource, batchimagejob.FieldIdempotencyKey, batchimagejob.FieldRequestHash, batchimagejob.FieldManifestHash, batchimagejob.FieldLastErrorCode, batchimagejob.FieldLastErrorMessage:
 			values[i] = new(sql.NullString)
 		case batchimagejob.FieldOutputExpiresAt, batchimagejob.FieldInputDeletedAt, batchimagejob.FieldOutputDeletedAt, batchimagejob.FieldDownloadedAt, batchimagejob.FieldUserDeletedAt, batchimagejob.FieldCreatedAt, batchimagejob.FieldUpdatedAt, batchimagejob.FieldSubmittedAt, batchimagejob.FieldStartedAt, batchimagejob.FieldFinishedAt, batchimagejob.FieldSettledAt:
 			values[i] = new(sql.NullTime)
@@ -275,6 +284,28 @@ func (_m *BatchImageJob) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.HoldID = new(string)
 				*_m.HoldID = value.String
+			}
+		case batchimagejob.FieldAccountRateVersionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_version_id", values[i])
+			} else if value.Valid {
+				_m.AccountRateVersionID = new(int64)
+				*_m.AccountRateVersionID = value.Int64
+			}
+		case batchimagejob.FieldAccountRateSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_source", values[i])
+			} else if value.Valid {
+				_m.AccountRateSource = new(string)
+				*_m.AccountRateSource = value.String
+			}
+		case batchimagejob.FieldAccountRateSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AccountRateSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field account_rate_snapshot: %w", err)
+				}
 			}
 		case batchimagejob.FieldIdempotencyKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -519,6 +550,19 @@ func (_m *BatchImageJob) String() string {
 		builder.WriteString("hold_id=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	if v := _m.AccountRateVersionID; v != nil {
+		builder.WriteString("account_rate_version_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccountRateSource; v != nil {
+		builder.WriteString("account_rate_source=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("account_rate_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AccountRateSnapshot))
 	builder.WriteString(", ")
 	if v := _m.IdempotencyKey; v != nil {
 		builder.WriteString("idempotency_key=")

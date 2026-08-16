@@ -192,6 +192,112 @@ func (r *businessFinanceRepository) VoidExpense(ctx context.Context, id int64) e
 	return nil
 }
 
+const upstreamCostVersionColumns = `
+	v.id, v.account_id, a.name, v.model,
+	v.short_input_price, v.short_cache_read_price, v.short_cache_write_price, v.short_output_price,
+	v.long_context_threshold, v.long_input_price, v.long_cache_read_price, v.long_cache_write_price, v.long_output_price,
+	v.declared_multiplier, v.balance_unit_cost, v.notes, v.effective_from, v.created_by, v.created_at`
+
+func (r *businessFinanceRepository) ListUpstreamCostVersions(ctx context.Context, accountID int64, model string) ([]service.UpstreamCostVersion, error) {
+	where := []string{"1 = 1"}
+	args := make([]any, 0, 2)
+	if accountID > 0 {
+		args = append(args, accountID)
+		where = append(where, fmt.Sprintf("v.account_id = $%d", len(args)))
+	}
+	if model != "" {
+		args = append(args, model)
+		where = append(where, fmt.Sprintf("v.model = $%d", len(args)))
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT `+upstreamCostVersionColumns+`
+		FROM upstream_cost_versions v
+		JOIN accounts a ON a.id = v.account_id
+		WHERE `+strings.Join(where, " AND ")+`
+		ORDER BY v.effective_from DESC, v.id DESC`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]service.UpstreamCostVersion, 0)
+	for rows.Next() {
+		item, err := scanUpstreamCostVersion(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *item)
+	}
+	return items, rows.Err()
+}
+
+func (r *businessFinanceRepository) CreateUpstreamCostVersion(ctx context.Context, input service.UpstreamCostVersionInput, createdBy int64) (*service.UpstreamCostVersion, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var accountName, platform string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT name, platform FROM accounts
+		WHERE id = $1 AND deleted_at IS NULL
+		FOR UPDATE`, input.AccountID).Scan(&accountName, &platform); err != nil {
+		return nil, err
+	}
+	if platform != service.PlatformOpenAI {
+		return nil, fmt.Errorf("manual upstream cost profile requires an OpenAI account")
+	}
+
+	row := tx.QueryRowContext(ctx, `
+		INSERT INTO upstream_cost_versions (
+			account_id, model,
+			short_input_price, short_cache_read_price, short_cache_write_price, short_output_price,
+			long_context_threshold, long_input_price, long_cache_read_price, long_cache_write_price, long_output_price,
+			declared_multiplier, balance_unit_cost, notes, created_by
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, 0)
+		)
+		RETURNING id, effective_from, created_at`,
+		input.AccountID, input.Model,
+		input.ShortPrices.Input, input.ShortPrices.CacheRead, input.ShortPrices.CacheWrite, input.ShortPrices.Output,
+		input.LongContextThreshold, input.LongPrices.Input, input.LongPrices.CacheRead, input.LongPrices.CacheWrite, input.LongPrices.Output,
+		input.DeclaredMultiplier, input.BalanceUnitCost, input.Notes, createdBy,
+	)
+	item := &service.UpstreamCostVersion{
+		AccountID: input.AccountID, AccountName: accountName, Model: input.Model,
+		ShortPrices: input.ShortPrices, LongContextThreshold: input.LongContextThreshold, LongPrices: input.LongPrices,
+		DeclaredMultiplier: input.DeclaredMultiplier, BalanceUnitCost: input.BalanceUnitCost, Notes: input.Notes,
+	}
+	if err := row.Scan(&item.ID, &item.EffectiveFrom, &item.CreatedAt); err != nil {
+		return nil, err
+	}
+	if createdBy > 0 {
+		item.CreatedBy = &createdBy
+	}
+	profileJSON, err := json.Marshal(item.ExtraSnapshot())
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE accounts
+		SET extra = jsonb_set(
+			COALESCE(extra, '{}'::jsonb),
+			'{upstream_cost_profiles}',
+			COALESCE(extra->'upstream_cost_profiles', '{}'::jsonb) || jsonb_build_object($2::text, $3::jsonb),
+			TRUE
+		), updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL`, input.AccountID, input.Model, profileJSON); err != nil {
+		return nil, err
+	}
+	if err := enqueueSchedulerOutbox(ctx, tx, service.SchedulerOutboxEventAccountChanged, &input.AccountID, nil, nil); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
 type financeRowScanner interface {
 	Scan(dest ...any) error
 }
@@ -226,6 +332,23 @@ func scanExpense(row financeRowScanner) (*service.ExpenseEntry, error) {
 		return nil, err
 	}
 	item.Scope = decodeJSONMap(scopeRaw)
+	if createdBy.Valid {
+		item.CreatedBy = &createdBy.Int64
+	}
+	return &item, nil
+}
+
+func scanUpstreamCostVersion(row financeRowScanner) (*service.UpstreamCostVersion, error) {
+	var item service.UpstreamCostVersion
+	var createdBy sql.NullInt64
+	if err := row.Scan(
+		&item.ID, &item.AccountID, &item.AccountName, &item.Model,
+		&item.ShortPrices.Input, &item.ShortPrices.CacheRead, &item.ShortPrices.CacheWrite, &item.ShortPrices.Output,
+		&item.LongContextThreshold, &item.LongPrices.Input, &item.LongPrices.CacheRead, &item.LongPrices.CacheWrite, &item.LongPrices.Output,
+		&item.DeclaredMultiplier, &item.BalanceUnitCost, &item.Notes, &item.EffectiveFrom, &createdBy, &item.CreatedAt,
+	); err != nil {
+		return nil, err
+	}
 	if createdBy.Valid {
 		item.CreatedBy = &createdBy.Int64
 	}

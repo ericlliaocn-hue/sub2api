@@ -1366,6 +1366,16 @@ export interface OpenAIResponsesState {
   openai_responses_supported?: boolean
 }
 
+export interface UpstreamCostProfileInput {
+  model: string
+  short_prices: { input: number; cache_read: number; cache_write: number; output: number }
+  long_context_threshold?: number
+  long_prices?: { input: number; cache_read: number; cache_write: number; output: number }
+  declared_multiplier?: number
+  balance_unit_cost?: number
+  notes?: string
+}
+
 export interface CreateAccountRequest {
   name: string
   notes?: string | null
@@ -1383,6 +1393,9 @@ export interface CreateAccountRequest {
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
   confirm_mixed_channel_risk?: boolean
+  // 上游成本配置独立字段（仅 OpenAI 账号；计划 Phase 3）
+  upstream_cost_enabled?: boolean
+  upstream_cost_profiles?: UpstreamCostProfileInput[]
 }
 
 export interface UpdateAccountRequest {
@@ -1404,6 +1417,9 @@ export interface UpdateAccountRequest {
   upstream_billing_probe_enabled?: boolean
   upstream_billing_rate_sync_enabled?: boolean
   confirm_mixed_channel_risk?: boolean
+  // 上游成本配置独立字段（仅 OpenAI 账号；计划 Phase 3）
+  upstream_cost_enabled?: boolean
+  upstream_cost_profiles?: UpstreamCostProfileInput[]
 }
 
 export interface CheckMixedChannelRequest {
@@ -1658,6 +1674,9 @@ export interface AdminUsageLog extends UsageLog {
   account_rate_multiplier?: number | null
   // 自定义定价规则计算的账号统计费用（nil 时使用 total_cost * multiplier）
   account_stats_cost?: number | null
+  // 手工上游成本档案命中时的最终成本和版本快照（仅管理员可见）
+  upstream_cost?: number | null
+  upstream_cost_snapshot?: Record<string, unknown> | null
 
   // 渠道 ID 和计费等级（仅管理员可见）
   channel_id?: number | null

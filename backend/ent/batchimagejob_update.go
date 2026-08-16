@@ -452,6 +452,65 @@ func (_u *BatchImageJobUpdate) ClearHoldID() *BatchImageJobUpdate {
 	return _u
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (_u *BatchImageJobUpdate) SetAccountRateVersionID(v int64) *BatchImageJobUpdate {
+	_u.mutation.ResetAccountRateVersionID()
+	_u.mutation.SetAccountRateVersionID(v)
+	return _u
+}
+
+// SetNillableAccountRateVersionID sets the "account_rate_version_id" field if the given value is not nil.
+func (_u *BatchImageJobUpdate) SetNillableAccountRateVersionID(v *int64) *BatchImageJobUpdate {
+	if v != nil {
+		_u.SetAccountRateVersionID(*v)
+	}
+	return _u
+}
+
+// AddAccountRateVersionID adds value to the "account_rate_version_id" field.
+func (_u *BatchImageJobUpdate) AddAccountRateVersionID(v int64) *BatchImageJobUpdate {
+	_u.mutation.AddAccountRateVersionID(v)
+	return _u
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (_u *BatchImageJobUpdate) ClearAccountRateVersionID() *BatchImageJobUpdate {
+	_u.mutation.ClearAccountRateVersionID()
+	return _u
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (_u *BatchImageJobUpdate) SetAccountRateSource(v string) *BatchImageJobUpdate {
+	_u.mutation.SetAccountRateSource(v)
+	return _u
+}
+
+// SetNillableAccountRateSource sets the "account_rate_source" field if the given value is not nil.
+func (_u *BatchImageJobUpdate) SetNillableAccountRateSource(v *string) *BatchImageJobUpdate {
+	if v != nil {
+		_u.SetAccountRateSource(*v)
+	}
+	return _u
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (_u *BatchImageJobUpdate) ClearAccountRateSource() *BatchImageJobUpdate {
+	_u.mutation.ClearAccountRateSource()
+	return _u
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (_u *BatchImageJobUpdate) SetAccountRateSnapshot(v map[string]interface{}) *BatchImageJobUpdate {
+	_u.mutation.SetAccountRateSnapshot(v)
+	return _u
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (_u *BatchImageJobUpdate) ClearAccountRateSnapshot() *BatchImageJobUpdate {
+	_u.mutation.ClearAccountRateSnapshot()
+	return _u
+}
+
 // SetIdempotencyKey sets the "idempotency_key" field.
 func (_u *BatchImageJobUpdate) SetIdempotencyKey(v string) *BatchImageJobUpdate {
 	_u.mutation.SetIdempotencyKey(v)
@@ -878,6 +937,11 @@ func (_u *BatchImageJobUpdate) check() error {
 			return &ValidationError{Name: "hold_id", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.hold_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountRateSource(); ok {
+		if err := batchimagejob.AccountRateSourceValidator(v); err != nil {
+			return &ValidationError{Name: "account_rate_source", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.account_rate_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.IdempotencyKey(); ok {
 		if err := batchimagejob.IdempotencyKeyValidator(v); err != nil {
 			return &ValidationError{Name: "idempotency_key", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.idempotency_key": %w`, err)}
@@ -1035,6 +1099,27 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.HoldIDCleared() {
 		_spec.ClearField(batchimagejob.FieldHoldID, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountRateVersionID(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedAccountRateVersionID(); ok {
+		_spec.AddField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if _u.mutation.AccountRateVersionIDCleared() {
+		_spec.ClearField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.AccountRateSource(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateSource, field.TypeString, value)
+	}
+	if _u.mutation.AccountRateSourceCleared() {
+		_spec.ClearField(batchimagejob.FieldAccountRateSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountRateSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.AccountRateSnapshotCleared() {
+		_spec.ClearField(batchimagejob.FieldAccountRateSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.IdempotencyKey(); ok {
 		_spec.SetField(batchimagejob.FieldIdempotencyKey, field.TypeString, value)
@@ -1579,6 +1664,65 @@ func (_u *BatchImageJobUpdateOne) ClearHoldID() *BatchImageJobUpdateOne {
 	return _u
 }
 
+// SetAccountRateVersionID sets the "account_rate_version_id" field.
+func (_u *BatchImageJobUpdateOne) SetAccountRateVersionID(v int64) *BatchImageJobUpdateOne {
+	_u.mutation.ResetAccountRateVersionID()
+	_u.mutation.SetAccountRateVersionID(v)
+	return _u
+}
+
+// SetNillableAccountRateVersionID sets the "account_rate_version_id" field if the given value is not nil.
+func (_u *BatchImageJobUpdateOne) SetNillableAccountRateVersionID(v *int64) *BatchImageJobUpdateOne {
+	if v != nil {
+		_u.SetAccountRateVersionID(*v)
+	}
+	return _u
+}
+
+// AddAccountRateVersionID adds value to the "account_rate_version_id" field.
+func (_u *BatchImageJobUpdateOne) AddAccountRateVersionID(v int64) *BatchImageJobUpdateOne {
+	_u.mutation.AddAccountRateVersionID(v)
+	return _u
+}
+
+// ClearAccountRateVersionID clears the value of the "account_rate_version_id" field.
+func (_u *BatchImageJobUpdateOne) ClearAccountRateVersionID() *BatchImageJobUpdateOne {
+	_u.mutation.ClearAccountRateVersionID()
+	return _u
+}
+
+// SetAccountRateSource sets the "account_rate_source" field.
+func (_u *BatchImageJobUpdateOne) SetAccountRateSource(v string) *BatchImageJobUpdateOne {
+	_u.mutation.SetAccountRateSource(v)
+	return _u
+}
+
+// SetNillableAccountRateSource sets the "account_rate_source" field if the given value is not nil.
+func (_u *BatchImageJobUpdateOne) SetNillableAccountRateSource(v *string) *BatchImageJobUpdateOne {
+	if v != nil {
+		_u.SetAccountRateSource(*v)
+	}
+	return _u
+}
+
+// ClearAccountRateSource clears the value of the "account_rate_source" field.
+func (_u *BatchImageJobUpdateOne) ClearAccountRateSource() *BatchImageJobUpdateOne {
+	_u.mutation.ClearAccountRateSource()
+	return _u
+}
+
+// SetAccountRateSnapshot sets the "account_rate_snapshot" field.
+func (_u *BatchImageJobUpdateOne) SetAccountRateSnapshot(v map[string]interface{}) *BatchImageJobUpdateOne {
+	_u.mutation.SetAccountRateSnapshot(v)
+	return _u
+}
+
+// ClearAccountRateSnapshot clears the value of the "account_rate_snapshot" field.
+func (_u *BatchImageJobUpdateOne) ClearAccountRateSnapshot() *BatchImageJobUpdateOne {
+	_u.mutation.ClearAccountRateSnapshot()
+	return _u
+}
+
 // SetIdempotencyKey sets the "idempotency_key" field.
 func (_u *BatchImageJobUpdateOne) SetIdempotencyKey(v string) *BatchImageJobUpdateOne {
 	_u.mutation.SetIdempotencyKey(v)
@@ -2018,6 +2162,11 @@ func (_u *BatchImageJobUpdateOne) check() error {
 			return &ValidationError{Name: "hold_id", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.hold_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AccountRateSource(); ok {
+		if err := batchimagejob.AccountRateSourceValidator(v); err != nil {
+			return &ValidationError{Name: "account_rate_source", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.account_rate_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.IdempotencyKey(); ok {
 		if err := batchimagejob.IdempotencyKeyValidator(v); err != nil {
 			return &ValidationError{Name: "idempotency_key", err: fmt.Errorf(`ent: validator failed for field "BatchImageJob.idempotency_key": %w`, err)}
@@ -2192,6 +2341,27 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	}
 	if _u.mutation.HoldIDCleared() {
 		_spec.ClearField(batchimagejob.FieldHoldID, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountRateVersionID(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedAccountRateVersionID(); ok {
+		_spec.AddField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64, value)
+	}
+	if _u.mutation.AccountRateVersionIDCleared() {
+		_spec.ClearField(batchimagejob.FieldAccountRateVersionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.AccountRateSource(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateSource, field.TypeString, value)
+	}
+	if _u.mutation.AccountRateSourceCleared() {
+		_spec.ClearField(batchimagejob.FieldAccountRateSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountRateSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldAccountRateSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.AccountRateSnapshotCleared() {
+		_spec.ClearField(batchimagejob.FieldAccountRateSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.IdempotencyKey(); ok {
 		_spec.SetField(batchimagejob.FieldIdempotencyKey, field.TypeString, value)

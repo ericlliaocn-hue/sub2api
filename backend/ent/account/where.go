@@ -120,6 +120,11 @@ func RateMultiplier(v float64) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldRateMultiplier, v))
 }
 
+// ActiveUpstreamRateVersionID applies equality check predicate on the "active_upstream_rate_version_id" field. It's identical to ActiveUpstreamRateVersionIDEQ.
+func ActiveUpstreamRateVersionID(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldActiveUpstreamRateVersionID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldStatus, v))
@@ -843,6 +848,56 @@ func RateMultiplierLT(v float64) predicate.Account {
 // RateMultiplierLTE applies the LTE predicate on the "rate_multiplier" field.
 func RateMultiplierLTE(v float64) predicate.Account {
 	return predicate.Account(sql.FieldLTE(FieldRateMultiplier, v))
+}
+
+// ActiveUpstreamRateVersionIDEQ applies the EQ predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldActiveUpstreamRateVersionID, v))
+}
+
+// ActiveUpstreamRateVersionIDNEQ applies the NEQ predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldActiveUpstreamRateVersionID, v))
+}
+
+// ActiveUpstreamRateVersionIDIn applies the In predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldActiveUpstreamRateVersionID, vs...))
+}
+
+// ActiveUpstreamRateVersionIDNotIn applies the NotIn predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldActiveUpstreamRateVersionID, vs...))
+}
+
+// ActiveUpstreamRateVersionIDGT applies the GT predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDGT(v int64) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldActiveUpstreamRateVersionID, v))
+}
+
+// ActiveUpstreamRateVersionIDGTE applies the GTE predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDGTE(v int64) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldActiveUpstreamRateVersionID, v))
+}
+
+// ActiveUpstreamRateVersionIDLT applies the LT predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDLT(v int64) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldActiveUpstreamRateVersionID, v))
+}
+
+// ActiveUpstreamRateVersionIDLTE applies the LTE predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDLTE(v int64) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldActiveUpstreamRateVersionID, v))
+}
+
+// ActiveUpstreamRateVersionIDIsNil applies the IsNil predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldActiveUpstreamRateVersionID))
+}
+
+// ActiveUpstreamRateVersionIDNotNil applies the NotNil predicate on the "active_upstream_rate_version_id" field.
+func ActiveUpstreamRateVersionIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldActiveUpstreamRateVersionID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

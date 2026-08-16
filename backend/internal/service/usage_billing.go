@@ -42,6 +42,14 @@ type UsageBillingCommand struct {
 	APIKeyQuotaCost     float64
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
+
+	// AccountRateMultiplier 与 AccountRateVersionID / AccountRateSource /
+	// AccountRateSnapshot 是请求开始时固定的账号倍率快照（Phase 5），与 usage
+	// log 共用同一份，扣费不得在请求结束时重读当前倍率。
+	AccountRateMultiplier float64
+	AccountRateVersionID  *int64
+	AccountRateSource     string
+	AccountRateSnapshot   map[string]any
 }
 
 func (c *UsageBillingCommand) Normalize() {

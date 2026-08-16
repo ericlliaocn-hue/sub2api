@@ -164,6 +164,16 @@ func HoldID(v string) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldEQ(FieldHoldID, v))
 }
 
+// AccountRateVersionID applies equality check predicate on the "account_rate_version_id" field. It's identical to AccountRateVersionIDEQ.
+func AccountRateVersionID(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEQ(FieldAccountRateVersionID, v))
+}
+
+// AccountRateSource applies equality check predicate on the "account_rate_source" field. It's identical to AccountRateSourceEQ.
+func AccountRateSource(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEQ(FieldAccountRateSource, v))
+}
+
 // IdempotencyKey applies equality check predicate on the "idempotency_key" field. It's identical to IdempotencyKeyEQ.
 func IdempotencyKey(v string) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldEQ(FieldIdempotencyKey, v))
@@ -1532,6 +1542,141 @@ func HoldIDEqualFold(v string) predicate.BatchImageJob {
 // HoldIDContainsFold applies the ContainsFold predicate on the "hold_id" field.
 func HoldIDContainsFold(v string) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldContainsFold(FieldHoldID, v))
+}
+
+// AccountRateVersionIDEQ applies the EQ predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDEQ(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEQ(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDNEQ applies the NEQ predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDNEQ(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNEQ(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDIn applies the In predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDIn(vs ...int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldIn(FieldAccountRateVersionID, vs...))
+}
+
+// AccountRateVersionIDNotIn applies the NotIn predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDNotIn(vs ...int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNotIn(FieldAccountRateVersionID, vs...))
+}
+
+// AccountRateVersionIDGT applies the GT predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDGT(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldGT(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDGTE applies the GTE predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDGTE(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldGTE(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDLT applies the LT predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDLT(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldLT(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDLTE applies the LTE predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDLTE(v int64) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldLTE(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDIsNil applies the IsNil predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDIsNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldIsNull(FieldAccountRateVersionID))
+}
+
+// AccountRateVersionIDNotNil applies the NotNil predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDNotNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNotNull(FieldAccountRateVersionID))
+}
+
+// AccountRateSourceEQ applies the EQ predicate on the "account_rate_source" field.
+func AccountRateSourceEQ(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEQ(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceNEQ applies the NEQ predicate on the "account_rate_source" field.
+func AccountRateSourceNEQ(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNEQ(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceIn applies the In predicate on the "account_rate_source" field.
+func AccountRateSourceIn(vs ...string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldIn(FieldAccountRateSource, vs...))
+}
+
+// AccountRateSourceNotIn applies the NotIn predicate on the "account_rate_source" field.
+func AccountRateSourceNotIn(vs ...string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNotIn(FieldAccountRateSource, vs...))
+}
+
+// AccountRateSourceGT applies the GT predicate on the "account_rate_source" field.
+func AccountRateSourceGT(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldGT(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceGTE applies the GTE predicate on the "account_rate_source" field.
+func AccountRateSourceGTE(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldGTE(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceLT applies the LT predicate on the "account_rate_source" field.
+func AccountRateSourceLT(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldLT(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceLTE applies the LTE predicate on the "account_rate_source" field.
+func AccountRateSourceLTE(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldLTE(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceContains applies the Contains predicate on the "account_rate_source" field.
+func AccountRateSourceContains(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldContains(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceHasPrefix applies the HasPrefix predicate on the "account_rate_source" field.
+func AccountRateSourceHasPrefix(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldHasPrefix(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceHasSuffix applies the HasSuffix predicate on the "account_rate_source" field.
+func AccountRateSourceHasSuffix(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldHasSuffix(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceIsNil applies the IsNil predicate on the "account_rate_source" field.
+func AccountRateSourceIsNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldIsNull(FieldAccountRateSource))
+}
+
+// AccountRateSourceNotNil applies the NotNil predicate on the "account_rate_source" field.
+func AccountRateSourceNotNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNotNull(FieldAccountRateSource))
+}
+
+// AccountRateSourceEqualFold applies the EqualFold predicate on the "account_rate_source" field.
+func AccountRateSourceEqualFold(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEqualFold(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceContainsFold applies the ContainsFold predicate on the "account_rate_source" field.
+func AccountRateSourceContainsFold(v string) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldContainsFold(FieldAccountRateSource, v))
+}
+
+// AccountRateSnapshotIsNil applies the IsNil predicate on the "account_rate_snapshot" field.
+func AccountRateSnapshotIsNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldIsNull(FieldAccountRateSnapshot))
+}
+
+// AccountRateSnapshotNotNil applies the NotNil predicate on the "account_rate_snapshot" field.
+func AccountRateSnapshotNotNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNotNull(FieldAccountRateSnapshot))
 }
 
 // IdempotencyKeyEQ applies the EQ predicate on the "idempotency_key" field.

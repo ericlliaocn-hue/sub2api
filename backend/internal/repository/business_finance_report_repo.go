@@ -87,7 +87,10 @@ func (r *businessFinanceRepository) queryFinanceUsageRows(ctx context.Context, f
 		       COUNT(*)::bigint,
 		       COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0)::bigint,
 		       COALESCE(SUM(ul.actual_cost), 0)::double precision AS revenue,
-		       COALESCE(SUM(COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1)), 0)::double precision AS direct_cost
+		       COALESCE(SUM(COALESCE(
+		           ul.upstream_cost,
+		           COALESCE(ul.upstream_cost, COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1))
+		       )), 0)::double precision AS direct_cost
 		FROM usage_logs ul
 		%s
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
@@ -126,7 +129,10 @@ func (r *businessFinanceRepository) queryFinanceTrendRows(ctx context.Context, f
 		       COUNT(*)::bigint,
 		       COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0)::bigint,
 		       COALESCE(SUM(ul.actual_cost), 0)::double precision,
-		       COALESCE(SUM(COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1)), 0)::double precision
+		       COALESCE(SUM(COALESCE(
+		           ul.upstream_cost,
+		           COALESCE(ul.upstream_cost, COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1))
+		       )), 0)::double precision
 		FROM usage_logs ul
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
 		  AND ($3 = 0 OR ul.group_id = $3)

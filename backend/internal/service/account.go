@@ -59,6 +59,13 @@ type Account struct {
 	ParentAccountID *int64 // non-nil → 影子账号（不持凭据，透传母账号凭据）
 	QuotaDimension  string // 用量维度："" / "global" / "spark"
 
+	// ActiveUpstreamRateVersionID / ActiveUpstreamRateSource / ActiveUpstreamRateSnapshot
+	// 是账号当前生效的倍率版本（请求开始时固定快照，Phase 5）。nil / 空表示
+	// 旧账号没有版本账本，倍率按 rate_multiplier 兼容列处理。
+	ActiveUpstreamRateVersionID *int64
+	ActiveUpstreamRateSource    string
+	ActiveUpstreamRateSnapshot  map[string]any
+
 	Proxy         *Proxy
 	AccountGroups []AccountGroup
 	GroupIDs      []int64
@@ -160,6 +167,20 @@ func (a *Account) BillingRateMultiplier() float64 {
 		return 1.0
 	}
 	return *a.RateMultiplier
+}
+
+// RateVersionFields 返回请求开始时固定的账号倍率版本快照
+// （rate_version_id / rate_source / rate_snapshot），供 usage log 与扣费命令
+// 共用同一份快照（Phase 5）。旧账号无版本时返回 nil。
+func (a *Account) RateVersionFields() (*int64, *string, map[string]any) {
+	if a == nil {
+		return nil, nil, nil
+	}
+	var source *string
+	if a.ActiveUpstreamRateSource != "" {
+		source = &a.ActiveUpstreamRateSource
+	}
+	return a.ActiveUpstreamRateVersionID, source, a.ActiveUpstreamRateSnapshot
 }
 
 func (a *Account) EffectiveLoadFactor() int {

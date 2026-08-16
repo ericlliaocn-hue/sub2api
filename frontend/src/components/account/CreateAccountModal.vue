@@ -2772,10 +2772,152 @@
         </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.billingRateMultiplier') }}</label>
-          <input v-model.number="form.rate_multiplier" type="number" min="0" step="0.001" class="input" />
+          <input v-model.number="form.rate_multiplier" type="number" min="0" step="0.001" class="input"
+            @input="rateMultiplierTouched = true" />
           <p class="input-hint">{{ t('admin.accounts.billingRateMultiplierHint') }}</p>
         </div>
       </div>
+
+      <!-- 上游成本核算（仅 OpenAI 账号；计划 Phase 3/8） -->
+      <div
+        v-if="form.platform === 'openai'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="mb-3">
+          <span class="input-label mb-0">上游成本核算</span>
+          <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">仅 OpenAI 账号，默认关闭</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-gray-900 dark:text-white">启用上游成本核算</div>
+              <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                按上游声明价格计算账号真实成本；倍率优先使用账号倍率版本，其次为配置的声明倍率。
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="upstreamCostEnabled = !upstreamCostEnabled"
+              :class="[
+                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+                upstreamCostEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+              ]"
+            >
+              <span
+                :class="[
+                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                  upstreamCostEnabled ? 'translate-x-5' : 'translate-x-0'
+                ]"
+              />
+            </button>
+          </div>
+
+          <template v-if="upstreamCostEnabled">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm text-gray-600 dark:text-gray-300">预置模型：</span>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="upstreamCostProfiles.some((p) => p.model === 'gpt-5.6-luna')"
+                @click="addUpstreamCostProfile('gpt-5.6-luna')"
+              >
+                + GPT-5.6 Luna
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="upstreamCostProfiles.some((p) => p.model === 'gpt-5.6-terra')"
+                @click="addUpstreamCostProfile('gpt-5.6-terra')"
+              >
+                + GPT-5.6 Terra
+              </button>
+              <span class="mx-1 text-gray-300 dark:text-dark-600">|</span>
+              <input
+                v-model.trim="customUpstreamCostModel"
+                class="input h-8 w-52 text-xs"
+                placeholder="自定义模型名，如 gpt-5.6-codexapis"
+                @keyup.enter="addCustomUpstreamCostProfile"
+              />
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="!customUpstreamCostModel"
+                @click="addCustomUpstreamCostProfile"
+              >
+                + 新增模型
+              </button>
+            </div>
+
+            <div
+              v-for="(profile, index) in upstreamCostProfiles"
+              :key="profile.model"
+              class="rounded-lg border border-gray-200 p-3 dark:border-dark-600"
+            >
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ profile.model }}</span>
+                <button
+                  type="button"
+                  class="text-xs text-red-500 hover:text-red-600"
+                  @click="removeUpstreamCostProfile(index)"
+                >
+                  移除
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <label class="field">
+                  <span>短上下文输入（$/M）</span>
+                  <input v-model.number="profile.short_prices.input" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>短上下文缓存读</span>
+                  <input v-model.number="profile.short_prices.cache_read" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>短上下文缓存写</span>
+                  <input v-model.number="profile.short_prices.cache_write" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>短上下文输出</span>
+                  <input v-model.number="profile.short_prices.output" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文阈值（0 = 不区分）</span>
+                  <input v-model.number="profile.long_context_threshold" class="input" type="number" min="0" step="1" />
+                </label>
+                <label class="field">
+                  <span>声明倍率</span>
+                  <input v-model.number="profile.declared_multiplier" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>余额取得成本</span>
+                  <input v-model.number="profile.balance_unit_cost" class="input" type="number" min="0.00000001" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文输入</span>
+                  <input v-model.number="profile.long_prices!.input" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文缓存读</span>
+                  <input v-model.number="profile.long_prices!.cache_read" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文缓存写</span>
+                  <input v-model.number="profile.long_prices!.cache_write" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+                <label class="field">
+                  <span>长上下文输出</span>
+                  <input v-model.number="profile.long_prices!.output" class="input" type="number" min="0" step="0.00000001" />
+                </label>
+              </div>
+            </div>
+            <p v-if="!upstreamCostProfiles.length" class="text-xs text-gray-500">
+              尚未添加模型，请从预置模型或自定义模型名添加。
+            </p>
+          </template>
+        </div>
+      </div>
+
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
         <input v-model="expiresAtInput" type="datetime-local" class="input" />
@@ -3589,6 +3731,7 @@ import type {
   AccountType,
   CheckMixedChannelResponse,
   CreateAccountRequest,
+  UpstreamCostProfileInput,
   CodexSessionImportMessage,
   OpenAICompactMode,
   OpenAIResponsesMode,
@@ -3749,6 +3892,94 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
 const upstreamBillingAutoProbeEnabled = ref(true)
+const rateMultiplierTouched = ref(false)
+
+// 上游成本核算（仅 OpenAI 账号；计划 Phase 3/8）。默认关闭，配置属于账号资产。
+const upstreamCostEnabled = ref(false)
+const upstreamCostProfiles = ref<UpstreamCostProfileInput[]>([])
+const UPSTREAM_COST_PRESETS: Record<
+  string,
+  {
+    short: { input: number; cache_read: number; cache_write: number; output: number }
+    long: { input: number; cache_read: number; cache_write: number; output: number }
+    threshold: number
+    declared: number
+    balance: number
+  }
+> = {
+  'gpt-5.6-luna': {
+    short: { input: 0.2, cache_read: 0.02, cache_write: 0.25, output: 1.2 },
+    long: { input: 0.4, cache_read: 0.04, cache_write: 0.5, output: 1.8 },
+    threshold: 272000,
+    declared: 0.035,
+    balance: 1
+  },
+  'gpt-5.6-terra': {
+    short: { input: 2, cache_read: 0.2, cache_write: 2.5, output: 12 },
+    long: { input: 4, cache_read: 0.4, cache_write: 5, output: 18 },
+    threshold: 272000,
+    declared: 0.035,
+    balance: 1
+  }
+}
+
+function emptyUpstreamCostProfile(model: string): UpstreamCostProfileInput {
+  const preset = UPSTREAM_COST_PRESETS[model] || UPSTREAM_COST_PRESETS['gpt-5.6-luna']
+  return {
+    model,
+    short_prices: { ...preset.short },
+    long_context_threshold: preset.threshold,
+    long_prices: { ...preset.long },
+    declared_multiplier: preset.declared,
+    balance_unit_cost: preset.balance,
+    notes: ''
+  }
+}
+
+function addUpstreamCostProfile(model = 'gpt-5.6-luna') {
+  if (upstreamCostProfiles.value.some((p) => p.model === model)) {
+    return
+  }
+  upstreamCostProfiles.value.push(emptyUpstreamCostProfile(model))
+}
+
+function removeUpstreamCostProfile(index: number) {
+  upstreamCostProfiles.value.splice(index, 1)
+}
+
+const customUpstreamCostModel = ref('')
+
+function addCustomUpstreamCostProfile() {
+  const model = customUpstreamCostModel.value.trim().toLowerCase()
+  customUpstreamCostModel.value = ''
+  if (!model) {
+    return
+  }
+  if (upstreamCostProfiles.value.some((p) => p.model === model)) {
+    return
+  }
+  upstreamCostProfiles.value.push(emptyUpstreamCostProfile(model))
+}
+
+function buildUpstreamCostProfilesPayload(): UpstreamCostProfileInput[] | undefined {
+  if (!upstreamCostEnabled.value || upstreamCostProfiles.value.length === 0) {
+    return undefined
+  }
+  return upstreamCostProfiles.value.map((profile) => ({
+    model: profile.model,
+    short_prices: { ...profile.short_prices },
+    long_context_threshold: profile.long_context_threshold ?? 0,
+    long_prices: profile.long_prices ? { ...profile.long_prices } : { ...profile.short_prices },
+    declared_multiplier: profile.declared_multiplier ?? 1,
+    balance_unit_cost: profile.balance_unit_cost ?? 1,
+    notes: profile.notes ?? ''
+  }))
+}
+
+function resetUpstreamCostForm() {
+  upstreamCostEnabled.value = false
+  upstreamCostProfiles.value = []
+}
 
 const syncPreviewCredentials = computed(() => {
   if (!apiKeyValue.value) return undefined
@@ -4645,6 +4876,15 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
+    if (form.platform === 'openai') {
+      payload.upstream_cost_enabled = upstreamCostEnabled.value
+      payload.upstream_cost_profiles = buildUpstreamCostProfilesPayload()
+      if (!rateMultiplierTouched.value) {
+        // 未触碰的默认 1.0 由后端创建 default 版本，不能伪装成 manual 版本
+        // 而覆盖成本配置的 declared_multiplier fallback。
+        delete payload.rate_multiplier
+      }
+    }
     const account = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
     if (
       payload.type === 'apikey' &&
@@ -4689,6 +4929,7 @@ const resetForm = () => {
   form.load_factor = null
   form.priority = 1
   form.rate_multiplier = 1
+  rateMultiplierTouched.value = false
   form.group_ids = []
   form.expires_at = null
   accountCategory.value = 'oauth-based'
@@ -4696,6 +4937,7 @@ const resetForm = () => {
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
   upstreamBillingAutoProbeEnabled.value = true
+  resetUpstreamCostForm()
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
   editQuotaWeeklyLimit.value = null

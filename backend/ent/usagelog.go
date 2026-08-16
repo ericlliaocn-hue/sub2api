@@ -83,6 +83,16 @@ type UsageLog struct {
 	LongContextBillingApplied bool `json:"long_context_billing_applied,omitempty"`
 	// AccountRateMultiplier holds the value of the "account_rate_multiplier" field.
 	AccountRateMultiplier *float64 `json:"account_rate_multiplier,omitempty"`
+	// 请求开始时锁定的账号上游倍率版本 ID
+	AccountRateVersionID *int64 `json:"account_rate_version_id,omitempty"`
+	// 请求开始时锁定的账号上游倍率来源
+	AccountRateSource *string `json:"account_rate_source,omitempty"`
+	// 请求开始时锁定的账号上游倍率快照
+	AccountRateSnapshot map[string]interface{} `json:"account_rate_snapshot,omitempty"`
+	// 请求开始时锁定的手工上游成本
+	UpstreamCost *float64 `json:"upstream_cost,omitempty"`
+	// 上游成本版本、旧价和倍率计算快照
+	UpstreamCostSnapshot map[string]interface{} `json:"upstream_cost_snapshot,omitempty"`
 	// BillingType holds the value of the "billing_type" field.
 	BillingType int8 `json:"billing_type,omitempty"`
 	// Stream holds the value of the "stream" field.
@@ -200,15 +210,15 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagelog.FieldImageSizeBreakdown:
+		case usagelog.FieldAccountRateSnapshot, usagelog.FieldUpstreamCostSnapshot, usagelog.FieldImageSizeBreakdown:
 			values[i] = new([]byte)
 		case usagelog.FieldUpstreamModelMismatch, usagelog.FieldLongContextBillingApplied, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
+		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier, usagelog.FieldUpstreamCost:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
+		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldAccountRateVersionID, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldUpstreamResponseModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
+		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldUpstreamResponseModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldAccountRateSource, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
 			values[i] = new(sql.NullString)
 		case usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -423,6 +433,43 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AccountRateMultiplier = new(float64)
 				*_m.AccountRateMultiplier = value.Float64
+			}
+		case usagelog.FieldAccountRateVersionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_version_id", values[i])
+			} else if value.Valid {
+				_m.AccountRateVersionID = new(int64)
+				*_m.AccountRateVersionID = value.Int64
+			}
+		case usagelog.FieldAccountRateSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_source", values[i])
+			} else if value.Valid {
+				_m.AccountRateSource = new(string)
+				*_m.AccountRateSource = value.String
+			}
+		case usagelog.FieldAccountRateSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AccountRateSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field account_rate_snapshot: %w", err)
+				}
+			}
+		case usagelog.FieldUpstreamCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field upstream_cost", values[i])
+			} else if value.Valid {
+				_m.UpstreamCost = new(float64)
+				*_m.UpstreamCost = value.Float64
+			}
+		case usagelog.FieldUpstreamCostSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field upstream_cost_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.UpstreamCostSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field upstream_cost_snapshot: %w", err)
+				}
 			}
 		case usagelog.FieldBillingType:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -710,6 +757,27 @@ func (_m *UsageLog) String() string {
 		builder.WriteString("account_rate_multiplier=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	if v := _m.AccountRateVersionID; v != nil {
+		builder.WriteString("account_rate_version_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccountRateSource; v != nil {
+		builder.WriteString("account_rate_source=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("account_rate_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AccountRateSnapshot))
+	builder.WriteString(", ")
+	if v := _m.UpstreamCost; v != nil {
+		builder.WriteString("upstream_cost=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("upstream_cost_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UpstreamCostSnapshot))
 	builder.WriteString(", ")
 	builder.WriteString("billing_type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.BillingType))

@@ -153,6 +153,8 @@ func registerBusinessFinanceRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 		finance.POST("/expenses", h.Admin.BusinessFinance.CreateExpense)
 		finance.PUT("/expenses/:id", h.Admin.BusinessFinance.UpdateExpense)
 		finance.POST("/expenses/:id/void", h.Admin.BusinessFinance.VoidExpense)
+		finance.GET("/upstream-cost-versions", h.Admin.BusinessFinance.ListUpstreamCostVersions)
+		finance.POST("/upstream-cost-versions", h.Admin.BusinessFinance.CreateUpstreamCostVersion)
 		finance.GET("/report", h.Admin.BusinessFinance.GetReport)
 		finance.GET("/growth", h.Admin.BusinessFinance.GetGrowth)
 	}

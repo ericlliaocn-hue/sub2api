@@ -104,6 +104,10 @@ type BatchImagePricingSnapshot struct {
 	HoldUnitPrice           float64
 	EstimatedCost           float64
 	HoldAmount              float64
+	// 请求开始时固定的账号倍率版本快照（Phase 5）
+	AccountRateVersionID *int64
+	AccountRateSource    string
+	AccountRateSnapshot  map[string]any
 }
 
 type BatchImagePublicBatch struct {
@@ -280,6 +284,9 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		PricingSnapshotVersion:  1,
 		Currency:                "USD",
 		HoldID:                  &holdID,
+		AccountRateVersionID:    pricingSnapshot.AccountRateVersionID,
+		AccountRateSource:       pricingSnapshot.AccountRateSource,
+		AccountRateSnapshot:     pricingSnapshot.AccountRateSnapshot,
 		IdempotencyKey:          batchImageOptionalStringPtr(idempotencyKey),
 		RequestHash:             batchImageStringPtr(requestHash),
 		SessionID:               normalized.SessionID,
@@ -1065,8 +1072,15 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 		holdMultiplier = discountMultiplier
 	}
 	accountMultiplier := 1.0
+	var rateVersionID *int64
+	var rateSource string
+	var rateSnapshot map[string]any
 	if account != nil {
 		accountMultiplier = account.BillingRateMultiplier()
+		versionID, sourcePtr, snapshot := account.RateVersionFields()
+		rateVersionID = versionID
+		rateSource = derefString(sourcePtr)
+		rateSnapshot = snapshot
 	}
 	if accountMultiplier < 0 {
 		accountMultiplier = 0
@@ -1084,6 +1098,9 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 		HoldUnitPrice:           holdUnitPrice,
 		EstimatedCost:           billableUnitPrice * float64(len(req.Items)),
 		HoldAmount:              holdUnitPrice * float64(len(req.Items)),
+		AccountRateVersionID:    rateVersionID,
+		AccountRateSource:       rateSource,
+		AccountRateSnapshot:     rateSnapshot,
 	}, nil
 }
 

@@ -205,6 +205,21 @@ func AccountRateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
 }
 
+// AccountRateVersionID applies equality check predicate on the "account_rate_version_id" field. It's identical to AccountRateVersionIDEQ.
+func AccountRateVersionID(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateVersionID, v))
+}
+
+// AccountRateSource applies equality check predicate on the "account_rate_source" field. It's identical to AccountRateSourceEQ.
+func AccountRateSource(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateSource, v))
+}
+
+// UpstreamCost applies equality check predicate on the "upstream_cost" field. It's identical to UpstreamCostEQ.
+func UpstreamCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldUpstreamCost, v))
+}
+
 // BillingType applies equality check predicate on the "billing_type" field. It's identical to BillingTypeEQ.
 func BillingType(v int8) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldBillingType, v))
@@ -1633,6 +1648,201 @@ func AccountRateMultiplierIsNil() predicate.UsageLog {
 // AccountRateMultiplierNotNil applies the NotNil predicate on the "account_rate_multiplier" field.
 func AccountRateMultiplierNotNil() predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNotNull(FieldAccountRateMultiplier))
+}
+
+// AccountRateVersionIDEQ applies the EQ predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDNEQ applies the NEQ predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDIn applies the In predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAccountRateVersionID, vs...))
+}
+
+// AccountRateVersionIDNotIn applies the NotIn predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAccountRateVersionID, vs...))
+}
+
+// AccountRateVersionIDGT applies the GT predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDGT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDGTE applies the GTE predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDGTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDLT applies the LT predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDLT(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDLTE applies the LTE predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDLTE(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAccountRateVersionID, v))
+}
+
+// AccountRateVersionIDIsNil applies the IsNil predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldAccountRateVersionID))
+}
+
+// AccountRateVersionIDNotNil applies the NotNil predicate on the "account_rate_version_id" field.
+func AccountRateVersionIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldAccountRateVersionID))
+}
+
+// AccountRateSourceEQ applies the EQ predicate on the "account_rate_source" field.
+func AccountRateSourceEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceNEQ applies the NEQ predicate on the "account_rate_source" field.
+func AccountRateSourceNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceIn applies the In predicate on the "account_rate_source" field.
+func AccountRateSourceIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAccountRateSource, vs...))
+}
+
+// AccountRateSourceNotIn applies the NotIn predicate on the "account_rate_source" field.
+func AccountRateSourceNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAccountRateSource, vs...))
+}
+
+// AccountRateSourceGT applies the GT predicate on the "account_rate_source" field.
+func AccountRateSourceGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceGTE applies the GTE predicate on the "account_rate_source" field.
+func AccountRateSourceGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceLT applies the LT predicate on the "account_rate_source" field.
+func AccountRateSourceLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceLTE applies the LTE predicate on the "account_rate_source" field.
+func AccountRateSourceLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceContains applies the Contains predicate on the "account_rate_source" field.
+func AccountRateSourceContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceHasPrefix applies the HasPrefix predicate on the "account_rate_source" field.
+func AccountRateSourceHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceHasSuffix applies the HasSuffix predicate on the "account_rate_source" field.
+func AccountRateSourceHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceIsNil applies the IsNil predicate on the "account_rate_source" field.
+func AccountRateSourceIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldAccountRateSource))
+}
+
+// AccountRateSourceNotNil applies the NotNil predicate on the "account_rate_source" field.
+func AccountRateSourceNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldAccountRateSource))
+}
+
+// AccountRateSourceEqualFold applies the EqualFold predicate on the "account_rate_source" field.
+func AccountRateSourceEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldAccountRateSource, v))
+}
+
+// AccountRateSourceContainsFold applies the ContainsFold predicate on the "account_rate_source" field.
+func AccountRateSourceContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldAccountRateSource, v))
+}
+
+// AccountRateSnapshotIsNil applies the IsNil predicate on the "account_rate_snapshot" field.
+func AccountRateSnapshotIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldAccountRateSnapshot))
+}
+
+// AccountRateSnapshotNotNil applies the NotNil predicate on the "account_rate_snapshot" field.
+func AccountRateSnapshotNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldAccountRateSnapshot))
+}
+
+// UpstreamCostEQ applies the EQ predicate on the "upstream_cost" field.
+func UpstreamCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldUpstreamCost, v))
+}
+
+// UpstreamCostNEQ applies the NEQ predicate on the "upstream_cost" field.
+func UpstreamCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldUpstreamCost, v))
+}
+
+// UpstreamCostIn applies the In predicate on the "upstream_cost" field.
+func UpstreamCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldUpstreamCost, vs...))
+}
+
+// UpstreamCostNotIn applies the NotIn predicate on the "upstream_cost" field.
+func UpstreamCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldUpstreamCost, vs...))
+}
+
+// UpstreamCostGT applies the GT predicate on the "upstream_cost" field.
+func UpstreamCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldUpstreamCost, v))
+}
+
+// UpstreamCostGTE applies the GTE predicate on the "upstream_cost" field.
+func UpstreamCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldUpstreamCost, v))
+}
+
+// UpstreamCostLT applies the LT predicate on the "upstream_cost" field.
+func UpstreamCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldUpstreamCost, v))
+}
+
+// UpstreamCostLTE applies the LTE predicate on the "upstream_cost" field.
+func UpstreamCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldUpstreamCost, v))
+}
+
+// UpstreamCostIsNil applies the IsNil predicate on the "upstream_cost" field.
+func UpstreamCostIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldUpstreamCost))
+}
+
+// UpstreamCostNotNil applies the NotNil predicate on the "upstream_cost" field.
+func UpstreamCostNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldUpstreamCost))
+}
+
+// UpstreamCostSnapshotIsNil applies the IsNil predicate on the "upstream_cost_snapshot" field.
+func UpstreamCostSnapshotIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldUpstreamCostSnapshot))
+}
+
+// UpstreamCostSnapshotNotNil applies the NotNil predicate on the "upstream_cost_snapshot" field.
+func UpstreamCostSnapshotNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldUpstreamCostSnapshot))
 }
 
 // BillingTypeEQ applies the EQ predicate on the "billing_type" field.

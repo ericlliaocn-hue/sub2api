@@ -128,6 +128,9 @@ type CreateAccountRequest struct {
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled            *bool          `json:"upstream_billing_probe_enabled"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+	// 上游成本配置独立字段（仅 OpenAI 账号；计划 Phase 3）
+	UpstreamCostEnabled  *bool                              `json:"upstream_cost_enabled"`
+	UpstreamCostProfiles []service.UpstreamCostProfileInput `json:"upstream_cost_profiles"`
 }
 
 // UpdateAccountRequest represents update account request
@@ -150,6 +153,9 @@ type UpdateAccountRequest struct {
 	ProbeEnabled            *bool          `json:"upstream_billing_probe_enabled"`
 	RateSyncEnabled         *bool          `json:"upstream_billing_rate_sync_enabled"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+	// 上游成本配置独立字段（仅 OpenAI 账号；计划 Phase 3）
+	UpstreamCostEnabled  *bool                              `json:"upstream_cost_enabled"`
+	UpstreamCostProfiles []service.UpstreamCostProfileInput `json:"upstream_cost_profiles"`
 }
 
 // BulkUpdateAccountsRequest represents the payload for bulk editing accounts
@@ -862,6 +868,9 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			ExpiresAt:             req.ExpiresAt,
 			AutoPauseOnExpired:    req.AutoPauseOnExpired,
 			ProbeEnabled:          req.ProbeEnabled,
+			UpstreamCostEnabled:   req.UpstreamCostEnabled,
+			UpstreamCostProfiles:  req.UpstreamCostProfiles,
+			CreatedBy:             financeOperatorID(c),
 			SkipMixedChannelCheck: skipCheck,
 		})
 		if execErr != nil {
@@ -991,6 +1000,9 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		AutoPauseOnExpired:    req.AutoPauseOnExpired,
 		ProbeEnabled:          req.ProbeEnabled,
 		RateSyncEnabled:       req.RateSyncEnabled,
+		UpstreamCostEnabled:   req.UpstreamCostEnabled,
+		UpstreamCostProfiles:  req.UpstreamCostProfiles,
+		CreatedBy:             financeOperatorID(c),
 		SkipMixedChannelCheck: skipCheck,
 	})
 	if err != nil {

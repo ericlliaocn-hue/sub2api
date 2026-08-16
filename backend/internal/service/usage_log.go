@@ -165,8 +165,18 @@ type UsageLog struct {
 	LongContextBillingApplied bool
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
+	// AccountRateVersionID / AccountRateSource / AccountRateSnapshot 是请求开始时
+	// 固定的账号倍率版本快照（Phase 5）：usage log、利润门、账号成本和上游成本
+	// 共用同一份，避免请求期间版本切换污染旧请求。
+	AccountRateVersionID *int64
+	AccountRateSource    *string
+	AccountRateSnapshot  map[string]any
 	// AccountStatsCost 账号统计定价预计算费用（nil = 使用默认公式 total_cost × account_rate_multiplier）
 	AccountStatsCost *float64
+	// UpstreamCost 是请求开始时锁定的手工上游成本；nil 表示走历史兼容公式。
+	UpstreamCost *float64
+	// UpstreamCostSnapshot 保存该成本的版本、旧价和倍率依据，仅管理员可见。
+	UpstreamCostSnapshot map[string]any
 
 	BillingType  int8
 	RequestType  RequestType

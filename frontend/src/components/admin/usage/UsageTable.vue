@@ -208,8 +208,8 @@
                 </div>
               </div>
             </div>
-            <div v-if="showAccountBilling && row.account_rate_multiplier != null" class="mt-0.5 text-[11px] text-orange-500 dark:text-orange-400">
-              A ${{ accountBilled(row).toFixed(6) }}
+            <div v-if="showAccountBilling && (row.upstream_cost != null || row.account_rate_multiplier != null)" class="mt-0.5 text-[11px] text-orange-500 dark:text-orange-400">
+              {{ row.upstream_cost != null ? 'U' : 'A' }} ${{ accountBilled(row).toFixed(6) }}
             </div>
           </div>
         </template>
@@ -467,8 +467,17 @@
                   total_cost: tooltipData?.total_cost,
                   account_stats_cost: tooltipData?.account_stats_cost,
                   account_rate_multiplier: tooltipData?.account_rate_multiplier,
+                  upstream_cost: tooltipData?.upstream_cost,
                 }).toFixed(6) }}
               </span>
+            </div>
+            <div v-if="tooltipData?.upstream_cost != null" class="flex items-center justify-between gap-6">
+              <span class="text-gray-400">{{ t('usage.normalizedCostMultiplier') }}</span>
+              <span class="font-semibold text-orange-300">{{ normalizedCostMultiplier(tooltipData).toFixed(6) }}x</span>
+            </div>
+            <div v-if="upstreamCostVersionID(tooltipData)" class="flex items-center justify-between gap-6">
+              <span class="text-gray-400">{{ t('usage.costVersion') }}</span>
+              <span class="font-medium text-white">#{{ upstreamCostVersionID(tooltipData) }}</span>
             </div>
           </template>
         </div>
@@ -516,11 +525,22 @@ import {
   hasImageInputCost,
 } from '@/utils/imageUsage'
 
-/** Compute the account-billed cost for display: (account_stats_cost ?? total_cost) * rate_multiplier */
-function accountBilled(row: { total_cost?: number | null; account_stats_cost?: number | null; account_rate_multiplier?: number | null }): number {
+/** Prefer the immutable request cost; historical rows retain the original fallback. */
+function accountBilled(row: { total_cost?: number | null; account_stats_cost?: number | null; account_rate_multiplier?: number | null; upstream_cost?: number | null }): number {
+  if (row.upstream_cost != null) return Number.isNaN(row.upstream_cost) ? 0 : row.upstream_cost
   const base = row.account_stats_cost != null ? row.account_stats_cost : (row.total_cost ?? 0)
   const result = base * (row.account_rate_multiplier ?? 1)
   return Number.isNaN(result) ? 0 : result
+}
+
+function normalizedCostMultiplier(row?: AdminUsageLog | null): number {
+  const value = row?.upstream_cost_snapshot?.normalized_multiplier
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function upstreamCostVersionID(row?: AdminUsageLog | null): number | null {
+  const value = row?.upstream_cost_snapshot?.version_id
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
 

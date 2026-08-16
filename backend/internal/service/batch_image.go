@@ -133,6 +133,11 @@ type BatchImageJob struct {
 	PricingSnapshotVersion  int
 	Currency                string
 	HoldID                  *string
+	// AccountRateVersionID / AccountRateSource / AccountRateSnapshot 是创建 job
+	// 时固定的账号倍率版本快照（Phase 5），结算写入 usage log 时沿用。
+	AccountRateVersionID *int64
+	AccountRateSource    string
+	AccountRateSnapshot  map[string]any
 
 	IdempotencyKey *string
 	RequestHash    *string
@@ -193,6 +198,11 @@ type CreateBatchImageJobParams struct {
 	PricingSnapshotVersion  int
 	Currency                string
 	HoldID                  *string
+	// AccountRateVersionID / AccountRateSource / AccountRateSnapshot 是创建 job
+	// 时固定的账号倍率版本快照（Phase 5），结算写入 usage log 时沿用。
+	AccountRateVersionID *int64
+	AccountRateSource    string
+	AccountRateSnapshot  map[string]any
 
 	IdempotencyKey *string
 	RequestHash    *string

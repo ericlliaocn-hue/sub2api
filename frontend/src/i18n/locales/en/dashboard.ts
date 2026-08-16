@@ -274,6 +274,8 @@ export default {
     accountCost: 'Cost',
     userBilled: 'User billed',
     accountBilled: 'Account billed',
+    normalizedCostMultiplier: 'Normalized cost rate',
+    costVersion: 'Cost version',
     resetNow: 'Now',
     resetPending: 'Pending refresh',
     accountMultiplier: 'Account rate',
