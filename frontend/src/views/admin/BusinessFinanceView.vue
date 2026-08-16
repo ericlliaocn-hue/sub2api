@@ -35,7 +35,7 @@
           <div class="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2 class="font-semibold text-gray-900 dark:text-white">成本配置</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">适合域名、服务器等周期成本或预付费用摊销；按日、月或年自动计入报表。</p>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">配置周期性成本和默认分摊方式，修改后不会覆盖历史倍率。</p>
             </div>
             <button class="btn btn-primary" @click="startNewConfig">新增配置</button>
           </div>
@@ -104,7 +104,7 @@
             </label>
             <label class="field"><span>金额</span><input v-model.number="configForm.amount" class="input" type="number" min="0" step="0.00000001" required /></label>
             <label class="field"><span>币种</span><input v-model="configForm.currency" class="input" maxlength="3" /></label>
-            <label class="field"><span>折算率（原币 → 系统计费单位）</span><input v-model.number="configForm.exchange_rate_to_billing_unit" class="input" type="number" min="0.00000001" step="0.00000001" required /><small class="text-gray-500">报表金额 = 原币金额 × 折算率；金额已是系统计费单位时填 1。</small></label>
+            <label class="field"><span>折算到系统计费单位</span><input v-model.number="configForm.exchange_rate_to_billing_unit" class="input" type="number" min="0.00000001" step="0.00000001" required /></label>
             <label class="field">
               <span>分摊方式</span>
               <div class="relative">
@@ -136,10 +136,7 @@
       <section v-else-if="activeTab === 'expenses'" class="space-y-6">
         <div class="card p-6">
           <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 class="font-semibold text-gray-900 dark:text-white">费用台账</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">适合已经发生、一次确认的临时费用或调整；费用周期只决定报表归属，不按天自动摊销。</p>
-            </div>
+            <div><h2 class="font-semibold text-gray-900 dark:text-white">费用台账</h2></div>
             <button class="btn btn-primary" @click="startNewExpense">新增费用</button>
           </div>
           <div class="overflow-x-auto">
@@ -169,7 +166,7 @@
             </label>
             <label class="field"><span>金额</span><input v-model.number="expenseForm.amount" class="input" type="number" min="0" step="0.00000001" required /></label>
             <label class="field"><span>币种</span><input v-model="expenseForm.currency" class="input" maxlength="3" /></label>
-            <label class="field"><span>折算率（原币 → 系统计费单位）</span><input v-model.number="expenseForm.exchange_rate_to_billing_unit" class="input" type="number" min="0.00000001" step="0.00000001" required /><small class="text-gray-500">报表金额 = 原币金额 × 折算率；金额已是系统计费单位时填 1。</small></label>
+            <label class="field"><span>折算到系统计费单位</span><input v-model.number="expenseForm.exchange_rate_to_billing_unit" class="input" type="number" min="0.00000001" step="0.00000001" required /></label>
             <label class="field"><span>发生时间</span><input v-model="expenseForm.occurred_at" class="input" type="datetime-local" required /></label>
             <label class="field"><span>费用周期开始（可选）</span><input v-model="expenseForm.period_start" class="input" type="datetime-local" /></label>
             <label class="field"><span>费用周期结束（可选）</span><input v-model="expenseForm.period_end" class="input" type="datetime-local" /></label>
@@ -212,14 +209,12 @@ const configFormVisible = ref(false)
 const expenseFormVisible = ref(false)
 const editingConfigId = ref<number | null>(null)
 const editingExpenseId = ref<number | null>(null)
-const categories: FinanceCategory[] = ['server', 'database', 'redis', 'bandwidth', 'domain', 'compliance', 'proxy', 'payment_fee', 'marketing', 'affiliate', 'account_purchase', 'customer_service', 'risk_reserve', 'other']
+const categories: FinanceCategory[] = ['server', 'database', 'redis', 'bandwidth', 'proxy', 'payment_fee', 'marketing', 'affiliate', 'account_purchase', 'customer_service', 'risk_reserve', 'other']
 const categoryLabels: Record<FinanceCategory, string> = {
   server: '服务器',
   database: '数据库',
   redis: 'redis',
   bandwidth: '带宽',
-  domain: '域名',
-  compliance: '合规/备案',
   proxy: '代理',
   payment_fee: '支付手续费',
   marketing: '推广',

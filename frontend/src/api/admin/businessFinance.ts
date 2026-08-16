@@ -6,8 +6,6 @@ export type FinanceCategory =
   | 'database'
   | 'redis'
   | 'bandwidth'
-  | 'domain'
-  | 'compliance'
   | 'proxy'
   | 'payment_fee'
   | 'marketing'

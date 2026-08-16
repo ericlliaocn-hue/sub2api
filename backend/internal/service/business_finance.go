@@ -292,7 +292,7 @@ func normalizeCurrency(currency string) string {
 
 func validFinanceCategory(category string) bool {
 	switch category {
-	case "server", "database", "redis", "bandwidth", "domain", "compliance", "proxy", "payment_fee", "marketing", "affiliate", "account_purchase", "customer_service", "risk_reserve", "other":
+	case "server", "database", "redis", "bandwidth", "proxy", "payment_fee", "marketing", "affiliate", "account_purchase", "customer_service", "risk_reserve", "other":
 		return true
 	default:
 		return false
