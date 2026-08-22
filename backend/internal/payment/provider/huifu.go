@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -34,6 +35,10 @@ const (
 	huifuHTTPTimeout     = 15 * time.Second
 	huifuMaxResponseSize = 1 << 20
 	huifuSuccessCode     = "00000000"
+	huifuMaxKeyFileSize  = 64 << 10
+
+	huifuMerchantPrivateKeyFileEnv = "HUIFU_MERCHANT_PRIVATE_KEY_FILE"
+	huifuPublicKeyFileEnv          = "HUIFU_PUBLIC_KEY_FILE"
 )
 
 // Huifu integrates Huifu Dougong's H5/PC hosted checkout. It deliberately
@@ -48,7 +53,7 @@ type Huifu struct {
 }
 
 func NewHuifu(instanceID string, config map[string]string) (*Huifu, error) {
-	for _, key := range []string{"sysId", "huifuId", "productId", "projectId", "merchantPrivateKey", "huifuPublicKey", "apiBase", "notifyUrl", "returnUrl"} {
+	for _, key := range []string{"sysId", "huifuId", "productId", "projectId", "apiBase", "notifyUrl", "returnUrl"} {
 		if strings.TrimSpace(config[key]) == "" {
 			return nil, fmt.Errorf("huifu config missing required key: %s", key)
 		}
@@ -63,13 +68,21 @@ func NewHuifu(instanceID string, config map[string]string) (*Huifu, error) {
 	if err := validateHuifuCallbackURL("returnUrl", config["returnUrl"], true); err != nil {
 		return nil, err
 	}
-	privateKey, err := parseHuifuPrivateKey(config["merchantPrivateKey"])
+	privateKeyPEM, err := readHuifuKeyFile(huifuMerchantPrivateKeyFileEnv, true)
 	if err != nil {
-		return nil, fmt.Errorf("huifu merchantPrivateKey: %w", err)
+		return nil, err
 	}
-	publicKey, err := parseHuifuPublicKey(config["huifuPublicKey"])
+	publicKeyPEM, err := readHuifuKeyFile(huifuPublicKeyFileEnv, false)
 	if err != nil {
-		return nil, fmt.Errorf("huifu huifuPublicKey: %w", err)
+		return nil, err
+	}
+	privateKey, err := parseHuifuPrivateKey(string(privateKeyPEM))
+	if err != nil {
+		return nil, fmt.Errorf("huifu merchant private key file contains an invalid RSA key: %w", err)
+	}
+	publicKey, err := parseHuifuPublicKey(string(publicKeyPEM))
+	if err != nil {
+		return nil, fmt.Errorf("huifu public key file contains an invalid RSA key: %w", err)
 	}
 	cfg := cloneStringMap(config)
 	cfg["apiBase"] = apiBase
@@ -83,6 +96,37 @@ func NewHuifu(instanceID string, config map[string]string) (*Huifu, error) {
 		publicKey:  publicKey,
 		httpClient: &http.Client{Timeout: huifuHTTPTimeout},
 	}, nil
+}
+
+func readHuifuKeyFile(envName string, private bool) ([]byte, error) {
+	path := strings.TrimSpace(os.Getenv(envName))
+	if path == "" {
+		return nil, fmt.Errorf("huifu server secret file is not configured: set %s", envName)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, fmt.Errorf("huifu server secret file is unavailable for %s: %w", envName, err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("huifu server secret file for %s must be a regular file", envName)
+	}
+	if info.Size() > huifuMaxKeyFileSize {
+		return nil, fmt.Errorf("huifu server secret file for %s exceeds %d bytes", envName, huifuMaxKeyFileSize)
+	}
+	if private && info.Mode().Perm()&0o077 != 0 {
+		return nil, fmt.Errorf("huifu merchant private key file permissions are too broad: require 0400 or 0600")
+	}
+	if !private && info.Mode().Perm()&0o022 != 0 {
+		return nil, fmt.Errorf("huifu public key file must not be writable by group or others")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read huifu server secret file for %s: %w", envName, err)
+	}
+	if len(strings.TrimSpace(string(data))) == 0 {
+		return nil, fmt.Errorf("huifu server secret file for %s is empty", envName)
+	}
+	return data, nil
 }
 
 func normalizeHuifuAPIBase(raw string) (string, error) {

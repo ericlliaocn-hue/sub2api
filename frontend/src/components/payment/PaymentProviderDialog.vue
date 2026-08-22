@@ -676,17 +676,18 @@ function handleSave() {
     }
     syncEasyPayCustomMethods()
   }
-  // Validate required config fields — all non-optional fields must be filled.
-  // In edit mode, sensitive fields may be left blank to preserve the stored
-  // value (backend merges blanks by preserving the existing secret).
-  for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
-    if (f.optional) continue
-    if (props.editing && f.sensitive) continue
-    const val = (config[f.key] || '').trim()
-    if (!val) {
-      const label = f.label || t(`admin.settings.payment.field_${f.key}`)
-      emitValidationError(t('admin.settings.payment.validationFieldRequired', { field: label }))
-      return
+  // Disabled instances are drafts and may be saved before credentials are
+  // complete. Enabling still requires every provider-defined field.
+  if (form.enabled) {
+    for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
+      if (f.optional) continue
+      if (props.editing && f.sensitive) continue
+      const val = (config[f.key] || '').trim()
+      if (!val) {
+        const label = f.label || t(`admin.settings.payment.field_${f.key}`)
+        emitValidationError(t('admin.settings.payment.validationFieldRequired', { field: label }))
+        return
+      }
     }
   }
 

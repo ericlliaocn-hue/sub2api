@@ -60,13 +60,13 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
 })
 
 describe('PROVIDER_CONFIG_FIELDS.huifu', () => {
-  it('exposes the merchant identifiers, RSA keys, environment and generated callbacks', () => {
+  it('exposes only non-secret identifiers, environment and generated callbacks', () => {
     expect(findField('huifu', 'sysId')?.optional).toBeFalsy()
     expect(findField('huifu', 'huifuId')?.optional).toBeFalsy()
     expect(findField('huifu', 'productId')?.optional).toBeFalsy()
     expect(findField('huifu', 'projectId')?.optional).toBeFalsy()
-    expect(findField('huifu', 'merchantPrivateKey')?.sensitive).toBe(true)
-    expect(findField('huifu', 'huifuPublicKey')?.sensitive).toBe(true)
+    expect(findField('huifu', 'merchantPrivateKey')).toBeUndefined()
+    expect(findField('huifu', 'huifuPublicKey')).toBeUndefined()
     expect(findField('huifu', 'apiBase')?.defaultValue).toBe('https://api.huifu.com')
     expect(PROVIDER_CALLBACK_PATHS.huifu).toEqual({
       notifyUrl: '/api/v1/payment/webhook/huifu',

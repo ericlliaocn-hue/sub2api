@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/payment"
@@ -20,7 +22,7 @@ import (
 func TestHuifuCreatePaymentSignsRequestAndUsesHostedCheckout(t *testing.T) {
 	merchantPrivate := mustHuifuRSAKey(t)
 	huifuPrivate := mustHuifuRSAKey(t)
-	provider, err := NewHuifu("huifu-1", huifuTestConfig(merchantPrivate, &huifuPrivate.PublicKey))
+	provider, err := NewHuifu("huifu-1", huifuTestConfig(t, merchantPrivate, &huifuPrivate.PublicKey))
 	require.NoError(t, err)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +89,7 @@ func TestHuifuCreatePaymentSignsRequestAndUsesHostedCheckout(t *testing.T) {
 func TestHuifuVerifyNotificationRequiresSignatureAndFinalStatus(t *testing.T) {
 	merchantPrivate := mustHuifuRSAKey(t)
 	huifuPrivate := mustHuifuRSAKey(t)
-	provider, err := NewHuifu("huifu-1", huifuTestConfig(merchantPrivate, &huifuPrivate.PublicKey))
+	provider, err := NewHuifu("huifu-1", huifuTestConfig(t, merchantPrivate, &huifuPrivate.PublicKey))
 	require.NoError(t, err)
 
 	respData := `{"req_seq_id":"sub2_20260822_order2","huifu_id":"6666000232494579","hf_seq_id":"hf-2","trans_amt":"8.88","trans_stat":"S"}`
@@ -117,25 +119,58 @@ func TestHuifuVerifyNotificationRequiresSignatureAndFinalStatus(t *testing.T) {
 func TestNewHuifuRejectsUnknownAPIHost(t *testing.T) {
 	merchantPrivate := mustHuifuRSAKey(t)
 	huifuPrivate := mustHuifuRSAKey(t)
-	config := huifuTestConfig(merchantPrivate, &huifuPrivate.PublicKey)
+	config := huifuTestConfig(t, merchantPrivate, &huifuPrivate.PublicKey)
 	config["apiBase"] = "https://example.com"
 
 	_, err := NewHuifu("huifu-1", config)
 	require.ErrorContains(t, err, "apiBase host")
 }
 
-func huifuTestConfig(merchantPrivate *rsa.PrivateKey, huifuPublic *rsa.PublicKey) map[string]string {
+func TestNewHuifuRequiresServerSecretFiles(t *testing.T) {
+	t.Setenv(huifuMerchantPrivateKeyFileEnv, "")
+	t.Setenv(huifuPublicKeyFileEnv, "")
+
+	_, err := NewHuifu("huifu-1", huifuConfigWithoutKeys())
+	require.ErrorContains(t, err, huifuMerchantPrivateKeyFileEnv)
+}
+
+func TestNewHuifuRejectsBroadPrivateKeyPermissions(t *testing.T) {
+	merchantPrivate := mustHuifuRSAKey(t)
+	huifuPrivate := mustHuifuRSAKey(t)
+	dir := t.TempDir()
+	privatePath := filepath.Join(dir, "merchant-private.pem")
+	publicPath := filepath.Join(dir, "huifu-public.pem")
+	require.NoError(t, os.WriteFile(privatePath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: mustMarshalPKCS8(merchantPrivate)}), 0o644))
+	require.NoError(t, os.WriteFile(publicPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: mustMarshalPKIX(&huifuPrivate.PublicKey)}), 0o644))
+	t.Setenv(huifuMerchantPrivateKeyFileEnv, privatePath)
+	t.Setenv(huifuPublicKeyFileEnv, publicPath)
+
+	_, err := NewHuifu("huifu-1", huifuConfigWithoutKeys())
+	require.ErrorContains(t, err, "permissions are too broad")
+}
+
+func huifuTestConfig(t *testing.T, merchantPrivate *rsa.PrivateKey, huifuPublic *rsa.PublicKey) map[string]string {
+	t.Helper()
+	dir := t.TempDir()
+	privatePath := filepath.Join(dir, "merchant-private.pem")
+	publicPath := filepath.Join(dir, "huifu-public.pem")
+	require.NoError(t, os.WriteFile(privatePath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: mustMarshalPKCS8(merchantPrivate)}), 0o600))
+	require.NoError(t, os.WriteFile(publicPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: mustMarshalPKIX(huifuPublic)}), 0o644))
+	t.Setenv(huifuMerchantPrivateKeyFileEnv, privatePath)
+	t.Setenv(huifuPublicKeyFileEnv, publicPath)
+	return huifuConfigWithoutKeys()
+}
+
+func huifuConfigWithoutKeys() map[string]string {
 	return map[string]string{
-		"sysId":              "6666000230207702",
-		"huifuId":            "6666000232494579",
-		"productId":          "product-1",
-		"projectId":          "PROJECTID2026082039375179",
-		"merchantPrivateKey": string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: mustMarshalPKCS8(merchantPrivate)})),
-		"huifuPublicKey":     string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: mustMarshalPKIX(huifuPublic)})),
-		"apiBase":            huifuTestAPIBase,
-		"notifyUrl":          "https://pay.example.com/api/v1/payment/webhook/huifu",
-		"returnUrl":          "https://pay.example.com/payment/result",
-		"projectTitle":       "Anytoken",
+		"sysId":        "6666000230207702",
+		"huifuId":      "6666000232494579",
+		"productId":    "product-1",
+		"projectId":    "PROJECTID2026082039375179",
+		"apiBase":      huifuTestAPIBase,
+		"notifyUrl":    "https://pay.example.com/api/v1/payment/webhook/huifu",
+		"returnUrl":    "https://pay.example.com/payment/result",
+		"projectTitle": "Anytoken",
 	}
 }
 

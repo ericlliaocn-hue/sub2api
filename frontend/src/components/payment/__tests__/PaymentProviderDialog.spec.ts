@@ -144,6 +144,37 @@ describe('PaymentProviderDialog payment guide', () => {
     expect(wrapper.text()).toContain('/api/v1/payment/webhook/stripe')
   })
 
+  it('allows an incomplete disabled Huifu instance to be saved as a draft', async () => {
+    const provider = providerFactory({
+      provider_key: 'huifu',
+      name: 'Huifu Dougong',
+      config: {
+        sysId: '6666000230207702',
+        huifuId: '6666000232494579',
+        projectId: 'PROJECTID2026082039375179',
+        apiBase: 'https://api.huifu.com',
+        notifyUrl: 'https://anytoken.work/api/v1/payment/webhook/huifu',
+        returnUrl: 'https://anytoken.work/payment/result',
+      },
+      supported_types: ['huifu'],
+      enabled: false,
+    })
+    const wrapper = mountDialog({ editing: provider })
+
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    await wrapper.find('form').trigger('submit.prevent')
+
+    const payload = wrapper.emitted('save')?.[0]?.[0] as {
+      enabled: boolean
+      config: Record<string, string>
+    }
+    expect(payload.enabled).toBe(false)
+    expect(payload.config.productId).toBeUndefined()
+    expect(payload.config.merchantPrivateKey).toBeUndefined()
+    expect(payload.config.huifuPublicKey).toBeUndefined()
+  })
+
   it('emits an empty Airwallex accountId when the admin clears it', async () => {
     const provider = providerFactory({
       config: {

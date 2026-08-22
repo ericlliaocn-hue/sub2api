@@ -275,6 +275,29 @@ func TestIsSensitiveProviderConfigField(t *testing.T) {
 	}
 }
 
+func TestSanitizeProviderConfigForStorageRemovesHuifuKeyMaterial(t *testing.T) {
+	t.Parallel()
+
+	input := map[string]string{
+		"sysId":              "sys-1",
+		"merchantPrivateKey": "private-secret",
+		"HuifuPublicKey":     "public-key-material",
+	}
+	got := sanitizeProviderConfigForStorage(payment.TypeHuifu, input)
+
+	require.Equal(t, "sys-1", got["sysId"])
+	require.NotContains(t, got, "merchantPrivateKey")
+	require.NotContains(t, got, "HuifuPublicKey")
+	require.Contains(t, input, "merchantPrivateKey", "sanitizer must not mutate the request map")
+}
+
+func TestSanitizeProviderConfigForStorageLeavesOtherProvidersUntouched(t *testing.T) {
+	t.Parallel()
+
+	input := map[string]string{"privateKey": "existing-provider-secret"}
+	require.Equal(t, input, sanitizeProviderConfigForStorage(payment.TypeAlipay, input))
+}
+
 func TestJoinTypes(t *testing.T) {
 	t.Parallel()
 

@@ -169,8 +169,6 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'huifuId', label: '', sensitive: false },
     { key: 'productId', label: '', sensitive: false },
     { key: 'projectId', label: '', sensitive: false },
-    { key: 'merchantPrivateKey', label: '', sensitive: true, hintKey: 'admin.settings.payment.field_huifuMerchantPrivateKeyHint' },
-    { key: 'huifuPublicKey', label: '', sensitive: true, hintKey: 'admin.settings.payment.field_huifuPublicKeyHint' },
     { key: 'apiBase', label: '', sensitive: false, defaultValue: 'https://api.huifu.com', hintKey: 'admin.settings.payment.field_huifuApiBaseHint' },
     { key: 'projectTitle', label: '', sensitive: false, optional: true, clearable: true, defaultValue: 'Anytoken' },
     { key: 'skillSource', label: '', sensitive: false, optional: true, clearable: true, defaultValue: 'sub2api', hintKey: 'admin.settings.payment.field_huifuSkillSourceHint' },

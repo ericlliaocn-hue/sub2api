@@ -163,6 +163,24 @@ func providerConfigFieldValue(config map[string]string, fieldName string) string
 	return ""
 }
 
+// sanitizeProviderConfigForStorage prevents Huifu RSA key material from ever
+// entering the payment provider JSON column. Huifu loads both keys exclusively
+// from server-mounted read-only files at runtime. The legacy names stay in the
+// sensitive-field list above only so old rows can never expose them via API.
+func sanitizeProviderConfigForStorage(providerKey string, config map[string]string) map[string]string {
+	if config == nil || providerKey != payment.TypeHuifu {
+		return config
+	}
+	clean := make(map[string]string, len(config))
+	for key, value := range config {
+		if strings.EqualFold(key, "merchantPrivateKey") || strings.EqualFold(key, "huifuPublicKey") {
+			continue
+		}
+		clean[key] = value
+	}
+	return clean
+}
+
 func (s *PaymentConfigService) countPendingOrders(ctx context.Context, providerInstanceID int64) (int, error) {
 	return s.entClient.PaymentOrder.Query().
 		Where(
@@ -189,6 +207,7 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 	if err := validateProviderRequest(req.ProviderKey, req.Name, typesStr); err != nil {
 		return nil, err
 	}
+	req.Config = sanitizeProviderConfigForStorage(req.ProviderKey, req.Config)
 	if req.ProviderKey == payment.TypeEasyPay {
 		if err := validateEasyPayCustomMethods(req.Config, typesStr); err != nil {
 			return nil, err
@@ -320,6 +339,7 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	}
 	var mergedConfig map[string]string
 	if req.Config != nil {
+		req.Config = sanitizeProviderConfigForStorage(current.ProviderKey, req.Config)
 		currentConfig, err := s.decryptConfig(current.Config)
 		if err != nil {
 			return nil, fmt.Errorf("decrypt existing config: %w", err)
@@ -328,6 +348,7 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 		if err != nil {
 			return nil, err
 		}
+		mergedConfig = sanitizeProviderConfigForStorage(current.ProviderKey, mergedConfig)
 		if hasPendingOrderProtectedConfigChange(current.ProviderKey, currentConfig, mergedConfig) {
 			count, err := getPendingOrderCount()
 			if err != nil {
