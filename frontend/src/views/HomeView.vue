@@ -443,13 +443,32 @@
 
     <!-- Footer -->
     <footer class="relative z-10 border-t border-gray-200/50 px-6 py-8 dark:border-dark-800/50">
-      <div
-        class="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left"
-      >
-        <p class="text-sm text-gray-500 dark:text-dark-400">
-          &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
-        </p>
-        <div class="flex items-center gap-4">
+      <div class="mx-auto max-w-6xl">
+        <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
+          <p class="text-sm text-gray-500 dark:text-dark-400">
+            &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
+          </p>
+          <div class="flex items-center gap-4">
+            <a
+              v-if="docUrl"
+              :href="docUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
+            >
+              {{ t('home.docs') }}
+            </a>
+            <a
+              :href="githubUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
+        <div class="mt-5 border-t border-gray-200/50 pt-4 text-center dark:border-dark-800/50">
           <a
             href="https://beian.miit.gov.cn/"
             target="_blank"
@@ -457,23 +476,6 @@
             class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
           >
             闽ICP备2026032371号-2
-          </a>
-          <a
-            v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            {{ t('home.docs') }}
-          </a>
-          <a
-            :href="githubUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            GitHub
           </a>
         </div>
       </div>
