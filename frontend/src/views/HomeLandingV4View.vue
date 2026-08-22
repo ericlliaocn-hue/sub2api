@@ -1,7 +1,7 @@
 <template>
   <HomeView v-if="hasHomeContent || compactHomeEnabled" />
 
-  <div v-else class="v4-page min-h-screen bg-[#f5f5f3] text-[#1d1d1f] dark:bg-[#0b0c0d] dark:text-[#f5f5f7]">
+  <div v-else class="font-pixel v4-page min-h-screen bg-[#f5f5f3] text-[#1d1d1f] dark:bg-[#0b0c0d] dark:text-[#f5f5f7]">
     <header class="relative z-30 px-4 pt-4 sm:px-6 lg:px-10">
       <nav class="v4-nav mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
         <RouterLink to="/home" class="flex min-w-0 items-center gap-2.5" aria-label="Home">
@@ -72,9 +72,9 @@
                 <div :key="activeSurface" class="v4-surface-content mt-7">
                   <template v-if="activeSurface === 'models'">
                     <div class="grid gap-3 sm:grid-cols-3">
-                      <RouterLink to="/model-plaza" class="v4-model-card v4-model-card-active"><span class="v4-model-symbol v4-symbol-orange">C</span><strong>Claude</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelFast') }}</span></RouterLink>
-                      <RouterLink to="/model-plaza" class="v4-model-card"><span class="v4-model-symbol v4-symbol-green">G</span><strong>GPT</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelPopular') }}</span></RouterLink>
-                      <RouterLink to="/model-plaza" class="v4-model-card"><span class="v4-model-symbol v4-symbol-blue">G</span><strong>Gemini</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelVisual') }}</span></RouterLink>
+                      <RouterLink to="/model-plaza" class="v4-model-card v4-model-card-active"><span class="v4-model-symbol v4-symbol-claude"><PlatformIcon platform="anthropic" size="md" /></span><strong>Claude</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelFast') }}</span></RouterLink>
+                      <RouterLink to="/model-plaza" class="v4-model-card"><span class="v4-model-symbol v4-symbol-openai"><PlatformIcon platform="openai" size="md" /></span><strong>GPT</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelPopular') }}</span></RouterLink>
+                      <RouterLink to="/model-plaza" class="v4-model-card"><span class="v4-model-symbol v4-symbol-grok"><PlatformIcon platform="grok" size="md" /></span><strong>Grok</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelReasoning') }}</span></RouterLink>
                     </div>
                     <div class="v4-surface-footer"><span>{{ t('home.v4.surface.modelFooter') }}</span><RouterLink to="/model-plaza">{{ t('home.v4.surface.openPlaza') }}<Icon name="arrowRight" size="xs" /></RouterLink></div>
                   </template>
@@ -143,7 +143,7 @@
               <div class="v4-flow-list v4-flow-models">
                 <span><b class="v4-provider-dot v4-provider-orange"></b>Claude</span>
                 <span><b class="v4-provider-dot v4-provider-green"></b>GPT</span>
-                <span><b class="v4-provider-dot v4-provider-blue"></b>Gemini</span>
+                <span><b class="v4-provider-dot v4-provider-grok"></b>Grok</span>
                 <span><b class="v4-provider-dot v4-provider-gray"></b>{{ t('home.v4.access.moreModels') }}</span>
               </div>
             </div>
@@ -216,6 +216,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import HomeView from '@/views/HomeView.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 
@@ -245,7 +246,6 @@ onMounted(() => { initTheme(); authStore.checkAuth(); if (!appStore.publicSettin
 
 <style scoped>
 .v4-page { position: relative; isolation: isolate; overflow: hidden; }
-.v4-page::before { position: absolute; inset: 0 0 auto; height: 640px; background-image: linear-gradient(rgba(92, 158, 60, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(92, 158, 60, .035) 1px, transparent 1px); background-size: 44px 44px; content: ''; mask-image: linear-gradient(to bottom, black, transparent); pointer-events: none; }
 .v4-nav { border: 1px solid rgba(23, 23, 23, .09); border-radius: 14px; background: rgba(255, 255, 255, .72); box-shadow: 0 10px 35px rgba(23, 23, 23, .06); backdrop-filter: blur(22px) saturate(145%); }
 html.dark .v4-nav { border-color: rgba(255, 255, 255, .11); background: rgba(25, 26, 28, .72); box-shadow: 0 10px 35px rgba(0, 0, 0, .14); }
 .v4-logo { display: inline-flex; height: 29px; width: 29px; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; background: white; padding: 4px; }
@@ -279,7 +279,7 @@ html.dark .v4-secondary-button { border-color: rgba(255, 255, 255, .15); color: 
 html.dark .v4-secondary-button:hover { background: rgba(255, 255, 255, .08); }
 .v4-product-window { position: relative; overflow: hidden; border: 1px solid rgba(23, 23, 23, .12); border-radius: 18px; background: rgba(255, 255, 255, .82); box-shadow: 0 28px 65px rgba(23, 23, 23, .12), inset 0 1px rgba(255, 255, 255, .9); backdrop-filter: blur(24px) saturate(120%); }
 html.dark .v4-product-window { border-color: rgba(255, 255, 255, .12); background: rgba(25, 26, 28, .82); box-shadow: 0 30px 70px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .09); }
-.v4-window-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid rgba(23, 23, 23, .08); padding: 13px 17px; color: rgba(23, 23, 23, .45); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; letter-spacing: 0; text-transform: uppercase; }
+.v4-window-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid rgba(23, 23, 23, .08); padding: 13px 17px; color: rgba(23, 23, 23, .45); font-family: inherit; font-size: 9px; letter-spacing: 0; text-transform: uppercase; }
 html.dark .v4-window-toolbar { border-color: rgba(255, 255, 255, .09); color: rgba(255, 255, 255, .44); }
 .v4-window-toolbar > span:nth-child(2) { justify-self: center; }
 .v4-live-indicator { display: inline-flex; align-items: center; justify-self: end; gap: 6px; }
@@ -289,7 +289,7 @@ html.dark .v4-window-toolbar { border-color: rgba(255, 255, 255, .09); color: rg
 .v4-dot-yellow { background: #f2c75c; }
 .v4-dot-green { background: #6fcf83; }
 .v4-window-sidebar { position: relative; min-height: 330px; }
-.v4-sidebar-label, .v4-overline { color: rgba(23, 23, 23, .4); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; letter-spacing: 0; text-transform: uppercase; }
+.v4-sidebar-label, .v4-overline { color: rgba(23, 23, 23, .4); font-family: inherit; font-size: 9px; letter-spacing: 0; text-transform: uppercase; }
 html.dark .v4-sidebar-label, html.dark .v4-overline { color: rgba(255, 255, 255, .4); }
 .v4-sidebar-item { display: flex; width: 100%; align-items: center; gap: 9px; border-radius: 8px; padding: 9px 10px; color: rgba(23, 23, 23, .5); font-size: 12px; text-align: left; transition: color 160ms ease-out, background 160ms ease-out, transform 160ms ease-out; }
 .v4-sidebar-item:hover { background: rgba(23, 23, 23, .05); color: #1d1d1f; }
@@ -319,9 +319,9 @@ html.dark .v4-model-card { border-color: rgba(255, 255, 255, .11); }
 html.dark .v4-model-card-active { border-color: rgba(181, 239, 130, .38); background: rgba(181, 239, 130, .07); }
 html.dark .v4-model-card:hover { border-color: rgba(181, 239, 130, .55); box-shadow: 0 12px 24px rgba(0, 0, 0, .16); }
 .v4-model-symbol { display: inline-flex; height: 29px; width: 29px; align-items: center; justify-content: center; border-radius: 8px; color: white; font-size: 11px; font-weight: 800; }
-.v4-symbol-orange { background: #d66c2f; }
-.v4-symbol-green { background: #34885a; }
-.v4-symbol-blue { background: #537cc5; }
+.v4-symbol-claude { background: #d97757; }
+.v4-symbol-openai { background: #10a37f; }
+.v4-symbol-grok { background: #111; }
 .v4-model-card strong { margin-top: 15px; font-size: 14px; font-weight: 600; letter-spacing: 0; }
 .v4-model-card small { margin-top: 4px; color: rgba(23, 23, 23, .46); font-size: 10px; }
 .v4-model-price { margin-top: auto; color: #5c9e3c; font-size: 10px; font-weight: 600; }
@@ -356,17 +356,17 @@ html.dark .v4-proof-strip, html.dark .v4-proof-strip > div + div { border-color:
 html.dark .v4-proof-strip small { color: rgba(255, 255, 255, .48); }
 .v4-band { background: rgba(255, 255, 255, .36); }
 html.dark .v4-band { background: rgba(255, 255, 255, .025); }
-.v4-section-label { color: #5c9e3c; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+.v4-section-label { color: #5c9e3c; font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
 .v4-section-title { max-width: 550px; font-size: 1.75rem; font-weight: 600; letter-spacing: 0; line-height: 1.2; }
 .v4-flow { display: grid; align-items: stretch; gap: 12px; }
 .v4-flow-column { border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; background: rgba(255, 255, 255, .56); padding: 14px; }
-.v4-flow-column > p, .v4-gateway > p { color: rgba(23, 23, 23, .42); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; text-transform: uppercase; }
+.v4-flow-column > p, .v4-gateway > p { color: rgba(23, 23, 23, .42); font-family: inherit; font-size: 9px; text-transform: uppercase; }
 .v4-flow-list { display: grid; gap: 7px; margin-top: 12px; }
 .v4-flow-list span { display: flex; min-height: 34px; align-items: center; gap: 8px; border-radius: 7px; background: rgba(23, 23, 23, .045); padding: 8px 9px; color: rgba(23, 23, 23, .7); font-size: 11px; }
 .v4-flow-list svg { color: #5c9e3c; }
 .v4-flow-arrow { display: flex; min-height: 36px; align-items: center; justify-content: center; gap: 7px; color: #5c9e3c; }
 .v4-flow-arrow span { display: none; }
-.v4-flow-arrow em { color: rgba(23, 23, 23, .38); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; font-style: normal; }
+.v4-flow-arrow em { color: rgba(23, 23, 23, .38); font-family: inherit; font-size: 8px; font-style: normal; }
 .v4-gateway { position: relative; border: 1px solid rgba(92, 158, 60, .36); border-radius: 8px; background: rgba(132, 195, 92, .1); padding: 16px; }
 .v4-gateway-mark { display: inline-flex; height: 34px; width: 34px; align-items: center; justify-content: center; border-radius: 8px; background: #5c9e3c; color: white; }
 .v4-gateway > p { margin-top: 18px; color: #5c9e3c; }
@@ -378,7 +378,7 @@ html.dark .v4-band { background: rgba(255, 255, 255, .025); }
 .v4-provider-dot { display: block; height: 8px; width: 8px; border-radius: 999px; }
 .v4-provider-orange { background: #d66c2f; }
 .v4-provider-green { background: #34885a; }
-.v4-provider-blue { background: #537cc5; }
+.v4-provider-grok { background: #111; }
 .v4-provider-gray { background: #8b8d90; }
 html.dark .v4-flow-column { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .035); }
 html.dark .v4-flow-column > p, html.dark .v4-gateway > p, html.dark .v4-flow-arrow em { color: rgba(255, 255, 255, .42); }
@@ -392,7 +392,7 @@ html.dark .v4-gateway > small, html.dark .v4-gateway li { color: rgba(255, 255, 
 .v4-protocol-icon { display: inline-flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 8px; background: rgba(92, 158, 60, .1); color: #5c9e3c; }
 .v4-protocol-card strong { margin-top: 20px; font-size: 14px; font-weight: 650; }
 .v4-protocol-card p { margin-top: 7px; color: rgba(23, 23, 23, .5); font-size: 11px; line-height: 1.65; }
-.v4-protocol-card code { display: block; overflow: hidden; margin-top: auto; padding-top: 16px; color: #5c9e3c; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.v4-protocol-card code { display: block; overflow: hidden; margin-top: auto; padding-top: 16px; color: #5c9e3c; font-family: inherit; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 html.dark .v4-protocol-card { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .035); }
 html.dark .v4-protocol-card:hover { border-color: rgba(181, 239, 130, .42); box-shadow: 0 12px 30px rgba(0, 0, 0, .16); }
 html.dark .v4-protocol-card p { color: rgba(255, 255, 255, .5); }
@@ -400,7 +400,7 @@ html.dark .v4-protocol-card code { color: #b5ef82; }
 .v4-path-list { border-top: 1px solid rgba(23, 23, 23, .1); }
 .v4-path-row { display: grid; grid-template-columns: 36px 1fr auto; align-items: start; gap: 14px; border-bottom: 1px solid rgba(23, 23, 23, .1); padding: 21px 0; color: inherit; transition: padding 180ms ease-out, color 180ms ease-out; }
 .v4-path-row:hover { padding-left: 8px; color: #5c9e3c; }
-.v4-path-row > span { color: #5c9e3c; font-family: ui-monospace, monospace; font-size: 10px; }
+.v4-path-row > span { color: #5c9e3c; font-family: inherit; font-size: 10px; }
 .v4-path-row strong { font-size: 16px; font-weight: 600; letter-spacing: 0; }
 .v4-path-row p { margin-top: 5px; color: rgba(23, 23, 23, .5); font-size: 12px; line-height: 1.6; }
 .v4-path-row > svg { opacity: 0; transition: opacity 180ms ease-out, transform 180ms ease-out; }

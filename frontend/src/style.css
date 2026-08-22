@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Fusion Pixel 12px SC';
+  src: url('./assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.font-pixel {
+  font-family: 'Fusion Pixel 12px SC', 'Courier New', 'Microsoft YaHei', monospace;
+}
+
 @layer base {
   * {
     @apply border-gray-200 dark:border-dark-700;
