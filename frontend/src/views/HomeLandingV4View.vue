@@ -196,7 +196,7 @@
       </section>
     </main>
 
-    <footer class="border-t border-black/8 px-5 py-8 text-xs text-black/45 dark:border-white/8 dark:text-white/45 sm:px-8 lg:px-10"><div class="mx-auto flex max-w-[1280px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><span>© {{ currentYear }} {{ siteName }}</span><span>{{ t('home.v4.footer') }}</span><RouterLink to="/model-plaza" class="v4-footer-link">{{ t('home.v4.nav.models') }} ↗</RouterLink></div></footer>
+    <footer class="border-t border-black/8 px-5 py-8 text-xs text-black/45 dark:border-white/8 dark:text-white/45 sm:px-8 lg:px-10"><div class="mx-auto flex max-w-[1280px] flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"><span>© {{ currentYear }} {{ siteName }}</span><span>{{ t('home.v4.footer') }}</span><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" class="v4-footer-link">闽ICP备2026032371号-2</a><RouterLink to="/model-plaza" class="v4-footer-link">{{ t('home.v4.nav.models') }} ↗</RouterLink></div></footer>
   </div>
 </template>
 

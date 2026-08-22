@@ -451,6 +451,14 @@
         </p>
         <div class="flex items-center gap-4">
           <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
+          >
+            闽ICP备2026032371号-2
+          </a>
+          <a
             v-if="docUrl"
             :href="docUrl"
             target="_blank"

@@ -17,8 +17,12 @@ type CreationHistoryHandler struct {
 	settings *service.SettingService
 }
 
-func NewCreationHistoryHandler(history *service.CreationHistoryService, keys *service.APIKeyService) *CreationHistoryHandler {
-	return &CreationHistoryHandler{history: history, keys: keys}
+func NewCreationHistoryHandler(
+	history *service.CreationHistoryService,
+	keys *service.APIKeyService,
+	settings *service.SettingService,
+) *CreationHistoryHandler {
+	return &CreationHistoryHandler{history: history, keys: keys, settings: settings}
 }
 
 func (h *CreationHistoryHandler) SetSettingService(settings *service.SettingService) {
