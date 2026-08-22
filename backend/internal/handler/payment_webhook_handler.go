@@ -67,6 +67,12 @@ func (h *PaymentWebhookHandler) AirwallexWebhook(c *gin.Context) {
 	h.handleNotify(c, payment.TypeAirwallex)
 }
 
+// HuifuWebhook handles Huifu Dougong hosted-checkout notifications.
+// POST /api/v1/payment/webhook/huifu
+func (h *PaymentWebhookHandler) HuifuWebhook(c *gin.Context) {
+	h.handleNotify(c, payment.TypeHuifu)
+}
+
 // handleNotify is the shared logic for all provider webhook handlers.
 func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string) {
 	var rawBody string
@@ -90,7 +96,7 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 	providers, err := h.paymentService.GetWebhookProviders(c.Request.Context(), providerKey, outTradeNo)
 	if err != nil {
 		slog.Warn("[Payment Webhook] provider not found", "provider", providerKey, "outTradeNo", outTradeNo, "error", err)
-		if providerKey == payment.TypeWxpay {
+		if providerKey == payment.TypeWxpay || providerKey == payment.TypeHuifu {
 			c.String(http.StatusBadRequest, "verify failed")
 			return
 		}
@@ -117,7 +123,7 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 
 	// nil notification means irrelevant event (e.g. Stripe non-payment event); return success.
 	if notification == nil {
-		writeSuccessResponse(c, resolvedProviderKey)
+		writeSuccessResponseForOrder(c, resolvedProviderKey, "")
 		return
 	}
 
@@ -133,7 +139,7 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 				"outTradeNo", notification.OrderID,
 				"tradeNo", notification.TradeNo,
 			)
-			writeSuccessResponse(c, resolvedProviderKey)
+			writeSuccessResponseForOrder(c, resolvedProviderKey, notification.OrderID)
 			return
 		}
 		slog.Error("[Payment Webhook] handle notification failed", "provider", resolvedProviderKey, "error", err)
@@ -141,7 +147,7 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 		return
 	}
 
-	writeSuccessResponse(c, resolvedProviderKey)
+	writeSuccessResponseForOrder(c, resolvedProviderKey, notification.OrderID)
 }
 
 // extractOutTradeNo parses the webhook body to find the out_trade_no.
@@ -163,6 +169,17 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		}
 		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
 			return strings.TrimSpace(payload.Data.Object.MerchantOrderID)
+		}
+	case payment.TypeHuifu:
+		values, err := url.ParseQuery(rawBody)
+		if err != nil {
+			return ""
+		}
+		var payload struct {
+			ReqSeqID string `json:"req_seq_id"`
+		}
+		if err := json.Unmarshal([]byte(values.Get("resp_data")), &payload); err == nil {
+			return strings.TrimSpace(payload.ReqSeqID)
 		}
 	}
 	// For other providers (Stripe, Alipay direct, WxPay direct), the registry
@@ -205,11 +222,17 @@ const (
 // 微信支付需要 JSON {"code":"SUCCESS","message":"成功"}；
 // Stripe 和空中云汇接受空 200，其它服务商接受纯文本 "success"。
 func writeSuccessResponse(c *gin.Context, providerKey string) {
+	writeSuccessResponseForOrder(c, providerKey, "")
+}
+
+func writeSuccessResponseForOrder(c *gin.Context, providerKey, orderID string) {
 	switch providerKey {
 	case payment.TypeWxpay:
 		c.JSON(http.StatusOK, wxpaySuccessResponse{Code: wxpaySuccessCode, Message: wxpaySuccessMessage})
 	case payment.TypeStripe, payment.TypeAirwallex:
 		c.String(http.StatusOK, "")
+	case payment.TypeHuifu:
+		c.String(http.StatusOK, "RECV_ORD_ID_"+strings.TrimSpace(orderID))
 	default:
 		c.String(http.StatusOK, "success")
 	}

@@ -538,6 +538,14 @@ const paymentGuide = computed<PaymentGuide | null>(() => {
     }
   }
 
+  if (form.provider_key === 'huifu') {
+    return {
+      summary: t('admin.settings.payment.huifuGuideSummary'),
+      note: t('admin.settings.payment.huifuGuideNote'),
+      items: [],
+    }
+  }
+
   return null
 })
 

@@ -186,6 +186,20 @@ func TestBuildPaymentOrderProviderSnapshot_IncludesProviderCurrency(t *testing.T
 	}, CreateOrderRequest{})
 	require.Equal(t, "USD", airwallexSnapshot["currency"])
 	require.Equal(t, "acct-78", airwallexSnapshot["merchant_id"])
+
+	huifuSnapshot := buildPaymentOrderProviderSnapshot(&payment.InstanceSelection{
+		InstanceID:  "79",
+		ProviderKey: payment.TypeHuifu,
+		Config: map[string]string{
+			"huifuId":            "6666000232494579",
+			"merchantPrivateKey": "secret",
+			"huifuPublicKey":     "secret",
+		},
+	}, CreateOrderRequest{})
+	require.Equal(t, "CNY", huifuSnapshot["currency"])
+	require.Equal(t, "6666000232494579", huifuSnapshot["merchant_id"])
+	require.NotContains(t, huifuSnapshot, "merchantPrivateKey")
+	require.NotContains(t, huifuSnapshot, "huifuPublicKey")
 }
 
 func valueOrEmpty(v *string) string {

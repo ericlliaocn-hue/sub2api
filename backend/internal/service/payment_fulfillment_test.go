@@ -562,6 +562,24 @@ func TestValidateProviderNotificationMetadataRejectsAirwallexSnapshotMismatch(t 
 	assert.ErrorContains(t, err, "airwallex currency mismatch")
 }
 
+func TestValidateProviderNotificationMetadataRejectsHuifuMerchantMismatch(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{
+		PaymentType: payment.TypeHuifu,
+		ProviderSnapshot: map[string]any{
+			"schema_version": 2,
+			"merchant_id":    "6666000232494579",
+			"currency":       "CNY",
+		},
+	}
+
+	err := validateProviderNotificationMetadata(order, payment.TypeHuifu, map[string]string{
+		"huifu_id": "other-merchant",
+	})
+	assert.ErrorContains(t, err, "huifu huifu_id mismatch")
+}
+
 func TestValidateProviderNotificationMetadataRejectsStripeCurrencyMismatch(t *testing.T) {
 	t.Parallel()
 

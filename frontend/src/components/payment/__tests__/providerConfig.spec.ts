@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PAYMENT_CURRENCY_OPTIONS,
+  PROVIDER_CALLBACK_PATHS,
   PROVIDER_CONFIG_FIELDS,
   isBuiltInAlipayMethod,
   isBuiltInWxpayMethod,
@@ -55,6 +56,22 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
     expect(currency?.defaultValue).toBe('CNY')
     expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
     expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
+  })
+})
+
+describe('PROVIDER_CONFIG_FIELDS.huifu', () => {
+  it('exposes the merchant identifiers, RSA keys, environment and generated callbacks', () => {
+    expect(findField('huifu', 'sysId')?.optional).toBeFalsy()
+    expect(findField('huifu', 'huifuId')?.optional).toBeFalsy()
+    expect(findField('huifu', 'productId')?.optional).toBeFalsy()
+    expect(findField('huifu', 'projectId')?.optional).toBeFalsy()
+    expect(findField('huifu', 'merchantPrivateKey')?.sensitive).toBe(true)
+    expect(findField('huifu', 'huifuPublicKey')?.sensitive).toBe(true)
+    expect(findField('huifu', 'apiBase')?.defaultValue).toBe('https://api.huifu.com')
+    expect(PROVIDER_CALLBACK_PATHS.huifu).toEqual({
+      notifyUrl: '/api/v1/payment/webhook/huifu',
+      returnUrl: '/payment/result',
+    })
   })
 })
 

@@ -794,6 +794,12 @@ func TestPaymentOrderQueryReferenceUsesOutTradeNoForOfficialProviders(t *testing
 	require.Equal(t, "sub2_out_trade_no", paymentOrderQueryReference(order, paymentFulfillmentTestProvider{
 		key: payment.TypeWxpay,
 	}))
+
+	order.PaymentType = payment.TypeHuifu
+	order.ProviderKey = ptrString(payment.TypeHuifu)
+	require.Equal(t, "sub2_out_trade_no", paymentOrderQueryReference(order, paymentFulfillmentTestProvider{
+		key: payment.TypeHuifu,
+	}))
 }
 
 func newPaymentOrderLifecycleTestClient(t *testing.T) *dbent.Client {

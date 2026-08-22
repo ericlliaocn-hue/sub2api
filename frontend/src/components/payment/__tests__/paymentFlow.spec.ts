@@ -39,6 +39,7 @@ describe('getVisibleMethods', () => {
       wxpay: methodLimit({ single_max: 100 }),
       stripe: methodLimit({ fee_rate: 3 }),
       airwallex: methodLimit({ single_min: 10 }),
+      huifu: methodLimit({ single_min: 1 }),
     })
 
     expect(visible).toEqual({
@@ -46,6 +47,7 @@ describe('getVisibleMethods', () => {
       wxpay: methodLimit({ single_max: 100 }),
       stripe: methodLimit({ fee_rate: 3 }),
       airwallex: methodLimit({ single_min: 10 }),
+      huifu: methodLimit({ single_min: 1 }),
     })
   })
 
@@ -158,6 +160,23 @@ describe('decidePaymentLaunch', () => {
     expect(decision.recovery.paymentMode).toBe('popup')
     expect(decision.recovery.outTradeNo).toBe('sub2_abc')
     expect(decision.recovery.resumeToken).toBe('resume-2')
+  })
+
+  it('opens the Huifu hosted checkout on desktop', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_url: 'https://cashier.huifu.com/session/abc',
+      out_trade_no: 'sub2_huifu_abc',
+      payment_env: 'prod',
+    }), {
+      visibleMethod: 'huifu',
+      orderType: 'balance',
+      isMobile: false,
+    })
+
+    expect(decision.kind).toBe('redirect_waiting')
+    expect(decision.paymentState.paymentType).toBe('huifu')
+    expect(decision.paymentState.payUrl).toBe('https://cashier.huifu.com/session/abc')
+    expect(decision.paymentState.paymentEnv).toBe('prod')
   })
 
   it('prefers redirect on mobile when both pay_url and qr_code are present', () => {

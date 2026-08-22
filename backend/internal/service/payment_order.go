@@ -305,6 +305,12 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		}
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
+	if providerKey == payment.TypeHuifu {
+		if merchantID := strings.TrimSpace(sel.Config["huifuId"]); merchantID != "" {
+			snapshot["merchant_id"] = merchantID
+		}
+		snapshot["currency"] = payment.DefaultPaymentCurrency
+	}
 
 	if len(snapshot) == 1 {
 		return nil
@@ -445,6 +451,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		ClientIP:    req.ClientIP,
 		IsMobile:    req.IsMobile,
 		ReturnURL:   providerReturnURL,
+		OrderType:   req.OrderType,
 	}, sel, outTradeNo, payAmountStr, subject)
 	providerReq.AlipayMobilePrecreate = shouldUseAlipayMobilePrecreate(req, cfg, sel)
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
@@ -520,6 +527,7 @@ func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.Inst
 		OpenID:             strings.TrimSpace(req.OpenID),
 		ClientIP:           req.ClientIP,
 		IsMobile:           req.IsMobile,
+		OrderType:          req.OrderType,
 		InstanceSubMethods: selectedInstanceSupportedTypes(sel),
 	}
 }

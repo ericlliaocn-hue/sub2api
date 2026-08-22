@@ -220,6 +220,19 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 		if actual := strings.TrimSpace(metadata["status"]); actual != "" && !strings.EqualFold(actual, "SUCCEEDED") {
 			return fmt.Errorf("airwallex status mismatch: expected SUCCEEDED, got %s", actual)
 		}
+	case payment.TypeHuifu:
+		if expected := strings.TrimSpace(snapshot.MerchantID); expected != "" {
+			actual := strings.TrimSpace(metadata["huifu_id"])
+			if actual == "" {
+				return fmt.Errorf("huifu notification missing huifu_id")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("huifu huifu_id mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.Currency); expected != "" && !strings.EqualFold(expected, payment.DefaultPaymentCurrency) {
+			return fmt.Errorf("huifu currency mismatch: expected %s, got %s", expected, payment.DefaultPaymentCurrency)
+		}
 	}
 
 	return nil

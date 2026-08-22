@@ -18,6 +18,7 @@ const (
 	TypeLink         PaymentType = "link"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	TypeHuifu        PaymentType = "huifu"
 )
 
 // Order status constants shared across payment and service layers.
@@ -86,6 +87,8 @@ func GetBasePaymentType(t string) string {
 		return TypeEasyPay
 	case t == TypeAirwallex:
 		return TypeAirwallex
+	case t == TypeHuifu:
+		return TypeHuifu
 	case t == TypeStripe || t == TypeCard || t == TypeLink:
 		return TypeStripe
 	case len(t) >= len(TypeAlipay) && t[:len(TypeAlipay)] == TypeAlipay:
@@ -108,6 +111,7 @@ type CreatePaymentRequest struct {
 	OpenID      string // WeChat JSAPI payer OpenID when available
 	ClientIP    string // Payer's IP address
 	IsMobile    bool   // Whether the request comes from a mobile device
+	OrderType   string // balance or subscription; providers may map this to a usage category
 	// AlipayMobilePrecreate routes a mobile Alipay request through
 	// alipay.trade.precreate instead of alipay.trade.wap.pay.
 	AlipayMobilePrecreate bool

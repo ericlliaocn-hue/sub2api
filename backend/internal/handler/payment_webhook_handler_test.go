@@ -55,6 +55,13 @@ func TestWriteSuccessResponse(t *testing.T) {
 			wantBody:        "",
 		},
 		{
+			name:            "huifu returns its order acknowledgement",
+			providerKey:     payment.TypeHuifu,
+			wantCode:        http.StatusOK,
+			wantContentType: "text/plain",
+			wantBody:        "RECV_ORD_ID_",
+		},
+		{
 			name:            "easypay returns plain text success",
 			providerKey:     "easypay",
 			wantCode:        http.StatusOK,
@@ -98,6 +105,17 @@ func TestWriteSuccessResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWriteSuccessResponseForHuifuIncludesOrderID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	writeSuccessResponseForOrder(c, payment.TypeHuifu, "sub2_20260822_order1")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "RECV_ORD_ID_sub2_20260822_order1", w.Body.String())
 }
 
 // TestUnknownOrderWebhookAcksWithSuccess exercises the response contract that
@@ -177,6 +195,12 @@ func TestExtractOutTradeNo(t *testing.T) {
 			providerKey: payment.TypeAirwallex,
 			rawBody:     `{"name":"payment_intent.succeeded","data":{"object":{"merchant_order_id":"sub2_awx_123"}}}`,
 			want:        "sub2_awx_123",
+		},
+		{
+			name:        "huifu form callback",
+			providerKey: payment.TypeHuifu,
+			rawBody:     "resp_data=%7B%22req_seq_id%22%3A%22sub2_huifu_123%22%7D&sign=sig",
+			want:        "sub2_huifu_123",
 		},
 	}
 

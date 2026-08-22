@@ -18,6 +18,7 @@ const messages: Record<string, string> = {
   'admin.settings.payment.alipayGuideSummary': 'Desktop prefers QR precreate and falls back to cashier; mobile prefers WAP checkout.',
   'admin.settings.payment.wxpayGuideSummary': 'Desktop prefers Native QR; mobile routes to JSAPI or H5 based on browser context.',
   'admin.settings.payment.airwallexGuideSummary': 'Use Payment Acceptance read/write only.',
+  'admin.settings.payment.huifuGuideSummary': 'Use the Huifu hosted PC/H5 checkout.',
   'admin.settings.payment.stripeWebhookHint': 'Configure Stripe webhook.',
   'admin.settings.payment.stripeWebhookApiVersionHint': 'Use Stripe API version {version}.',
   'admin.settings.payment.airwallexWebhookHint': 'Select payment_intent.succeeded and use the latest stable API version.',
@@ -65,16 +66,19 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
         { value: 'wxpay', label: 'WeChat Pay' },
         { value: 'stripe', label: 'Stripe' },
         { value: 'airwallex', label: 'Airwallex' },
+        { value: 'huifu', label: 'Huifu Dougong' },
       ],
       enabledKeyOptions: [
         { value: 'easypay', label: 'EasyPay' },
         { value: 'alipay', label: 'Alipay' },
         { value: 'wxpay', label: 'WeChat Pay' },
         { value: 'airwallex', label: 'Airwallex' },
+        { value: 'huifu', label: 'Huifu Dougong' },
       ],
       allPaymentTypes: [
         { value: 'alipay', label: 'Alipay' },
         { value: 'wxpay', label: 'WeChat Pay' },
+        { value: 'huifu', label: 'Huifu Dougong' },
       ],
       redirectLabel: 'Redirect',
     },
@@ -108,6 +112,7 @@ describe('PaymentProviderDialog payment guide', () => {
     ['alipay', 'admin.settings.payment.alipayGuideSummary'],
     ['wxpay', 'admin.settings.payment.wxpayGuideSummary'],
     ['airwallex', 'admin.settings.payment.airwallexGuideSummary'],
+    ['huifu', 'admin.settings.payment.huifuGuideSummary'],
   ])('shows the payment guide summary for %s', async (providerKey, summaryKey) => {
     const wrapper = mountDialog()
 

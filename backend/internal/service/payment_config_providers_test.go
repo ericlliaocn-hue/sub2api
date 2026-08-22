@@ -52,6 +52,13 @@ func TestValidateProviderRequest(t *testing.T) {
 			wantErr:        false,
 		},
 		{
+			name:           "valid huifu provider",
+			providerKey:    payment.TypeHuifu,
+			providerName:   "Huifu Dougong",
+			supportedTypes: payment.TypeHuifu,
+			wantErr:        false,
+		},
+		{
 			name:           "valid alipay provider",
 			providerKey:    "alipay",
 			providerName:   "Alipay Direct",
@@ -243,6 +250,15 @@ func TestIsSensitiveProviderConfigField(t *testing.T) {
 		{payment.TypeAirwallex, "apiBase", false},
 		{payment.TypeAirwallex, "accountId", false},
 		{payment.TypeAirwallex, "currency", false},
+
+		// Huifu Dougong
+		{payment.TypeHuifu, "merchantPrivateKey", true},
+		{payment.TypeHuifu, "huifuPublicKey", true},
+		{payment.TypeHuifu, "MerchantPrivateKey", true}, // case-insensitive
+		{payment.TypeHuifu, "sysId", false},
+		{payment.TypeHuifu, "huifuId", false},
+		{payment.TypeHuifu, "productId", false},
+		{payment.TypeHuifu, "projectId", false},
 
 		// Unknown provider: never sensitive
 		{"unknown", "secretKey", false},
@@ -718,6 +734,8 @@ func providerPendingOrderPaymentType(providerKey string) string {
 		return payment.TypeAlipay
 	case payment.TypeAirwallex:
 		return payment.TypeAirwallex
+	case payment.TypeHuifu:
+		return payment.TypeHuifu
 	case payment.TypeStripe:
 		return payment.TypeStripe
 	default:
