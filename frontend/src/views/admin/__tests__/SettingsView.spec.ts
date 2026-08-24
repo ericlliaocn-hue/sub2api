@@ -484,7 +484,12 @@ const baseSettingsResponse = {
   payment_enabled_types: [],
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_enabled: false,
   payment_recharge_bonus_tiers: [],
+  payment_recharge_bonus_expiry_mode: "days",
+  payment_recharge_bonus_ends_at: "",
+  payment_recharge_bonus_duration_days: 7,
+  payment_recharge_bonus_started_at: "",
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_load_balance_strategy: "round-robin",
@@ -738,10 +743,13 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
+        payment_recharge_bonus_enabled: false,
+        payment_recharge_bonus_expiry_mode: "days",
+        payment_recharge_bonus_duration_days: 7,
         payment_recharge_bonus_tiers: [
-          { payment_amount: 10, bonus_amount: 2, currency: "CNY", enabled: true },
-          { payment_amount: 50, bonus_amount: 6, currency: "CNY", enabled: true },
-          { payment_amount: 100, bonus_amount: 12, currency: "CNY", enabled: true },
+          { payment_amount: 10, bonus_amount: 2, currency: "CNY", enabled: true, validity_days: 30, max_claims_per_user: 1, campaign_id: "" },
+          { payment_amount: 50, bonus_amount: 6, currency: "CNY", enabled: true, validity_days: 30, max_claims_per_user: 1, campaign_id: "" },
+          { payment_amount: 100, bonus_amount: 12, currency: "CNY", enabled: true, validity_days: 30, max_claims_per_user: 1, campaign_id: "" },
         ],
       }),
     );

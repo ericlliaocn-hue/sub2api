@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -16,17 +17,22 @@ import (
 )
 
 const (
-	SettingPaymentEnabled      = "payment_enabled"
-	SettingMinRechargeAmount   = "MIN_RECHARGE_AMOUNT"
-	SettingMaxRechargeAmount   = "MAX_RECHARGE_AMOUNT"
-	SettingDailyRechargeLimit  = "DAILY_RECHARGE_LIMIT"
-	SettingOrderTimeoutMinutes = "ORDER_TIMEOUT_MINUTES"
-	SettingMaxPendingOrders    = "MAX_PENDING_ORDERS"
-	SettingEnabledPaymentTypes = "ENABLED_PAYMENT_TYPES"
-	SettingLoadBalanceStrategy = "LOAD_BALANCE_STRATEGY"
-	SettingBalancePayDisabled  = "BALANCE_PAYMENT_DISABLED"
-	SettingBalanceRechargeMult = "BALANCE_RECHARGE_MULTIPLIER"
-	SettingRechargeBonusTiers  = "RECHARGE_BONUS_TIERS"
+	SettingPaymentEnabled            = "payment_enabled"
+	SettingMinRechargeAmount         = "MIN_RECHARGE_AMOUNT"
+	SettingMaxRechargeAmount         = "MAX_RECHARGE_AMOUNT"
+	SettingDailyRechargeLimit        = "DAILY_RECHARGE_LIMIT"
+	SettingOrderTimeoutMinutes       = "ORDER_TIMEOUT_MINUTES"
+	SettingMaxPendingOrders          = "MAX_PENDING_ORDERS"
+	SettingEnabledPaymentTypes       = "ENABLED_PAYMENT_TYPES"
+	SettingLoadBalanceStrategy       = "LOAD_BALANCE_STRATEGY"
+	SettingBalancePayDisabled        = "BALANCE_PAYMENT_DISABLED"
+	SettingBalanceRechargeMult       = "BALANCE_RECHARGE_MULTIPLIER"
+	SettingRechargeBonusEnabled      = "RECHARGE_BONUS_ENABLED"
+	SettingRechargeBonusTiers        = "RECHARGE_BONUS_TIERS"
+	SettingRechargeBonusExpiryMode   = "RECHARGE_BONUS_EXPIRY_MODE"
+	SettingRechargeBonusEndsAt       = "RECHARGE_BONUS_ENDS_AT"
+	SettingRechargeBonusDurationDays = "RECHARGE_BONUS_DURATION_DAYS"
+	SettingRechargeBonusStartedAt    = "RECHARGE_BONUS_STARTED_AT"
 	// SettingSubscriptionUSDToCNYRate 是订阅 CNY 换算汇率（1 USD = X CNY）。
 	// 0/未配置 = 关闭换算（订阅按 price 数值直付），显式配置后 CNY 通道订阅按 price × rate 收款。
 	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
@@ -61,7 +67,12 @@ type PaymentConfig struct {
 	EnabledTypes              []string            `json:"enabled_payment_types"`
 	BalanceDisabled           bool                `json:"balance_disabled"`
 	BalanceRechargeMultiplier float64             `json:"balance_recharge_multiplier"`
+	RechargeBonusEnabled      bool                `json:"recharge_bonus_enabled"`
 	RechargeBonusTiers        []RechargeBonusTier `json:"recharge_bonus_tiers"`
+	RechargeBonusExpiryMode   string              `json:"recharge_bonus_expiry_mode"`
+	RechargeBonusEndsAt       string              `json:"recharge_bonus_ends_at"`
+	RechargeBonusDurationDays int                 `json:"recharge_bonus_duration_days"`
+	RechargeBonusStartedAt    string              `json:"recharge_bonus_started_at"`
 	// SubscriptionUSDToCNYRate 为 0 时订阅换算关闭（兼容存量行为）。
 	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
@@ -96,7 +107,11 @@ type UpdatePaymentConfigRequest struct {
 	EnabledTypes              []string             `json:"enabled_payment_types"`
 	BalanceDisabled           *bool                `json:"balance_disabled"`
 	BalanceRechargeMultiplier *float64             `json:"balance_recharge_multiplier"`
+	RechargeBonusEnabled      *bool                `json:"recharge_bonus_enabled"`
 	RechargeBonusTiers        *[]RechargeBonusTier `json:"recharge_bonus_tiers"`
+	RechargeBonusExpiryMode   *string              `json:"recharge_bonus_expiry_mode"`
+	RechargeBonusEndsAt       *string              `json:"recharge_bonus_ends_at"`
+	RechargeBonusDurationDays *int                 `json:"recharge_bonus_duration_days"`
 	SubscriptionUSDToCNYRate  *float64             `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate           *float64             `json:"recharge_fee_rate"`
 	LoadBalanceStrategy       *string              `json:"load_balance_strategy"`
@@ -223,7 +238,9 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingRechargeBonusTiers, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingRechargeBonusEnabled, SettingRechargeBonusTiers,
+		SettingRechargeBonusExpiryMode, SettingRechargeBonusEndsAt, SettingRechargeBonusDurationDays, SettingRechargeBonusStartedAt,
+		SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -252,7 +269,12 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		MaxPendingOrders:          pcParseInt(vals[SettingMaxPendingOrders], defaultMaxPendingOrders),
 		BalanceDisabled:           vals[SettingBalancePayDisabled] == "true",
 		BalanceRechargeMultiplier: normalizeBalanceRechargeMultiplier(pcParseFloat(vals[SettingBalanceRechargeMult], defaultBalanceRechargeMultiplier)),
+		RechargeBonusEnabled:      vals[SettingRechargeBonusEnabled] == "true",
 		RechargeBonusTiers:        parseRechargeBonusTiers(vals[SettingRechargeBonusTiers]),
+		RechargeBonusExpiryMode:   normalizeRechargeBonusExpiryMode(vals[SettingRechargeBonusExpiryMode]),
+		RechargeBonusEndsAt:       strings.TrimSpace(vals[SettingRechargeBonusEndsAt]),
+		RechargeBonusDurationDays: pcParseInt(vals[SettingRechargeBonusDurationDays], 0),
+		RechargeBonusStartedAt:    strings.TrimSpace(vals[SettingRechargeBonusStartedAt]),
 		SubscriptionUSDToCNYRate:  normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
@@ -302,6 +324,125 @@ func pcEnvBoolOverride(key string, fallback bool) bool {
 	return value
 }
 
+const (
+	rechargeBonusExpiryModeFixed = "fixed"
+	rechargeBonusExpiryModeDays  = "days"
+)
+
+type rechargeBonusScheduleUpdate struct {
+	mode         string
+	endsAt       string
+	durationDays int
+	startedAt    string
+}
+
+func normalizeRechargeBonusExpiryMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case rechargeBonusExpiryModeFixed:
+		return rechargeBonusExpiryModeFixed
+	case rechargeBonusExpiryModeDays:
+		return rechargeBonusExpiryModeDays
+	default:
+		return ""
+	}
+}
+
+// IsRechargeBonusActiveAt is the authoritative promotion-window check. A blank
+// schedule keeps legacy installations active until an administrator saves one.
+func (c *PaymentConfig) IsRechargeBonusActiveAt(now time.Time) bool {
+	if c == nil || !c.RechargeBonusEnabled {
+		return false
+	}
+	if strings.TrimSpace(c.RechargeBonusEndsAt) == "" {
+		return c.RechargeBonusExpiryMode == ""
+	}
+	endsAt, err := time.Parse(time.RFC3339, c.RechargeBonusEndsAt)
+	if err != nil {
+		return false
+	}
+	return now.Before(endsAt)
+}
+
+func (s *PaymentConfigService) prepareRechargeBonusSchedule(ctx context.Context, req UpdatePaymentConfigRequest) (*rechargeBonusScheduleUpdate, error) {
+	scheduleProvided := req.RechargeBonusExpiryMode != nil || req.RechargeBonusEndsAt != nil || req.RechargeBonusDurationDays != nil
+	if !scheduleProvided && req.RechargeBonusEnabled == nil {
+		return nil, nil
+	}
+	values, err := s.settingRepo.GetMultiple(ctx, []string{
+		SettingRechargeBonusEnabled,
+		SettingRechargeBonusExpiryMode,
+		SettingRechargeBonusEndsAt,
+		SettingRechargeBonusDurationDays,
+		SettingRechargeBonusStartedAt,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get recharge bonus schedule: %w", err)
+	}
+	current := s.parsePaymentConfig(values)
+	enabledAfter := current.RechargeBonusEnabled
+	if req.RechargeBonusEnabled != nil {
+		enabledAfter = *req.RechargeBonusEnabled
+	}
+	mode := current.RechargeBonusExpiryMode
+	if req.RechargeBonusExpiryMode != nil {
+		mode = normalizeRechargeBonusExpiryMode(*req.RechargeBonusExpiryMode)
+		if mode == "" {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_EXPIRY_MODE", "recharge bonus expiry mode must be fixed or days")
+		}
+	}
+	// Preserve legacy no-expiry behavior until a schedule is explicitly supplied.
+	if mode == "" && !scheduleProvided {
+		return nil, nil
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	result := &rechargeBonusScheduleUpdate{
+		mode:         mode,
+		endsAt:       current.RechargeBonusEndsAt,
+		durationDays: current.RechargeBonusDurationDays,
+		startedAt:    current.RechargeBonusStartedAt,
+	}
+	switch mode {
+	case rechargeBonusExpiryModeFixed:
+		if req.RechargeBonusEndsAt != nil {
+			result.endsAt = strings.TrimSpace(*req.RechargeBonusEndsAt)
+		}
+		if result.endsAt == "" {
+			if !enabledAfter {
+				result.durationDays = 0
+				return result, nil
+			}
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_ENDS_AT", "recharge bonus end time is required")
+		}
+		endsAt, parseErr := time.Parse(time.RFC3339, result.endsAt)
+		if parseErr != nil {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_ENDS_AT", "recharge bonus end time must be RFC3339")
+		}
+		if enabledAfter && !endsAt.After(now) {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_ENDS_AT", "recharge bonus end time must be in the future")
+		}
+		result.endsAt = endsAt.UTC().Format(time.RFC3339)
+		result.durationDays = 0
+		if result.startedAt == "" || (!current.RechargeBonusEnabled && enabledAfter) {
+			result.startedAt = now.Format(time.RFC3339)
+		}
+	case rechargeBonusExpiryModeDays:
+		if req.RechargeBonusDurationDays != nil {
+			result.durationDays = *req.RechargeBonusDurationDays
+		}
+		if result.durationDays < 1 || result.durationDays > 3650 {
+			return nil, infraerrors.BadRequest("INVALID_RECHARGE_BONUS_DURATION_DAYS", "recharge bonus duration days must be between 1 and 3650")
+		}
+		restart := current.RechargeBonusExpiryMode != rechargeBonusExpiryModeDays ||
+			current.RechargeBonusDurationDays != result.durationDays ||
+			(!current.RechargeBonusEnabled && enabledAfter) || current.RechargeBonusStartedAt == ""
+		if enabledAfter && restart {
+			result.startedAt = now.Format(time.RFC3339)
+			result.endsAt = now.AddDate(0, 0, result.durationDays).Format(time.RFC3339)
+		}
+	}
+	return result, nil
+}
+
 // getStripePublishableKey finds the publishable key from the first enabled Stripe provider instance.
 func (s *PaymentConfigService) getStripePublishableKey(ctx context.Context) string {
 	if s.entClient == nil {
@@ -346,6 +487,10 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_RECHARGE_BONUS_TIERS", err.Error())
 		}
 	}
+	rechargeSchedule, err := s.prepareRechargeBonusSchedule(ctx, req)
+	if err != nil {
+		return err
+	}
 	if req.RechargeFeeRate != nil {
 		v := *req.RechargeFeeRate
 		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 100 {
@@ -384,12 +529,21 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 	if req.BalanceRechargeMultiplier != nil {
 		m[SettingBalanceRechargeMult] = formatPositiveFloat(req.BalanceRechargeMultiplier)
 	}
+	if req.RechargeBonusEnabled != nil {
+		m[SettingRechargeBonusEnabled] = formatBoolOrEmpty(req.RechargeBonusEnabled)
+	}
 	if req.RechargeBonusTiers != nil {
 		encoded, err := json.Marshal(normalizedBonusTiers)
 		if err != nil {
 			return fmt.Errorf("encode recharge bonus tiers: %w", err)
 		}
 		m[SettingRechargeBonusTiers] = string(encoded)
+	}
+	if rechargeSchedule != nil {
+		m[SettingRechargeBonusExpiryMode] = rechargeSchedule.mode
+		m[SettingRechargeBonusEndsAt] = rechargeSchedule.endsAt
+		m[SettingRechargeBonusDurationDays] = strconv.Itoa(rechargeSchedule.durationDays)
+		m[SettingRechargeBonusStartedAt] = rechargeSchedule.startedAt
 	}
 	if req.SubscriptionUSDToCNYRate != nil {
 		m[SettingSubscriptionUSDToCNYRate] = formatPositiveFloatExact(req.SubscriptionUSDToCNYRate)

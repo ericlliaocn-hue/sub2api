@@ -660,7 +660,12 @@ export interface SystemSettings {
   payment_enabled_types: string[];
   payment_balance_disabled: boolean;
   payment_balance_recharge_multiplier: number;
+  payment_recharge_bonus_enabled: boolean;
   payment_recharge_bonus_tiers: RechargeBonusTier[];
+  payment_recharge_bonus_expiry_mode: "fixed" | "days" | "";
+  payment_recharge_bonus_ends_at: string;
+  payment_recharge_bonus_duration_days: number;
+  payment_recharge_bonus_started_at: string;
   payment_subscription_usd_to_cny_rate: number;
   payment_recharge_fee_rate: number;
   payment_load_balance_strategy: string;
@@ -972,7 +977,11 @@ export interface UpdateSettingsRequest {
   payment_enabled_types?: string[];
   payment_balance_disabled?: boolean;
   payment_balance_recharge_multiplier?: number;
+  payment_recharge_bonus_enabled?: boolean;
   payment_recharge_bonus_tiers?: RechargeBonusTier[];
+  payment_recharge_bonus_expiry_mode?: "fixed" | "days";
+  payment_recharge_bonus_ends_at?: string;
+  payment_recharge_bonus_duration_days?: number;
   payment_subscription_usd_to_cny_rate?: number;
   payment_recharge_fee_rate?: number;
   payment_load_balance_strategy?: string;

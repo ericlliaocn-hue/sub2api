@@ -21,10 +21,27 @@ func TestCalculateAppliedRechargeBonusUsesExactEnabledTier(t *testing.T) {
 	require.Equal(t, float64(10), applied.BaseCreditedAmount)
 	require.Equal(t, float64(2), applied.BonusAmount)
 	require.Equal(t, float64(12), applied.CreditedAmount)
+	require.Equal(t, 30, applied.ValidityDays)
+	require.Equal(t, 1, applied.MaxClaimsPerUser)
+	require.Equal(t, "legacy-CNY-10.00", applied.CampaignID)
 
 	require.Nil(t, calculateAppliedRechargeBonus(20, "CNY", 1, tiers))
 	require.Nil(t, calculateAppliedRechargeBonus(100, "CNY", 1, tiers))
 	require.Nil(t, calculateAppliedRechargeBonus(10, "USD", 1, tiers))
+}
+
+func TestNormalizeRechargeBonusTiersKeepsActivityControls(t *testing.T) {
+	t.Parallel()
+
+	tiers, err := normalizeRechargeBonusTiers([]RechargeBonusTier{{
+		PaymentAmount: 50, BonusAmount: 6, Currency: "cny", Enabled: true,
+		ValidityDays: 45, MaxClaimsPerUser: 2, CampaignID: "launch-2026",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, []RechargeBonusTier{{
+		PaymentAmount: 50, BonusAmount: 6, Currency: "CNY", Enabled: true,
+		ValidityDays: 45, MaxClaimsPerUser: 2, CampaignID: "launch-2026",
+	}}, tiers)
 }
 
 func TestNormalizeRechargeBonusTiersRejectsDuplicatePaymentAmount(t *testing.T) {
@@ -56,4 +73,7 @@ func TestRechargeBonusSnapshotRoundTrip(t *testing.T) {
 	require.Equal(t, float64(50), applied.PaymentAmount)
 	require.Equal(t, float64(6), applied.BonusAmount)
 	require.Equal(t, float64(56), applied.CreditedAmount)
+	require.Equal(t, 30, applied.ValidityDays)
+	require.Equal(t, 1, applied.MaxClaimsPerUser)
+	require.Equal(t, "legacy-CNY-50.00", applied.CampaignID)
 }

@@ -25,7 +25,12 @@ export interface AdminPaymentConfig {
   enabled_payment_types: string[]
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  recharge_bonus_enabled: boolean
   recharge_bonus_tiers: RechargeBonusTier[]
+  recharge_bonus_expiry_mode: 'fixed' | 'days' | ''
+  recharge_bonus_ends_at: string
+  recharge_bonus_duration_days: number
+  recharge_bonus_started_at: string
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
   load_balance_strategy: string
@@ -46,7 +51,11 @@ export interface UpdatePaymentConfigRequest {
   enabled_payment_types?: string[]
   balance_disabled?: boolean
   balance_recharge_multiplier?: number
+  recharge_bonus_enabled?: boolean
   recharge_bonus_tiers?: RechargeBonusTier[]
+  recharge_bonus_expiry_mode?: 'fixed' | 'days'
+  recharge_bonus_ends_at?: string
+  recharge_bonus_duration_days?: number
   subscription_usd_to_cny_rate?: number
   recharge_fee_rate?: number
   load_balance_strategy?: string

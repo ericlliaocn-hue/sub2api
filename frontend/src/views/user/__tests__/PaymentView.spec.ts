@@ -21,6 +21,15 @@ const showError = vi.hoisted(() => vi.fn())
 const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
+const getBalanceLedger = vi.hoisted(() => vi.fn().mockResolvedValue({
+  data: {
+    items: [],
+    total: 0,
+    page: 1,
+    page_size: 20,
+    active_bonus: 0,
+  },
+}))
 const bridgeInvoke = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-router', async () => {
@@ -80,6 +89,7 @@ vi.mock('@/stores', () => ({
 vi.mock('@/api/payment', () => ({
   paymentAPI: {
     getCheckoutInfo,
+    getBalanceLedger,
   },
 }))
 
@@ -107,6 +117,8 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     balance_disabled: false,
     balance_recharge_multiplier: 1,
     recharge_bonus_tiers: [],
+    recharge_bonus_ends_at: '',
+    recharge_bonus_server_time: '',
     subscription_usd_to_cny_rate: 0,
     recharge_fee_rate: 0,
     help_text: '',
@@ -284,9 +296,11 @@ describe('PaymentView recharge bonus tiers', () => {
     routeState.query = {}
     getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({
       recharge_bonus_tiers: [
-        { payment_amount: 10, bonus_amount: 2, currency: 'CNY', enabled: true },
-        { payment_amount: 50, bonus_amount: 6, currency: 'CNY', enabled: true },
+        { payment_amount: 10, bonus_amount: 2, currency: 'CNY', enabled: true, validity_days: 30, max_claims_per_user: 1, campaign_id: 'summer' },
+        { payment_amount: 50, bonus_amount: 6, currency: 'CNY', enabled: true, validity_days: 30, max_claims_per_user: 1, campaign_id: 'summer' },
       ],
+      recharge_bonus_ends_at: '2099-01-02T00:00:00Z',
+      recharge_bonus_server_time: '2099-01-01T00:00:00Z',
       methods: {
         wxpay: {
           ...checkoutInfoFixture().data.methods.wxpay,
@@ -315,6 +329,8 @@ describe('PaymentView recharge bonus tiers', () => {
 
     expect(wrapper.text()).toContain('+$2.00')
     expect(wrapper.text()).toContain('$12.00')
+    expect(wrapper.text()).toContain('payment.rechargeExchangeRate')
+    expect(wrapper.text()).toContain('payment.rechargeBonusCountdown')
   })
 })
 

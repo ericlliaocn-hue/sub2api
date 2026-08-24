@@ -41,6 +41,23 @@ func (h *PaymentHandler) GetPaymentConfig(c *gin.Context) {
 	response.Success(c, cfg)
 }
 
+// GetBalanceLedger returns the current user's immutable balance change history.
+func (h *PaymentHandler) GetBalanceLedger(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	result, err := h.paymentService.ListUserBalanceLedger(c.Request.Context(), subject.UserID, page, pageSize)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 // GetPlans returns subscription plans available for sale.
 // GET /api/v1/payment/plans
 func (h *PaymentHandler) GetPlans(c *gin.Context) {
@@ -140,6 +157,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		})
 	}
 
+	now := time.Now().UTC()
 	response.Success(c, checkoutInfoResponse{
 		Methods:                       limitsResp.Methods,
 		GlobalMin:                     limitsResp.GlobalMin,
@@ -147,7 +165,9 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		Plans:                         planList,
 		BalanceDisabled:               cfg.BalanceDisabled,
 		BalanceRechargeMultiplier:     cfg.BalanceRechargeMultiplier,
-		RechargeBonusTiers:            cfg.RechargeBonusTiers,
+		RechargeBonusTiers:            visibleRechargeBonusTiers(cfg, now),
+		RechargeBonusEndsAt:           cfg.RechargeBonusEndsAt,
+		RechargeBonusServerTime:       now.Format(time.RFC3339),
 		SubscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
 		RechargeFeeRate:               cfg.RechargeFeeRate,
 		HelpText:                      cfg.HelpText,
@@ -158,6 +178,13 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	})
 }
 
+func visibleRechargeBonusTiers(cfg *service.PaymentConfig, now time.Time) []service.RechargeBonusTier {
+	if cfg == nil || !cfg.IsRechargeBonusActiveAt(now) {
+		return []service.RechargeBonusTier{}
+	}
+	return cfg.RechargeBonusTiers
+}
+
 type checkoutInfoResponse struct {
 	Methods                       map[string]service.MethodLimits `json:"methods"`
 	GlobalMin                     float64                         `json:"global_min"`
@@ -166,6 +193,8 @@ type checkoutInfoResponse struct {
 	BalanceDisabled               bool                            `json:"balance_disabled"`
 	BalanceRechargeMultiplier     float64                         `json:"balance_recharge_multiplier"`
 	RechargeBonusTiers            []service.RechargeBonusTier     `json:"recharge_bonus_tiers"`
+	RechargeBonusEndsAt           string                          `json:"recharge_bonus_ends_at"`
+	RechargeBonusServerTime       string                          `json:"recharge_bonus_server_time"`
 	SubscriptionUSDToCNYRate      float64                         `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate               float64                         `json:"recharge_fee_rate"`
 	HelpText                      string                          `json:"help_text"`

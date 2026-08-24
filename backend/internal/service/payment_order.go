@@ -70,7 +70,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	var appliedBonus *AppliedRechargeBonus
 	if req.OrderType == payment.OrderTypeBalance {
 		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
-		appliedBonus = calculateAppliedRechargeBonus(req.Amount, methodCurrency, cfg.BalanceRechargeMultiplier, cfg.RechargeBonusTiers)
+		if cfg.IsRechargeBonusActiveAt(time.Now()) {
+			appliedBonus = calculateAppliedRechargeBonus(req.Amount, methodCurrency, cfg.BalanceRechargeMultiplier, cfg.RechargeBonusTiers)
+		}
 		if appliedBonus != nil {
 			orderAmount = appliedBonus.CreditedAmount
 		}
@@ -97,7 +99,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		}
 		if req.OrderType == payment.OrderTypeBalance {
 			orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
-			appliedBonus = calculateAppliedRechargeBonus(req.Amount, selectedCurrency, cfg.BalanceRechargeMultiplier, cfg.RechargeBonusTiers)
+			if cfg.IsRechargeBonusActiveAt(time.Now()) {
+				appliedBonus = calculateAppliedRechargeBonus(req.Amount, selectedCurrency, cfg.BalanceRechargeMultiplier, cfg.RechargeBonusTiers)
+			}
 			if appliedBonus != nil {
 				orderAmount = appliedBonus.CreditedAmount
 			}
@@ -168,6 +172,11 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if appliedBonus != nil {
+		if err := s.reserveRechargeBonusClaimSlot(ctx, tx, req.UserID, appliedBonus); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.checkPendingLimit(ctx, tx, req.UserID, cfg.MaxPendingOrders); err != nil {
 		return nil, err
 	}

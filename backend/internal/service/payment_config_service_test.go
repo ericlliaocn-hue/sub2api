@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
@@ -553,4 +554,62 @@ func TestUpdatePaymentConfig_PersistsExplicitEmptyAndFalseValues(t *testing.T) {
 
 func paymentConfigStrPtr(value string) *string {
 	return &value
+}
+
+func TestRechargeBonusActivityWindow(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	cfg := &PaymentConfig{
+		RechargeBonusEnabled:    true,
+		RechargeBonusExpiryMode: rechargeBonusExpiryModeFixed,
+		RechargeBonusEndsAt:     now.Add(time.Hour).Format(time.RFC3339),
+	}
+	if !cfg.IsRechargeBonusActiveAt(now) {
+		t.Fatal("promotion should be active before its end time")
+	}
+	if cfg.IsRechargeBonusActiveAt(now.Add(time.Hour)) {
+		t.Fatal("promotion must stop exactly at its end time")
+	}
+	cfg.RechargeBonusEndsAt = "invalid"
+	if cfg.IsRechargeBonusActiveAt(now) {
+		t.Fatal("invalid end time must fail closed")
+	}
+	cfg.RechargeBonusEnabled = false
+	if cfg.IsRechargeBonusActiveAt(now) {
+		t.Fatal("disabled promotion must be inactive")
+	}
+}
+
+func TestUpdatePaymentConfig_DaysScheduleDoesNotRestartOnNormalSave(t *testing.T) {
+	t.Parallel()
+
+	startedAt := "2026-08-24T00:00:00Z"
+	endsAt := "2026-08-31T00:00:00Z"
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{
+		SettingRechargeBonusEnabled:      "true",
+		SettingRechargeBonusExpiryMode:   rechargeBonusExpiryModeDays,
+		SettingRechargeBonusDurationDays: "7",
+		SettingRechargeBonusStartedAt:    startedAt,
+		SettingRechargeBonusEndsAt:       endsAt,
+	}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := true
+	durationDays := 7
+	mode := rechargeBonusExpiryModeDays
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		RechargeBonusEnabled:      &enabled,
+		RechargeBonusExpiryMode:   &mode,
+		RechargeBonusDurationDays: &durationDays,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+	if got := repo.values[SettingRechargeBonusStartedAt]; got != startedAt {
+		t.Fatalf("started_at = %q, want preserved %q", got, startedAt)
+	}
+	if got := repo.values[SettingRechargeBonusEndsAt]; got != endsAt {
+		t.Fatalf("ends_at = %q, want preserved %q", got, endsAt)
+	}
 }

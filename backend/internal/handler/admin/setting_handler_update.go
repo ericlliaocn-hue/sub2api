@@ -307,7 +307,11 @@ type UpdateSettingsRequest struct {
 	PaymentEnabledTypes              []string                     `json:"payment_enabled_types"`
 	PaymentBalanceDisabled           *bool                        `json:"payment_balance_disabled"`
 	PaymentBalanceRechargeMultiplier *float64                     `json:"payment_balance_recharge_multiplier"`
+	PaymentRechargeBonusEnabled      *bool                        `json:"payment_recharge_bonus_enabled"`
 	PaymentRechargeBonusTiers        *[]service.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
+	PaymentRechargeBonusExpiryMode   *string                      `json:"payment_recharge_bonus_expiry_mode"`
+	PaymentRechargeBonusEndsAt       *string                      `json:"payment_recharge_bonus_ends_at"`
+	PaymentRechargeBonusDurationDays *int                         `json:"payment_recharge_bonus_duration_days"`
 	PaymentSubscriptionUSDToCNYRate  *float64                     `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate           *float64                     `json:"payment_recharge_fee_rate"`
 	PaymentLoadBalanceStrat          *string                      `json:"payment_load_balance_strategy"`
@@ -2055,7 +2059,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			EnabledTypes:                  req.PaymentEnabledTypes,
 			BalanceDisabled:               req.PaymentBalanceDisabled,
 			BalanceRechargeMultiplier:     req.PaymentBalanceRechargeMultiplier,
+			RechargeBonusEnabled:          req.PaymentRechargeBonusEnabled,
 			RechargeBonusTiers:            req.PaymentRechargeBonusTiers,
+			RechargeBonusExpiryMode:       req.PaymentRechargeBonusExpiryMode,
+			RechargeBonusEndsAt:           req.PaymentRechargeBonusEndsAt,
+			RechargeBonusDurationDays:     req.PaymentRechargeBonusDurationDays,
 			SubscriptionUSDToCNYRate:      req.PaymentSubscriptionUSDToCNYRate,
 			RechargeFeeRate:               req.PaymentRechargeFeeRate,
 			LoadBalanceStrategy:           req.PaymentLoadBalanceStrat,
@@ -2332,7 +2340,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentEnabledTypes:                                    updatedPaymentCfg.EnabledTypes,
 		PaymentBalanceDisabled:                                 updatedPaymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                       updatedPaymentCfg.BalanceRechargeMultiplier,
+		PaymentRechargeBonusEnabled:                            updatedPaymentCfg.RechargeBonusEnabled,
 		PaymentRechargeBonusTiers:                              updatedPaymentCfg.RechargeBonusTiers,
+		PaymentRechargeBonusExpiryMode:                         updatedPaymentCfg.RechargeBonusExpiryMode,
+		PaymentRechargeBonusEndsAt:                             updatedPaymentCfg.RechargeBonusEndsAt,
+		PaymentRechargeBonusDurationDays:                       updatedPaymentCfg.RechargeBonusDurationDays,
+		PaymentRechargeBonusStartedAt:                          updatedPaymentCfg.RechargeBonusStartedAt,
 		PaymentSubscriptionUSDToCNYRate:                        updatedPaymentCfg.SubscriptionUSDToCNYRate,
 		PaymentRechargeFeeRate:                                 updatedPaymentCfg.RechargeFeeRate,
 		PaymentLoadBalanceStrat:                                updatedPaymentCfg.LoadBalanceStrategy,
@@ -2406,7 +2419,9 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentOrderTimeoutMin != nil || req.PaymentMaxPendingOrders != nil ||
 		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
 		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
-		req.PaymentRechargeBonusTiers != nil ||
+		req.PaymentRechargeBonusEnabled != nil || req.PaymentRechargeBonusTiers != nil ||
+		req.PaymentRechargeBonusExpiryMode != nil || req.PaymentRechargeBonusEndsAt != nil ||
+		req.PaymentRechargeBonusDurationDays != nil ||
 		req.PaymentRechargeFeeRate != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||
 		req.PaymentProductNameSuffix != nil || req.PaymentHelpImageURL != nil ||

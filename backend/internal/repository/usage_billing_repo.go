@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -179,7 +180,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
+		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost, cmd.RequestID)
 		if err != nil {
 			return err
 		}
@@ -240,52 +241,89 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 	return service.ErrSubscriptionNotFound
 }
 
-func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, bool, error) {
-	var newBalance float64
-	err := tx.QueryRowContext(ctx, `
-		UPDATE users
-		SET balance = balance - $1,
-			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL AND balance >= $1
-		RETURNING balance
-	`, amount, userID).Scan(&newBalance)
-	if err == nil {
-		return newBalance, true, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
+func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64, requestID string) (float64, bool, error) {
+	if _, err := service.ExpireRechargeBonusLots(ctx, tx, userID); err != nil {
 		return 0, false, err
 	}
-
-	err = tx.QueryRowContext(ctx, `
-		UPDATE users
-		SET balance = balance - $1,
-			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL
-		RETURNING balance
-	`, amount, userID).Scan(&newBalance)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, false, service.ErrUserNotFound
+	var balanceBefore float64
+	if err := tx.QueryRowContext(ctx, `SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID).Scan(&balanceBefore); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, false, service.ErrUserNotFound
+		}
+		return 0, false, err
 	}
+	bonusBefore, err := service.ActiveRechargeBonusTotal(ctx, tx, userID)
 	if err != nil {
 		return 0, false, err
 	}
-	return newBalance, false, nil
+	if _, err := service.ConsumeRechargeBonusLots(ctx, tx, userID, amount); err != nil {
+		return 0, false, err
+	}
+	var newBalance float64
+	if err := tx.QueryRowContext(ctx, `
+		UPDATE users SET balance = balance - $1, updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL RETURNING balance
+	`, amount, userID).Scan(&newBalance); err != nil {
+		return 0, false, err
+	}
+	bonusAfter, err := service.ActiveRechargeBonusTotal(ctx, tx, userID)
+	if err != nil {
+		return 0, false, err
+	}
+	if err := service.RecordBalanceLedger(ctx, tx, service.BalanceLedgerEntry{
+		UserID: userID, EventType: "usage_charge", Amount: -amount,
+		BalanceBefore: balanceBefore, BalanceAfter: newBalance,
+		BonusBefore: bonusBefore, BonusAfter: bonusAfter,
+		SourceType: "usage_request", SourceID: requestID,
+		Description: "模型调用扣费",
+	}); err != nil {
+		return 0, false, err
+	}
+	return newBalance, balanceBefore+0.00000001 >= amount, nil
 }
 
 func reserveUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
 	if cmd.HoldAmount <= 0 {
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
+	if _, err := service.ExpireRechargeBonusLots(ctx, tx, cmd.UserID); err != nil {
+		return nil, err
+	}
+	var balanceBefore, frozenBefore float64
+	if err := tx.QueryRowContext(ctx, `SELECT balance, COALESCE(frozen_balance,0) FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, cmd.UserID).Scan(&balanceBefore, &frozenBefore); err != nil {
+		return nil, err
+	}
+	if balanceBefore+0.00000001 < cmd.HoldAmount {
+		return nil, service.ErrBatchImageInsufficientBalance
+	}
+	bonusBefore, err := service.ActiveRechargeBonusTotal(ctx, tx, cmd.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := service.AllocateRechargeBonusHold(ctx, tx, cmd.UserID, cmd.BatchID, cmd.HoldAmount); err != nil {
+		return nil, err
+	}
 	var balance, frozen float64
-	err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE users
 		SET balance = balance - $1,
 			frozen_balance = COALESCE(frozen_balance, 0) + $1,
 			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL AND balance >= $1
+		WHERE id = $2 AND deleted_at IS NULL
 		RETURNING balance, frozen_balance
 	`, cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
 	if err == nil {
+		bonusAfter, bonusErr := service.ActiveRechargeBonusTotal(ctx, tx, cmd.UserID)
+		if bonusErr != nil {
+			return nil, bonusErr
+		}
+		if ledgerErr := service.RecordBalanceLedger(ctx, tx, service.BalanceLedgerEntry{
+			UserID: cmd.UserID, EventType: "batch_hold", Amount: -cmd.HoldAmount,
+			BalanceBefore: balanceBefore, BalanceAfter: balance, BonusBefore: bonusBefore, BonusAfter: bonusAfter,
+			SourceType: "batch_image", SourceID: "hold:" + cmd.BatchID, Description: "批量图片任务冻结余额",
+		}); ledgerErr != nil {
+			return nil, ledgerErr
+		}
 		return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -306,18 +344,47 @@ func captureUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	if cmd.ActualAmount-cmd.HoldAmount > 0.00000001 {
 		return nil, service.ErrBatchImageSettlementCostExceedsHold
 	}
+	if _, err := service.ExpireRechargeBonusLots(ctx, tx, cmd.UserID); err != nil {
+		return nil, err
+	}
+	var balanceBefore, frozenBefore float64
+	if err := tx.QueryRowContext(ctx, `SELECT balance, COALESCE(frozen_balance,0) FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, cmd.UserID).Scan(&balanceBefore, &frozenBefore); err != nil {
+		return nil, err
+	}
+	bonusBefore, err := service.ActiveRechargeBonusTotal(ctx, tx, cmd.UserID)
+	if err != nil {
+		return nil, err
+	}
+	promoAllocated, promoRestored, err := service.SettleRechargeBonusHold(ctx, tx, cmd.UserID, cmd.BatchID, cmd.ActualAmount)
+	if err != nil {
+		return nil, err
+	}
+	permanentHold := math.Max(0, cmd.HoldAmount-promoAllocated)
+	permanentConsumed := math.Max(0, cmd.ActualAmount-promoAllocated)
+	permanentRestored := math.Max(0, permanentHold-permanentConsumed)
+	restored := promoRestored + permanentRestored
 	var balance, frozen float64
-	err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE users
-		SET balance = balance
-				+ CASE WHEN $1 > $2 THEN $1 - $2 ELSE 0 END
-				- CASE WHEN $2 > $1 THEN $2 - $1 ELSE 0 END,
+		SET balance = balance + $2,
 			frozen_balance = COALESCE(frozen_balance, 0) - $1,
 			updated_at = NOW()
 		WHERE id = $3 AND deleted_at IS NULL AND COALESCE(frozen_balance, 0) >= $1
 		RETURNING balance, frozen_balance
-	`, cmd.HoldAmount, cmd.ActualAmount, cmd.UserID).Scan(&balance, &frozen)
+	`, cmd.HoldAmount, restored, cmd.UserID).Scan(&balance, &frozen)
 	if err == nil {
+		bonusAfter, bonusErr := service.ActiveRechargeBonusTotal(ctx, tx, cmd.UserID)
+		if bonusErr != nil {
+			return nil, bonusErr
+		}
+		if ledgerErr := service.RecordBalanceLedger(ctx, tx, service.BalanceLedgerEntry{
+			UserID: cmd.UserID, EventType: "batch_capture", Amount: restored,
+			BalanceBefore: balanceBefore, BalanceAfter: balance, BonusBefore: bonusBefore, BonusAfter: bonusAfter,
+			SourceType: "batch_image", SourceID: "capture:" + cmd.BatchID, Description: "批量图片任务结算",
+			Metadata: map[string]any{"hold_amount": cmd.HoldAmount, "actual_amount": cmd.ActualAmount, "expired_while_held": math.Max(0, promoAllocated-math.Min(cmd.ActualAmount, promoAllocated)-promoRestored)},
+		}); ledgerErr != nil {
+			return nil, ledgerErr
+		}
 		return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -345,16 +412,43 @@ func releaseUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 		logger.LegacyPrintf("repository.usage_billing", "[BatchImage] release skipped, hold was never reserved: batch=%s", cmd.BatchID)
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
+	if _, err := service.ExpireRechargeBonusLots(ctx, tx, cmd.UserID); err != nil {
+		return nil, err
+	}
+	var balanceBefore, frozenBefore float64
+	if err := tx.QueryRowContext(ctx, `SELECT balance, COALESCE(frozen_balance,0) FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, cmd.UserID).Scan(&balanceBefore, &frozenBefore); err != nil {
+		return nil, err
+	}
+	bonusBefore, err := service.ActiveRechargeBonusTotal(ctx, tx, cmd.UserID)
+	if err != nil {
+		return nil, err
+	}
+	promoAllocated, promoRestored, err := service.SettleRechargeBonusHold(ctx, tx, cmd.UserID, cmd.BatchID, 0)
+	if err != nil {
+		return nil, err
+	}
+	restored := math.Max(0, cmd.HoldAmount-promoAllocated) + promoRestored
 	var balance, frozen float64
-	err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE users
-		SET balance = balance + $1,
+		SET balance = balance + $3,
 			frozen_balance = COALESCE(frozen_balance, 0) - $1,
 			updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL AND COALESCE(frozen_balance, 0) >= $1
 		RETURNING balance, frozen_balance
-	`, cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
+	`, cmd.HoldAmount, cmd.UserID, restored).Scan(&balance, &frozen)
 	if err == nil {
+		bonusAfter, bonusErr := service.ActiveRechargeBonusTotal(ctx, tx, cmd.UserID)
+		if bonusErr != nil {
+			return nil, bonusErr
+		}
+		if ledgerErr := service.RecordBalanceLedger(ctx, tx, service.BalanceLedgerEntry{
+			UserID: cmd.UserID, EventType: "batch_release", Amount: restored,
+			BalanceBefore: balanceBefore, BalanceAfter: balance, BonusBefore: bonusBefore, BonusAfter: bonusAfter,
+			SourceType: "batch_image", SourceID: "release:" + cmd.BatchID, Description: "批量图片任务释放冻结余额",
+		}); ledgerErr != nil {
+			return nil, ledgerErr
+		}
 		return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {

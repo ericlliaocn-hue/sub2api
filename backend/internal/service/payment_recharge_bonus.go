@@ -16,10 +16,13 @@ const maxRechargeBonusTiers = 50
 // RechargeBonusTier configures an exact-match bonus for a balance recharge.
 // PaymentAmount is denominated in Currency, while BonusAmount is account balance.
 type RechargeBonusTier struct {
-	PaymentAmount float64 `json:"payment_amount"`
-	BonusAmount   float64 `json:"bonus_amount"`
-	Currency      string  `json:"currency"`
-	Enabled       bool    `json:"enabled"`
+	PaymentAmount    float64 `json:"payment_amount"`
+	BonusAmount      float64 `json:"bonus_amount"`
+	Currency         string  `json:"currency"`
+	Enabled          bool    `json:"enabled"`
+	ValidityDays     int     `json:"validity_days"`
+	MaxClaimsPerUser int     `json:"max_claims_per_user"`
+	CampaignID       string  `json:"campaign_id"`
 }
 
 // AppliedRechargeBonus is the immutable bonus snapshot attached to an order.
@@ -30,6 +33,9 @@ type AppliedRechargeBonus struct {
 	CreditedAmount     float64 `json:"credited_amount"`
 	Currency           string  `json:"currency"`
 	BalanceMultiplier  float64 `json:"balance_multiplier"`
+	ValidityDays       int     `json:"validity_days"`
+	MaxClaimsPerUser   int     `json:"max_claims_per_user"`
+	CampaignID         string  `json:"campaign_id"`
 }
 
 func parseRechargeBonusTiers(raw string) []RechargeBonusTier {
@@ -64,6 +70,27 @@ func normalizeRechargeBonusTiers(tiers []RechargeBonusTier) ([]RechargeBonusTier
 		if !validMoneyAmount(tier.BonusAmount, 2) {
 			return nil, fmt.Errorf("recharge bonus amount must be positive and use at most 2 decimal places")
 		}
+		validityDays := tier.ValidityDays
+		if validityDays == 0 {
+			validityDays = 30
+		}
+		maxClaimsPerUser := tier.MaxClaimsPerUser
+		if maxClaimsPerUser == 0 {
+			maxClaimsPerUser = 1
+		}
+		if validityDays <= 0 || validityDays > 3650 {
+			return nil, fmt.Errorf("recharge bonus validity days must be between 1 and 3650")
+		}
+		if maxClaimsPerUser <= 0 || maxClaimsPerUser > 1000 {
+			return nil, fmt.Errorf("recharge bonus max claims per user must be between 1 and 1000")
+		}
+		campaignID := strings.TrimSpace(tier.CampaignID)
+		if campaignID == "" {
+			campaignID = fmt.Sprintf("legacy-%s-%s", currency, decimal.NewFromFloat(tier.PaymentAmount).Round(int32(payment.CurrencyMaxFractionDigits(currency))).String())
+		}
+		if len(campaignID) > 100 {
+			return nil, fmt.Errorf("recharge bonus campaign id is required and must not exceed 100 characters")
+		}
 		paymentAmount := decimal.NewFromFloat(tier.PaymentAmount).
 			Round(int32(payment.CurrencyMaxFractionDigits(currency)))
 		bonusAmount := decimal.NewFromFloat(tier.BonusAmount).Round(2)
@@ -73,10 +100,13 @@ func normalizeRechargeBonusTiers(tiers []RechargeBonusTier) ([]RechargeBonusTier
 		}
 		seen[key] = struct{}{}
 		normalized = append(normalized, RechargeBonusTier{
-			PaymentAmount: paymentAmount.InexactFloat64(),
-			BonusAmount:   bonusAmount.InexactFloat64(),
-			Currency:      currency,
-			Enabled:       tier.Enabled,
+			PaymentAmount:    paymentAmount.InexactFloat64(),
+			BonusAmount:      bonusAmount.InexactFloat64(),
+			Currency:         currency,
+			Enabled:          tier.Enabled,
+			ValidityDays:     validityDays,
+			MaxClaimsPerUser: maxClaimsPerUser,
+			CampaignID:       campaignID,
 		})
 	}
 	sort.Slice(normalized, func(i, j int) bool {
@@ -111,6 +141,18 @@ func calculateAppliedRechargeBonus(paymentAmount float64, currency string, multi
 		}
 		base := decimal.NewFromFloat(calculateCreditedBalance(paymentAmount, multiplier))
 		bonus := decimal.NewFromFloat(tier.BonusAmount).Round(2)
+		validityDays := tier.ValidityDays
+		if validityDays <= 0 {
+			validityDays = 30
+		}
+		maxClaims := tier.MaxClaimsPerUser
+		if maxClaims <= 0 {
+			maxClaims = 1
+		}
+		campaignID := strings.TrimSpace(tier.CampaignID)
+		if campaignID == "" {
+			campaignID = fmt.Sprintf("legacy-%s-%.2f", normalizedCurrency, tier.PaymentAmount)
+		}
 		return &AppliedRechargeBonus{
 			PaymentAmount:      paymentDecimal.InexactFloat64(),
 			BaseCreditedAmount: base.InexactFloat64(),
@@ -118,6 +160,9 @@ func calculateAppliedRechargeBonus(paymentAmount float64, currency string, multi
 			CreditedAmount:     base.Add(bonus).Round(2).InexactFloat64(),
 			Currency:           normalizedCurrency,
 			BalanceMultiplier:  normalizeBalanceRechargeMultiplier(multiplier),
+			ValidityDays:       validityDays,
+			MaxClaimsPerUser:   maxClaims,
+			CampaignID:         campaignID,
 		}
 	}
 	return nil
@@ -132,9 +177,11 @@ func rechargeBonusFromSnapshot(snapshot map[string]any) (*AppliedRechargeBonus, 
 		return nil, false
 	}
 	if applied, ok := raw.(*AppliedRechargeBonus); ok && applied != nil {
+		normalizeAppliedRechargeBonus(applied)
 		return applied, applied.BonusAmount > 0
 	}
 	if applied, ok := raw.(AppliedRechargeBonus); ok {
+		normalizeAppliedRechargeBonus(&applied)
 		return &applied, applied.BonusAmount > 0
 	}
 	payload, err := json.Marshal(raw)
@@ -145,5 +192,18 @@ func rechargeBonusFromSnapshot(snapshot map[string]any) (*AppliedRechargeBonus, 
 	if err := json.Unmarshal(payload, &applied); err != nil || applied.BonusAmount <= 0 {
 		return nil, false
 	}
+	normalizeAppliedRechargeBonus(&applied)
 	return &applied, true
+}
+
+func normalizeAppliedRechargeBonus(applied *AppliedRechargeBonus) {
+	if applied.ValidityDays <= 0 {
+		applied.ValidityDays = 30
+	}
+	if applied.MaxClaimsPerUser <= 0 {
+		applied.MaxClaimsPerUser = 1
+	}
+	if strings.TrimSpace(applied.CampaignID) == "" {
+		applied.CampaignID = fmt.Sprintf("legacy-%s-%.2f", strings.ToUpper(applied.Currency), applied.PaymentAmount)
+	}
 }

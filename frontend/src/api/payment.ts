@@ -23,6 +23,30 @@ export interface PublicOrderVerifyResult {
   expires_at: string
 }
 
+export interface BalanceLedgerItem {
+  id: number
+  event_type: string
+  amount: number
+  balance_before: number
+  balance_after: number
+  bonus_before: number
+  bonus_after: number
+  source_type: string
+  source_id: string
+  description: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface BalanceLedgerPage {
+  items: BalanceLedgerItem[]
+  total: number
+  page: number
+  page_size: number
+  active_bonus: number
+  next_bonus_expiry_at?: string
+}
+
 export const paymentAPI = {
   /** Get payment configuration (enabled types, limits, etc.) */
   getConfig() {
@@ -42,6 +66,10 @@ export const paymentAPI = {
   /** Get payment method limits and fee rates */
   getLimits() {
     return apiClient.get<MethodLimitsResponse>('/payment/limits')
+  },
+
+  getBalanceLedger(params?: { page?: number; page_size?: number }) {
+    return apiClient.get<BalanceLedgerPage>('/payment/balance-ledger', { params })
   },
 
   /** Create a new payment order */

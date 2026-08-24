@@ -28,6 +28,9 @@ export interface RechargeBonusTier {
   bonus_amount: number
   currency: string
   enabled: boolean
+  validity_days: number
+  max_claims_per_user: number
+  campaign_id: string
 }
 
 // ==================== Configuration ====================
@@ -41,7 +44,12 @@ export interface PaymentConfig {
   order_timeout_minutes: number
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  recharge_bonus_enabled: boolean
   recharge_bonus_tiers: RechargeBonusTier[]
+  recharge_bonus_expiry_mode: 'fixed' | 'days' | ''
+  recharge_bonus_ends_at: string
+  recharge_bonus_duration_days: number
+  recharge_bonus_started_at: string
   subscription_usd_to_cny_rate: number
   enabled_payment_types: PaymentType[]
   help_image_url: string
@@ -77,6 +85,8 @@ export interface CheckoutInfoResponse {
   balance_disabled: boolean
   balance_recharge_multiplier: number
   recharge_bonus_tiers: RechargeBonusTier[]
+  recharge_bonus_ends_at: string
+  recharge_bonus_server_time: string
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number

@@ -124,8 +124,38 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 	// 扣除用户余额
 	balanceUpdated := false
 	if inserted && req.ActualCost > 0 {
-		if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -req.ActualCost); err != nil {
+		exec := s.entClient
+		if tx != nil {
+			exec = tx.Client()
+		}
+		if _, err := ExpireRechargeBonusLots(txCtx, exec, req.UserID); err != nil {
+			return nil, fmt.Errorf("expire recharge bonus: %w", err)
+		}
+		var balanceBefore float64
+		if err := ScanBalanceRow(txCtx, exec, `SELECT balance FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, []any{req.UserID}, &balanceBefore); err != nil {
+			return nil, fmt.Errorf("lock user balance: %w", err)
+		}
+		bonusBefore, err := ActiveRechargeBonusTotal(txCtx, exec, req.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := ConsumeRechargeBonusLots(txCtx, exec, req.UserID, req.ActualCost); err != nil {
+			return nil, err
+		}
+		var balanceAfter float64
+		if err := ScanBalanceRow(txCtx, exec, `UPDATE users SET balance=balance-$1,updated_at=NOW() WHERE id=$2 RETURNING balance`, []any{req.ActualCost, req.UserID}, &balanceAfter); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
+		}
+		bonusAfter, err := ActiveRechargeBonusTotal(txCtx, exec, req.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if err := RecordBalanceLedger(txCtx, exec, BalanceLedgerEntry{
+			UserID: req.UserID, EventType: "usage_charge", Amount: -req.ActualCost,
+			BalanceBefore: balanceBefore, BalanceAfter: balanceAfter, BonusBefore: bonusBefore, BonusAfter: bonusAfter,
+			SourceType: "usage_request", SourceID: req.RequestID, Description: "模型调用扣费",
+		}); err != nil {
+			return nil, err
 		}
 		balanceUpdated = true
 	}

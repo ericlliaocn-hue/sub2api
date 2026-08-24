@@ -454,6 +454,16 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	// 执行兑换逻辑（兑换码已被锁定，此时可安全操作）
+	var balanceBefore, bonusBefore float64
+	if redeemCode.Type == RedeemTypeBalance {
+		if err := ScanBalanceRow(txCtx, tx.Client(), `SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, []any{userID}, &balanceBefore); err != nil {
+			return nil, fmt.Errorf("lock user balance: %w", err)
+		}
+		bonusBefore, err = ActiveRechargeBonusTotal(txCtx, tx.Client(), userID)
+		if err != nil {
+			return nil, fmt.Errorf("get active recharge bonus: %w", err)
+		}
+	}
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
 		amount := redeemCode.Value
@@ -506,6 +516,21 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 
 	default:
 		return nil, unsupportedRedeemTypeError(redeemCode.Type)
+	}
+	if redeemCode.Type == RedeemTypeBalance {
+		var balanceAfter float64
+		if err := ScanBalanceRow(txCtx, tx.Client(), `SELECT balance FROM users WHERE id = $1`, []any{userID}, &balanceAfter); err != nil {
+			return nil, fmt.Errorf("read updated user balance: %w", err)
+		}
+		if err := RecordBalanceLedger(txCtx, tx.Client(), BalanceLedgerEntry{
+			UserID: userID, EventType: "balance_redeem", Amount: balanceAfter - balanceBefore,
+			BalanceBefore: balanceBefore, BalanceAfter: balanceAfter,
+			BonusBefore: bonusBefore, BonusAfter: bonusBefore,
+			SourceType: "redeem_code", SourceID: redeemCode.Code,
+			Description: "兑换码余额变动",
+		}); err != nil {
+			return nil, fmt.Errorf("record balance ledger: %w", err)
+		}
 	}
 
 	// 提交事务

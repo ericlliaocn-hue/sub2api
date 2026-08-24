@@ -7943,19 +7943,57 @@
                       <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.rechargeBonusTiers") }}</h4>
                       <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.rechargeBonusTiersHint") }}</p>
                     </div>
-                    <button type="button" class="btn btn-secondary btn-sm" @click="addRechargeBonusTier">
-                      {{ t("admin.settings.payment.addRechargeBonusTier") }}
-                    </button>
+                    <div class="flex items-center gap-3">
+                      <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input v-model="form.payment_recharge_bonus_enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                        {{ t("admin.settings.payment.bonusEnabled") }}
+                      </label>
+                      <button type="button" class="btn btn-secondary btn-sm" @click="addRechargeBonusTier">
+                        {{ t("admin.settings.payment.addRechargeBonusTier") }}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="mb-3 grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600 sm:grid-cols-2">
+                    <div>
+                      <label class="input-label">{{ t("admin.settings.payment.bonusExpiryMode") }}</label>
+                      <select v-model="form.payment_recharge_bonus_expiry_mode" class="input">
+                        <option value="days">{{ t("admin.settings.payment.bonusExpiryByDays") }}</option>
+                        <option value="fixed">{{ t("admin.settings.payment.bonusExpiryFixed") }}</option>
+                      </select>
+                    </div>
+                    <div v-if="form.payment_recharge_bonus_expiry_mode === 'days'">
+                      <label class="input-label">{{ t("admin.settings.payment.bonusDurationDays") }}</label>
+                      <input v-model.number="form.payment_recharge_bonus_duration_days" class="input" type="number" min="1" max="3650" step="1" />
+                    </div>
+                    <div v-else>
+                      <label class="input-label">{{ t("admin.settings.payment.bonusEndsAt") }}</label>
+                      <input v-model="form.payment_recharge_bonus_ends_at" class="input" type="datetime-local" />
+                    </div>
+                    <p class="self-end pb-2 text-xs text-gray-400 sm:col-span-2">
+                      {{ t("admin.settings.payment.bonusExpiryHint") }}
+                    </p>
                   </div>
                   <div v-if="form.payment_recharge_bonus_tiers.length" class="space-y-2">
                     <div
                       v-for="(tier, index) in form.payment_recharge_bonus_tiers"
                       :key="index"
-                      class="grid grid-cols-1 items-end gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-800 sm:grid-cols-[120px_1fr_1fr_auto_auto]"
+                      class="grid grid-cols-1 items-end gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-800 sm:grid-cols-4"
                     >
                       <div>
                         <label class="input-label">{{ t("admin.settings.payment.bonusCurrency") }}</label>
                         <input v-model.trim="tier.currency" class="input" maxlength="3" placeholder="CNY" />
+                      </div>
+                      <div>
+                        <label class="input-label">有效期（天）</label>
+                        <input v-model.number="tier.validity_days" class="input" type="number" min="1" max="3650" step="1" />
+                      </div>
+                      <div>
+                        <label class="input-label">每用户最多参与</label>
+                        <input v-model.number="tier.max_claims_per_user" class="input" type="number" min="1" max="1000" step="1" />
+                      </div>
+                      <div>
+                        <label class="input-label">活动批次</label>
+                        <input v-model.trim="tier.campaign_id" class="input" maxlength="100" placeholder="2026-autumn" />
                       </div>
                       <div>
                         <label class="input-label">{{ t("admin.settings.payment.bonusPaymentAmount") }}</label>
@@ -9568,7 +9606,12 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_enabled: false,
   payment_recharge_bonus_tiers: [],
+  payment_recharge_bonus_expiry_mode: "days" as "fixed" | "days",
+  payment_recharge_bonus_ends_at: "",
+  payment_recharge_bonus_duration_days: 7,
+  payment_recharge_bonus_started_at: "",
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -9810,11 +9853,28 @@ function addRechargeBonusTier() {
     bonus_amount: 0,
     currency: "CNY",
     enabled: true,
+    validity_days: 30,
+    max_claims_per_user: 1,
+    campaign_id: `campaign-${new Date().toISOString().slice(0, 10)}`,
   } satisfies RechargeBonusTier);
 }
 
 function removeRechargeBonusTier(index: number) {
   form.payment_recharge_bonus_tiers.splice(index, 1);
+}
+
+function toDatetimeLocalValue(value?: string): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const localMillis = parsed.getTime() - parsed.getTimezoneOffset() * 60_000;
+  return new Date(localMillis).toISOString().slice(0, 16);
+}
+
+function datetimeLocalToISO(value: string): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
 }
 
 function applyCaptchaSelection(provider: CaptchaProviderSelection | null): void {
@@ -10774,6 +10834,13 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    form.payment_recharge_bonus_expiry_mode =
+      settings.payment_recharge_bonus_expiry_mode === "fixed" ? "fixed" : "days";
+    form.payment_recharge_bonus_ends_at = toDatetimeLocalValue(
+      settings.payment_recharge_bonus_ends_at,
+    );
+    form.payment_recharge_bonus_duration_days =
+      Number(settings.payment_recharge_bonus_duration_days) || 7;
     syncCaptchaProviderSelection();
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
@@ -11006,6 +11073,21 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    if (form.payment_recharge_bonus_enabled) {
+      if (form.payment_recharge_bonus_expiry_mode === "fixed") {
+        const fixedEnd = new Date(form.payment_recharge_bonus_ends_at);
+        if (!form.payment_recharge_bonus_ends_at || Number.isNaN(fixedEnd.getTime()) || fixedEnd.getTime() <= Date.now()) {
+          appStore.showError(localText("活动到期时间必须晚于当前时间。", "Promotion end time must be in the future."));
+          return;
+        }
+      } else {
+        const durationDays = Number(form.payment_recharge_bonus_duration_days);
+        if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 3650) {
+          appStore.showError(localText("活动持续天数必须为 1 至 3650 的整数。", "Promotion duration must be an integer between 1 and 3650 days."));
+          return;
+        }
+      }
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11385,11 +11467,25 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_recharge_bonus_enabled: Boolean(form.payment_recharge_bonus_enabled),
+      payment_recharge_bonus_expiry_mode:
+        form.payment_recharge_bonus_expiry_mode === "fixed" ? "fixed" : "days",
+      payment_recharge_bonus_ends_at:
+        form.payment_recharge_bonus_expiry_mode === "fixed"
+          ? datetimeLocalToISO(form.payment_recharge_bonus_ends_at)
+          : undefined,
+      payment_recharge_bonus_duration_days:
+        form.payment_recharge_bonus_expiry_mode === "days"
+          ? Number(form.payment_recharge_bonus_duration_days) || 7
+          : undefined,
       payment_recharge_bonus_tiers: form.payment_recharge_bonus_tiers.map((tier) => ({
         payment_amount: Number(tier.payment_amount),
         bonus_amount: Number(tier.bonus_amount),
         currency: String(tier.currency || "CNY").trim().toUpperCase(),
         enabled: Boolean(tier.enabled),
+        validity_days: Number(tier.validity_days) || 30,
+        max_claims_per_user: Number(tier.max_claims_per_user) || 1,
+        campaign_id: String(tier.campaign_id || "").trim(),
       })),
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,

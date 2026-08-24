@@ -39,21 +39,27 @@
             <div class="card p-5">
               <p class="text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
               <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
-              <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
+              <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: ${{ user?.balance?.toFixed(2) || '0.00' }} Token</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.rechargeExchangeRate') }}</p>
             </div>
             <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
             <template v-else>
             <div v-if="availableRechargeBonusTiers.length" class="card p-6">
-              <div class="mb-4">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('payment.rechargeBonusTitle') }}</h3>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonusHint') }}</p>
+              <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('payment.rechargeBonusTitle') }}</h3>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonusHint') }}</p>
+                </div>
+                <p v-if="promotionCountdown" class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                  {{ t('payment.rechargeBonusCountdown', { time: promotionCountdown }) }}
+                </p>
               </div>
               <div class="grid gap-3 sm:grid-cols-3">
                 <button
                   v-for="tier in availableRechargeBonusTiers"
-                  :key="`${tier.currency}-${tier.payment_amount}`"
+                  :key="`${tier.campaign_id}-${tier.currency}-${tier.payment_amount}`"
                   type="button"
                   class="rounded-xl border p-4 text-left transition-colors"
                   :class="validAmount === tier.payment_amount
@@ -64,6 +70,7 @@
                   <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonusPay', { amount: formatSelectedPaymentAmount(tier.payment_amount) }) }}</p>
                   <p class="mt-1 text-xl font-bold text-primary-600 dark:text-primary-400">{{ t('payment.rechargeBonusGive', { amount: tier.bonus_amount.toFixed(2) }) }}</p>
                   <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonusCredit', { amount: rechargeTierCreditedAmount(tier).toFixed(2) }) }}</p>
+                  <p class="mt-1 text-xs text-amber-600 dark:text-amber-300">{{ t('payment.rechargeBonusValidity', { days: tier.validity_days, times: tier.max_claims_per_user }) }}</p>
                 </button>
               </div>
             </div>
@@ -117,6 +124,33 @@
               </span>
               <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}</span>
             </button>
+            <div class="card overflow-hidden">
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-5 dark:border-dark-600">
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('payment.balanceLedgerTitle') }}</h3>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('payment.activeBonusBalance', { amount: balanceLedger?.active_bonus.toFixed(2) || '0.00' }) }}
+                    <span v-if="balanceLedger?.next_bonus_expiry_at"> · {{ t('payment.nextBonusExpiry', { time: formatLedgerTime(balanceLedger.next_bonus_expiry_at) }) }}</span>
+                  </p>
+                </div>
+                <button type="button" class="btn btn-secondary px-3 py-1.5 text-xs" :disabled="ledgerLoading" @click="loadBalanceLedger">
+                  {{ t('common.refresh') }}
+                </button>
+              </div>
+              <div v-if="ledgerLoading" class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+              <div v-else-if="!balanceLedger?.items.length" class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('payment.noBalanceLedger') }}</div>
+              <div v-else class="divide-y divide-gray-100 dark:divide-dark-700">
+                <div v-for="entry in balanceLedger.items" :key="entry.id" class="flex items-center justify-between gap-4 px-5 py-3">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.description || entry.event_type }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ formatLedgerTime(entry.created_at) }} · {{ t('payment.balanceAfter') }} ${{ entry.balance_after.toFixed(4) }} Token</p>
+                  </div>
+                  <span class="shrink-0 text-sm font-semibold" :class="entry.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    {{ entry.amount >= 0 ? '+' : '-' }}${{ Math.abs(entry.amount).toFixed(4) }} Token
+                  </span>
+                </div>
+              </div>
+            </div>
             </template>
           </template>
           <!-- Subscribe Tab -->
@@ -282,14 +316,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
-import { paymentAPI } from '@/api/payment'
+import { paymentAPI, type BalanceLedgerPage } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
@@ -353,6 +387,30 @@ const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
+const balanceLedger = ref<BalanceLedgerPage | null>(null)
+const ledgerLoading = ref(false)
+const promotionClockNow = ref(Date.now())
+const promotionServerOffsetMs = ref(0)
+let promotionClockTimer: ReturnType<typeof setInterval> | undefined
+
+function formatLedgerTime(value: string): string {
+  return new Intl.DateTimeFormat(i18n.locale.value === 'zh' ? 'zh-CN' : 'en-US', {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(value))
+}
+
+async function loadBalanceLedger() {
+  ledgerLoading.value = true
+  try {
+    const res = await paymentAPI.getBalanceLedger({ page: 1, page_size: 10 })
+    balanceLedger.value = res.data
+    await authStore.refreshUser()
+  } catch (error) {
+    console.error('Failed to load balance ledger:', error)
+  } finally {
+    ledgerLoading.value = false
+  }
+}
 
 const paymentPhase = ref<'select' | 'paying'>('select')
 
@@ -528,7 +586,7 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], recharge_bonus_ends_at: '', recharge_bonus_server_time: '', subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
 
 const tabs = computed(() => {
@@ -585,8 +643,14 @@ const globalMaxAmount = computed(() => {
 // Selected method's limits (for validation and error messages)
 const selectedLimit = computed(() => visibleMethods.value[selectedMethod.value])
 const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
+const promotionRemainingMs = computed(() => {
+  const endsAt = Date.parse(checkout.value.recharge_bonus_ends_at || '')
+  if (!Number.isFinite(endsAt)) return Number.POSITIVE_INFINITY
+  return endsAt - (promotionClockNow.value + promotionServerOffsetMs.value)
+})
 const availableRechargeBonusTiers = computed(() =>
   (checkout.value.recharge_bonus_tiers || [])
+    .filter(() => promotionRemainingMs.value > 0)
     .filter((tier) => tier.enabled && normalizePaymentCurrency(tier.currency) === selectedCurrency.value)
     .sort((left, right) => left.payment_amount - right.payment_amount)
 )
@@ -606,6 +670,17 @@ const localeCode = computed(() => {
     return String((raw as { value?: string }).value || '')
   }
   return undefined
+})
+const promotionCountdown = computed(() => {
+  if (!Number.isFinite(promotionRemainingMs.value) || promotionRemainingMs.value <= 0) return ''
+  const totalSeconds = Math.max(0, Math.floor(promotionRemainingMs.value / 1000))
+  const days = Math.floor(totalSeconds / 86_400)
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600)
+  const minutes = Math.floor((totalSeconds % 3_600) / 60)
+  const seconds = totalSeconds % 60
+  const clock = [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':')
+  if (days <= 0) return clock
+  return localeCode.value?.startsWith('zh') ? `${days}天 ${clock}` : `${days}d ${clock}`
 })
 
 function currencyFractionDigits(currency: string): number {
@@ -1137,8 +1212,14 @@ async function resumeWechatPaymentFromQuery() {
 
 onMounted(async () => {
   try {
-    const res = await paymentAPI.getCheckoutInfo()
+    const [res] = await Promise.all([paymentAPI.getCheckoutInfo(), loadBalanceLedger()])
     checkout.value = res.data
+    const serverTime = Date.parse(res.data.recharge_bonus_server_time || '')
+    promotionClockNow.value = Date.now()
+    promotionServerOffsetMs.value = Number.isFinite(serverTime) ? serverTime - promotionClockNow.value : 0
+    promotionClockTimer = setInterval(() => {
+      promotionClockNow.value = Date.now()
+    }, 1000)
     if (enabledMethods.value.length) {
       const order: readonly string[] = METHOD_ORDER
       const sorted = [...enabledMethods.value].sort((a, b) => {
@@ -1195,5 +1276,9 @@ onMounted(async () => {
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking)
   subscriptionStore.fetchActiveSubscriptions().catch(() => {})
+})
+
+onUnmounted(() => {
+  if (promotionClockTimer) clearInterval(promotionClockTimer)
 })
 </script>
