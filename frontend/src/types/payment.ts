@@ -23,6 +23,13 @@ export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' 
 
 export type OrderType = 'balance' | 'subscription'
 
+export interface RechargeBonusTier {
+  payment_amount: number
+  bonus_amount: number
+  currency: string
+  enabled: boolean
+}
+
 // ==================== Configuration ====================
 
 export interface PaymentConfig {
@@ -34,6 +41,7 @@ export interface PaymentConfig {
   order_timeout_minutes: number
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  recharge_bonus_tiers: RechargeBonusTier[]
   subscription_usd_to_cny_rate: number
   enabled_payment_types: PaymentType[]
   help_image_url: string
@@ -68,6 +76,7 @@ export interface CheckoutInfoResponse {
   plans: SubscriptionPlan[]
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  recharge_bonus_tiers: RechargeBonusTier[]
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
@@ -251,4 +260,23 @@ export interface DashboardStats {
   daily_series: DailyPaymentStats[]
   payment_methods: PaymentMethodStats[]
   top_users: Record<string, TopUserPaymentStats[]>
+  recharge_bonus: RechargeBonusStats
+}
+
+export interface RechargeBonusTierStats {
+  currency: string
+  payment_amount: number
+  bonus_amount: number
+  order_count: number
+  total_payment_amount: number
+  total_bonus_amount: number
+  total_credited_amount: number
+}
+
+export interface RechargeBonusStats {
+  order_count: number
+  payment_amounts: CurrencyAmounts
+  bonus_amount: number
+  credited_amount: number
+  tiers: RechargeBonusTierStats[]
 }

@@ -106,6 +106,7 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     plans: [],
     balance_disabled: false,
     balance_recharge_multiplier: 1,
+    recharge_bonus_tiers: [],
     subscription_usd_to_cny_rate: 0,
     recharge_fee_rate: 0,
     help_text: '',
@@ -276,6 +277,46 @@ async function mountSubscriptionPlanList(planCount: number) {
   await flushPromises()
   return wrapper
 }
+
+describe('PaymentView recharge bonus tiers', () => {
+  it('selects an exact tier and previews the full credited balance', async () => {
+    routeState.path = '/purchase'
+    routeState.query = {}
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({
+      recharge_bonus_tiers: [
+        { payment_amount: 10, bonus_amount: 2, currency: 'CNY', enabled: true },
+        { payment_amount: 50, bonus_amount: 6, currency: 'CNY', enabled: true },
+      ],
+      methods: {
+        wxpay: {
+          ...checkoutInfoFixture().data.methods.wxpay,
+          currency: 'CNY',
+        },
+      },
+    }))
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    const tierButtons = wrapper.findAll('button').filter((button) =>
+      button.text().includes('payment.rechargeBonusGive'),
+    )
+    expect(tierButtons).toHaveLength(2)
+    await tierButtons[0].trigger('click')
+
+    expect(wrapper.text()).toContain('+$2.00')
+    expect(wrapper.text()).toContain('$12.00')
+  })
+})
 
 describe('PaymentView subscription plan grid', () => {
   it.each([3, 4, 6])('keeps %i plans on the existing mobile/tablet/desktop grid', async (planCount) => {

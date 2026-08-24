@@ -154,6 +154,7 @@ type DashboardStats struct {
 	DailySeries    []DailyStats        `json:"daily_series"`
 	PaymentMethods []PaymentMethodStat `json:"payment_methods"`
 	TopUsers       TopUsersByCurrency  `json:"top_users"`
+	RechargeBonus  RechargeBonusStats  `json:"recharge_bonus"`
 }
 
 // CurrencyAmounts holds payment amounts keyed by their ISO 4217 currency.
@@ -176,6 +177,24 @@ type TopUserStat struct {
 	UserID int64   `json:"user_id"`
 	Email  string  `json:"email"`
 	Amount float64 `json:"amount"`
+}
+
+type RechargeBonusStats struct {
+	OrderCount     int                      `json:"order_count"`
+	PaymentAmounts CurrencyAmounts          `json:"payment_amounts"`
+	BonusAmount    float64                  `json:"bonus_amount"`
+	CreditedAmount float64                  `json:"credited_amount"`
+	Tiers          []RechargeBonusTierStats `json:"tiers"`
+}
+
+type RechargeBonusTierStats struct {
+	Currency            string  `json:"currency"`
+	PaymentAmount       float64 `json:"payment_amount"`
+	BonusAmount         float64 `json:"bonus_amount"`
+	OrderCount          int     `json:"order_count"`
+	TotalPaymentAmount  float64 `json:"total_payment_amount"`
+	TotalBonusAmount    float64 `json:"total_bonus_amount"`
+	TotalCreditedAmount float64 `json:"total_credited_amount"`
 }
 
 // TopUsersByCurrency contains an independent ranked user list for each

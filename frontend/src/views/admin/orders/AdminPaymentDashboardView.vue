@@ -31,6 +31,57 @@
       <template v-else-if="stats">
         <OrderStatsCards :stats="stats" />
         <DailyRevenueChart :data="stats.daily_series || []" :loading="loading" />
+        <div v-if="stats.recharge_bonus?.order_count" class="card p-4">
+          <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.rechargeBonusStats') }}</h3>
+          <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.rechargeBonusOrders') }}</p>
+              <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ stats.recharge_bonus.order_count }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.rechargeBonusPayments') }}</p>
+              <p
+                v-for="[currency, amount] in sortedAmounts(stats.recharge_bonus.payment_amounts)"
+                :key="currency"
+                class="mt-1 text-lg font-semibold text-gray-900 dark:text-white"
+              >
+                {{ formatMoney(currency, amount) }}
+              </p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.rechargeBonusGranted') }}</p>
+              <p class="mt-1 text-lg font-semibold text-primary-600 dark:text-primary-400">${{ stats.recharge_bonus.bonus_amount.toFixed(2) }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.rechargeBonusCredited') }}</p>
+              <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">${{ stats.recharge_bonus.credited_amount.toFixed(2) }}</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs text-gray-500 dark:text-gray-400">
+                <tr>
+                  <th class="px-3 py-2 font-medium">{{ t('payment.admin.rechargeBonusTier') }}</th>
+                  <th class="px-3 py-2 text-right font-medium">{{ t('payment.admin.rechargeBonusOrders') }}</th>
+                  <th class="px-3 py-2 text-right font-medium">{{ t('payment.admin.rechargeBonusPayments') }}</th>
+                  <th class="px-3 py-2 text-right font-medium">{{ t('payment.admin.rechargeBonusGranted') }}</th>
+                  <th class="px-3 py-2 text-right font-medium">{{ t('payment.admin.rechargeBonusCredited') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-dark-600">
+                <tr v-for="tier in stats.recharge_bonus.tiers" :key="`${tier.currency}-${tier.payment_amount}-${tier.bonus_amount}`">
+                  <td class="px-3 py-2 text-gray-700 dark:text-gray-300">
+                    {{ t('payment.admin.rechargeBonusTierLabel', { payment: formatMoney(tier.currency, tier.payment_amount), bonus: tier.bonus_amount.toFixed(2) }) }}
+                  </td>
+                  <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{{ tier.order_count }}</td>
+                  <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{{ formatMoney(tier.currency, tier.total_payment_amount) }}</td>
+                  <td class="px-3 py-2 text-right text-primary-600 dark:text-primary-400">${{ tier.total_bonus_amount.toFixed(2) }}</td>
+                  <td class="px-3 py-2 text-right text-gray-700 dark:text-gray-300">${{ tier.total_credited_amount.toFixed(2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div class="card p-4">
             <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.paymentDistribution') }}</h3>

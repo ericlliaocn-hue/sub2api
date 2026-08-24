@@ -501,6 +501,25 @@ func TestIsValidProviderAmount(t *testing.T) {
 	assert.False(t, isValidProviderAmount(math.Inf(1)))
 }
 
+func TestAffiliateRebateBaseAmountExcludesRechargeBonus(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{
+		OrderType: payment.OrderTypeBalance,
+		Amount:    12,
+		ProviderSnapshot: map[string]any{
+			"recharge_bonus": map[string]any{
+				"payment_amount":  10,
+				"bonus_amount":    2,
+				"credited_amount": 12,
+				"currency":        "CNY",
+			},
+		},
+	}
+
+	require.Equal(t, float64(10), affiliateRebateBaseAmount(order))
+}
+
 func TestValidateProviderNotificationMetadataRejectsAlipaySnapshotMismatch(t *testing.T) {
 	t.Parallel()
 

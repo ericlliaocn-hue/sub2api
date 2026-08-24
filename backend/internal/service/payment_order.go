@@ -58,8 +58,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
-	} else if req.OrderType == payment.OrderTypeBalance {
-		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
 	feeRate := cfg.RechargeFeeRate
 	methodCurrency := payment.DefaultPaymentCurrency
@@ -67,6 +65,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		methodCurrency, err = s.configService.ValidateMethodCurrencyConsistency(ctx, req.PaymentType)
 		if err != nil {
 			return nil, err
+		}
+	}
+	var appliedBonus *AppliedRechargeBonus
+	if req.OrderType == payment.OrderTypeBalance {
+		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
+		appliedBonus = calculateAppliedRechargeBonus(req.Amount, methodCurrency, cfg.BalanceRechargeMultiplier, cfg.RechargeBonusTiers)
+		if appliedBonus != nil {
+			orderAmount = appliedBonus.CreditedAmount
 		}
 	}
 	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
@@ -89,6 +95,13 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		if err != nil {
 			return nil, err
 		}
+		if req.OrderType == payment.OrderTypeBalance {
+			orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
+			appliedBonus = calculateAppliedRechargeBonus(req.Amount, selectedCurrency, cfg.BalanceRechargeMultiplier, cfg.RechargeBonusTiers)
+			if appliedBonus != nil {
+				orderAmount = appliedBonus.CreditedAmount
+			}
+		}
 	}
 	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
 		return nil, err
@@ -100,7 +113,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if oauthResp != nil {
 		return oauthResp, nil
 	}
-	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
+	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel, appliedBonus)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +162,7 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 	return plan, nil
 }
 
-func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection) (*dbent.PaymentOrder, error) {
+func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection, appliedBonus *AppliedRechargeBonus) (*dbent.PaymentOrder, error) {
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -170,7 +183,7 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	if err != nil {
 		return nil, err
 	}
-	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
+	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req, appliedBonus)
 	selectedInstanceID := ""
 	selectedProviderKey := ""
 	if sel != nil {
@@ -254,13 +267,20 @@ func (s *PaymentService) checkPendingLimit(ctx context.Context, tx *dbent.Tx, us
 	return nil
 }
 
-func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req CreateOrderRequest) map[string]any {
-	if sel == nil {
+func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req CreateOrderRequest, appliedBonus *AppliedRechargeBonus) map[string]any {
+	if sel == nil && appliedBonus == nil {
 		return nil
 	}
 
 	snapshot := map[string]any{}
 	snapshot["schema_version"] = 2
+
+	if appliedBonus != nil {
+		snapshot["recharge_bonus"] = appliedBonus
+	}
+	if sel == nil {
+		return snapshot
+	}
 
 	instanceID := strings.TrimSpace(sel.InstanceID)
 	if instanceID != "" {

@@ -484,6 +484,7 @@ const baseSettingsResponse = {
   payment_enabled_types: [],
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_tiers: [],
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_load_balance_strategy: "round-robin",
@@ -717,6 +718,33 @@ describe("admin SettingsView payment visible method controls", () => {
     });
     fetchPublicSettings.mockResolvedValue(undefined);
     adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("保存余额充值赠送档位配置", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      payment_recharge_bonus_tiers: [
+        { payment_amount: 10, bonus_amount: 2, currency: "CNY", enabled: true },
+        { payment_amount: 50, bonus_amount: 6, currency: "CNY", enabled: true },
+        { payment_amount: 100, bonus_amount: 12, currency: "CNY", enabled: true },
+      ],
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_recharge_bonus_tiers: [
+          { payment_amount: 10, bonus_amount: 2, currency: "CNY", enabled: true },
+          { payment_amount: 50, bonus_amount: 6, currency: "CNY", enabled: true },
+          { payment_amount: 100, bonus_amount: 12, currency: "CNY", enabled: true },
+        ],
+      }),
+    );
   });
 
   it("submits the compact home page toggle", async () => {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/stretchr/testify/require"
 )
 
@@ -71,6 +72,54 @@ func TestPaymentDashboardBreakdownsGroupAmountsAndRankingsByCurrency(t *testing.
 			{UserID: 2, Email: "bob@example.com", Amount: 10},
 		},
 	}, users)
+}
+
+func TestBuildRechargeBonusStatsUsesCompletedBalanceOrdersOnly(t *testing.T) {
+	t.Parallel()
+
+	completed := &dbent.PaymentOrder{
+		Status:    OrderStatusCompleted,
+		OrderType: payment.OrderTypeBalance,
+		ProviderSnapshot: map[string]any{
+			"recharge_bonus": map[string]any{
+				"payment_amount":  10,
+				"bonus_amount":    2,
+				"credited_amount": 12,
+				"currency":        "CNY",
+			},
+		},
+	}
+	secondCompleted := &dbent.PaymentOrder{
+		Status:    OrderStatusCompleted,
+		OrderType: payment.OrderTypeBalance,
+		ProviderSnapshot: map[string]any{
+			"recharge_bonus": map[string]any{
+				"payment_amount":  10,
+				"bonus_amount":    2,
+				"credited_amount": 12,
+				"currency":        "CNY",
+			},
+		},
+	}
+	paidOnly := &dbent.PaymentOrder{Status: OrderStatusPaid, OrderType: payment.OrderTypeBalance, ProviderSnapshot: completed.ProviderSnapshot}
+	subscription := &dbent.PaymentOrder{Status: OrderStatusCompleted, OrderType: payment.OrderTypeSubscription, ProviderSnapshot: completed.ProviderSnapshot}
+	legacy := &dbent.PaymentOrder{Status: OrderStatusCompleted, OrderType: payment.OrderTypeBalance}
+
+	stats := buildRechargeBonusStats([]*dbent.PaymentOrder{completed, secondCompleted, paidOnly, subscription, legacy})
+
+	require.Equal(t, 2, stats.OrderCount)
+	require.Equal(t, CurrencyAmounts{"CNY": 20}, stats.PaymentAmounts)
+	require.Equal(t, float64(4), stats.BonusAmount)
+	require.Equal(t, float64(24), stats.CreditedAmount)
+	require.Equal(t, []RechargeBonusTierStats{{
+		Currency:            "CNY",
+		PaymentAmount:       10,
+		BonusAmount:         2,
+		OrderCount:          2,
+		TotalPaymentAmount:  20,
+		TotalBonusAmount:    4,
+		TotalCreditedAmount: 24,
+	}}, stats.Tiers)
 }
 
 func paymentStatsTestOrder(userID int64, email, currency string, amount float64, paidAt *time.Time) *dbent.PaymentOrder {

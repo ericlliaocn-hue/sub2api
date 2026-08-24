@@ -7937,6 +7937,45 @@
                     </p>
                   </div>
                 </div>
+                <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
+                  <div class="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.rechargeBonusTiers") }}</h4>
+                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.rechargeBonusTiersHint") }}</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" @click="addRechargeBonusTier">
+                      {{ t("admin.settings.payment.addRechargeBonusTier") }}
+                    </button>
+                  </div>
+                  <div v-if="form.payment_recharge_bonus_tiers.length" class="space-y-2">
+                    <div
+                      v-for="(tier, index) in form.payment_recharge_bonus_tiers"
+                      :key="index"
+                      class="grid grid-cols-1 items-end gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-800 sm:grid-cols-[120px_1fr_1fr_auto_auto]"
+                    >
+                      <div>
+                        <label class="input-label">{{ t("admin.settings.payment.bonusCurrency") }}</label>
+                        <input v-model.trim="tier.currency" class="input" maxlength="3" placeholder="CNY" />
+                      </div>
+                      <div>
+                        <label class="input-label">{{ t("admin.settings.payment.bonusPaymentAmount") }}</label>
+                        <input v-model.number="tier.payment_amount" class="input" type="number" min="0.01" step="0.01" />
+                      </div>
+                      <div>
+                        <label class="input-label">{{ t("admin.settings.payment.bonusAmount") }}</label>
+                        <input v-model.number="tier.bonus_amount" class="input" type="number" min="0.01" step="0.01" />
+                      </div>
+                      <label class="flex h-10 items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input v-model="tier.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                        {{ t("admin.settings.payment.bonusEnabled") }}
+                      </label>
+                      <button type="button" class="btn btn-danger btn-sm" @click="removeRechargeBonusTier(index)">
+                        {{ t("common.delete") }}
+                      </button>
+                    </div>
+                  </div>
+                  <p v-else class="text-sm text-gray-400">{{ t("admin.settings.payment.noRechargeBonusTiers") }}</p>
+                </div>
                 <!-- Row 3: Pending orders + load balance + cancel rate limit (all in one row) -->
                 <div class="flex flex-wrap items-end gap-4">
                   <div class="w-28">
@@ -8748,7 +8787,7 @@ import type {
   NotifyEmailEntry,
   Proxy,
 } from "@/types";
-import type { ProviderInstance } from "@/types/payment";
+import type { ProviderInstance, RechargeBonusTier } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
 import Select from "@/components/common/Select.vue";
@@ -9529,6 +9568,7 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_tiers: [],
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -9763,6 +9803,19 @@ const form = reactive<SettingsForm>({
 type CaptchaProviderSelection = "turnstile" | "tencent" | "aliyun";
 
 const captchaProviderSelection = ref<CaptchaProviderSelection>("turnstile");
+
+function addRechargeBonusTier() {
+  form.payment_recharge_bonus_tiers.push({
+    payment_amount: 0,
+    bonus_amount: 0,
+    currency: "CNY",
+    enabled: true,
+  } satisfies RechargeBonusTier);
+}
+
+function removeRechargeBonusTier(index: number) {
+  form.payment_recharge_bonus_tiers.splice(index, 1);
+}
 
 function applyCaptchaSelection(provider: CaptchaProviderSelection | null): void {
   form.turnstile_enabled = provider === "turnstile";
@@ -11332,6 +11385,12 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_recharge_bonus_tiers: form.payment_recharge_bonus_tiers.map((tier) => ({
+        payment_amount: Number(tier.payment_amount),
+        bonus_amount: Number(tier.bonus_amount),
+        currency: String(tier.currency || "CNY").trim().toUpperCase(),
+        enabled: Boolean(tier.enabled),
+      })),
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,

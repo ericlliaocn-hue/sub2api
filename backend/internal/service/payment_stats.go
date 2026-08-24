@@ -12,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
 )
 
 // --- Dashboard & Analytics ---
@@ -49,8 +50,57 @@ func (s *PaymentService) GetDashboardStats(ctx context.Context, days int) (*Dash
 	st.DailySeries = buildDailySeries(orders, since, days)
 	st.PaymentMethods = buildMethodDistribution(orders)
 	st.TopUsers = buildTopUsers(orders)
+	st.RechargeBonus = buildRechargeBonusStats(orders)
 
 	return st, nil
+}
+
+func buildRechargeBonusStats(orders []*dbent.PaymentOrder) RechargeBonusStats {
+	stats := RechargeBonusStats{PaymentAmounts: make(CurrencyAmounts), Tiers: []RechargeBonusTierStats{}}
+	tiers := make(map[string]*RechargeBonusTierStats)
+	for _, order := range orders {
+		if order.Status != OrderStatusCompleted || order.OrderType != payment.OrderTypeBalance {
+			continue
+		}
+		applied, ok := rechargeBonusFromSnapshot(order.ProviderSnapshot)
+		if !ok {
+			continue
+		}
+		stats.OrderCount++
+		stats.PaymentAmounts[applied.Currency] += applied.PaymentAmount
+		stats.BonusAmount += applied.BonusAmount
+		stats.CreditedAmount += applied.CreditedAmount
+		key := applied.Currency + ":" + strconv.FormatFloat(applied.PaymentAmount, 'f', 2, 64) + ":" + strconv.FormatFloat(applied.BonusAmount, 'f', 2, 64)
+		tier, exists := tiers[key]
+		if !exists {
+			tier = &RechargeBonusTierStats{
+				Currency:      applied.Currency,
+				PaymentAmount: applied.PaymentAmount,
+				BonusAmount:   applied.BonusAmount,
+			}
+			tiers[key] = tier
+		}
+		tier.OrderCount++
+		tier.TotalPaymentAmount += applied.PaymentAmount
+		tier.TotalBonusAmount += applied.BonusAmount
+		tier.TotalCreditedAmount += applied.CreditedAmount
+	}
+	roundCurrencyAmounts(stats.PaymentAmounts)
+	stats.BonusAmount = roundAmount(stats.BonusAmount)
+	stats.CreditedAmount = roundAmount(stats.CreditedAmount)
+	for _, tier := range tiers {
+		tier.TotalPaymentAmount = roundAmount(tier.TotalPaymentAmount)
+		tier.TotalBonusAmount = roundAmount(tier.TotalBonusAmount)
+		tier.TotalCreditedAmount = roundAmount(tier.TotalCreditedAmount)
+		stats.Tiers = append(stats.Tiers, *tier)
+	}
+	sort.Slice(stats.Tiers, func(i, j int) bool {
+		if stats.Tiers[i].Currency != stats.Tiers[j].Currency {
+			return stats.Tiers[i].Currency < stats.Tiers[j].Currency
+		}
+		return stats.Tiers[i].PaymentAmount < stats.Tiers[j].PaymentAmount
+	})
+	return stats
 }
 
 func computeBasicStats(st *DashboardStats, orders []*dbent.PaymentOrder, todayStart time.Time) {
