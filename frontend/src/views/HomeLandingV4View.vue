@@ -1,7 +1,7 @@
 <template>
   <HomeView v-if="hasHomeContent || compactHomeEnabled" />
 
-  <div v-else class="font-pixel v4-page min-h-screen bg-[#f5f5f3] text-[#1d1d1f] dark:bg-[#0b0c0d] dark:text-[#f5f5f7]">
+  <div v-else class="v4-page min-h-screen bg-[#f5f5f3] text-[#1d1d1f] dark:bg-[#0b0c0d] dark:text-[#f5f5f7]">
     <header class="relative z-30 px-4 pt-4 sm:px-6 lg:px-10">
       <nav class="v4-nav mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
         <RouterLink to="/home" class="flex min-w-0 items-center gap-2.5" aria-label="Home">
