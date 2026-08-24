@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AnyToken</title>
+  <desc id="desc">AnyToken green A logo</desc>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="4" x2="55" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#bfff91"/>
+      <stop offset="1" stop-color="#6db83e"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="13" fill="#111711" stroke="#2d382b" stroke-width="2"/>
+  <path d="M15 51 28 13h9l12 38h-9l-3-10H27l-3 10h-9Zm14-18h6l-3-11-3 11Z" fill="url(#bg)"/>
+  <rect x="29" y="9" width="7" height="7" rx="2" fill="#e9ffdc"/>
+</svg>

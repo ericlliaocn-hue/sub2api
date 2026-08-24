@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AnyToken API 接入文档：统一调用 GPT、Claude、Gemini、Grok 等模型。" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <link rel="canonical" href="https://doc.anytoken.work/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AnyToken 文档" />
+    <meta property="og:title" content="AnyToken API 文档" />
+    <meta property="og:description" content="AnyToken API 接入文档：接口地址、身份验证、SDK、开发工具与错误排查。" />
+    <meta property="og:url" content="https://doc.anytoken.work/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="theme-color" content="#0b0d0c" />
+    <title>AnyToken 文档</title>
+    <link rel="icon" href="./assets/logo.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到正文</a>
+
+    <header class="topbar">
+      <a class="brand" href="#start" aria-label="AnyToken 文档首页">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-name">AnyToken</span>
+        <span class="brand-divider"></span>
+        <span class="brand-docs">文档</span>
+      </a>
+
+      <button class="mobile-menu" type="button" aria-label="打开目录" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="top-actions">
+        <button class="search-trigger" type="button" aria-label="搜索文档">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" /></svg>
+          <span>搜索文档</span>
+          <kbd>⌘ K</kbd>
+        </button>
+        <a class="top-link" href="https://anytoken.work/model-plaza" target="_blank" rel="noreferrer">模型广场</a>
+        <a class="top-link" href="https://anytoken.work" target="_blank" rel="noreferrer">控制台 ↗</a>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar" aria-label="文档目录">
+        <nav>
+          <p class="nav-label">开始</p>
+          <a href="#start" class="nav-link active">欢迎使用</a>
+          <a href="#quickstart" class="nav-link">快速开始</a>
+          <a href="#concepts" class="nav-link">地址与路径</a>
+          <a href="#authentication" class="nav-link">身份验证</a>
+
+          <p class="nav-label">API 调用</p>
+          <a href="#responses" class="nav-link">Responses API</a>
+          <a href="#chat" class="nav-link">Chat Completions</a>
+          <a href="#models" class="nav-link">查询模型</a>
+          <a href="#streaming" class="nav-link">流式响应</a>
+
+          <p class="nav-label">开发工具</p>
+          <a href="#sdk" class="nav-link">OpenAI SDK</a>
+          <a href="#codex" class="nav-link">Codex CLI</a>
+          <a href="#claude-code" class="nav-link">Claude Code</a>
+          <a href="#gemini-cli" class="nav-link">Gemini CLI</a>
+          <a href="#opencode" class="nav-link">OpenCode</a>
+
+          <p class="nav-label">账户与排错</p>
+          <a href="#billing" class="nav-link">用量与计费</a>
+          <a href="#errors" class="nav-link">错误排查</a>
+          <a href="#security" class="nav-link">密钥安全</a>
+          <a href="#faq" class="nav-link">常见问题</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="status-dot"></span>
+          <span>API 服务运行中</span>
+        </div>
+      </aside>
+
+      <main id="main" class="content">
+        <article>
+          <section id="start" class="doc-section hero-section" data-search="欢迎 AnyToken API 统一入口">
+            <div class="eyebrow">ANYTOKEN / API DOCS</div>
+            <h1 class="sr-only">AnyToken API 文档</h1>
+            <p class="lead">AnyToken 提供 OpenAI、Anthropic 和 Grok 兼容接口。你可以继续使用熟悉的 SDK 与开发工具，只需替换 API 地址和密钥。</p>
+            <div class="hero-actions">
+              <a class="button primary" href="#quickstart">开始接入 <span>→</span></a>
+              <a class="button secondary" href="https://anytoken.work/model-plaza" target="_blank" rel="noreferrer">查看可用模型 ↗</a>
+            </div>
+
+            <div class="endpoint-card">
+              <div>
+                <span class="card-label">推荐 OpenAI 兼容 Base URL</span>
+                <code>https://api.anytoken.work/v1</code>
+              </div>
+              <button class="copy-inline" type="button" data-copy="https://api.anytoken.work/v1">复制</button>
+            </div>
+
+            <div class="feature-grid">
+              <div class="feature"><span class="feature-index">01</span><strong>统一入口</strong><p>一个 API Key 调用多个模型与渠道。</p></div>
+              <div class="feature"><span class="feature-index">02</span><strong>兼容现有工具</strong><p>支持常用 SDK、Codex CLI 与 Claude Code。</p></div>
+              <div class="feature"><span class="feature-index">03</span><strong>用量透明</strong><p>请求、Token、费用与状态均可追踪。</p></div>
+            </div>
+          </section>
+
+          <section id="quickstart" class="doc-section" data-search="快速开始 注册 API 密钥 curl">
+            <div class="section-no">01 / QUICKSTART</div>
+            <h2>快速开始</h2>
+            <p>完成一次 API 请求只需要三步。</p>
+
+            <ol class="steps">
+              <li>
+                <span class="step-no">1</span>
+                <div><strong>登录控制台</strong><p>前往 <a href="https://anytoken.work" target="_blank" rel="noreferrer">anytoken.work</a> 注册或登录。</p></div>
+              </li>
+              <li>
+                <span class="step-no">2</span>
+                <div><strong>创建 API Key</strong><p>在「API 密钥」页面创建密钥，并立即保存。密钥只应交给可信客户端。</p></div>
+              </li>
+              <li>
+                <span class="step-no">3</span>
+                <div><strong>发送请求</strong><p>使用模型广场中可用的模型名，向 API 域名发送请求。</p></div>
+              </li>
+            </ol>
+
+            <div class="code-block" data-language="bash">
+              <div class="code-head"><span>终端</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>curl https://api.anytoken.work/v1/responses \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.6-sol",
+    "input": "用一句话介绍 AnyToken"
+  }'</code></pre>
+            </div>
+            <div class="callout info"><strong>模型名称</strong><span>示例模型仅用于展示。实际调用前，请到模型广场确认当前可用模型及所属分组。</span></div>
+          </section>
+
+          <section id="concepts" class="doc-section" data-search="域名 Base URL 路径 v1 responses messages Gemini">
+            <div class="section-no">02 / ENDPOINTS</div>
+            <h2>地址与路径</h2>
+            <p>官网与模型 API 使用不同域名。开发工具中请填写 <code>api.anytoken.work</code>，不要填写官网域名。</p>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用途</th><th>推荐地址</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td>官网 / 控制台</td><td><code>https://anytoken.work</code></td><td>登录、密钥、模型和用量管理</td></tr>
+                  <tr><td>OpenAI 兼容 Base URL</td><td><code>https://api.anytoken.work/v1</code></td><td>多数 OpenAI SDK 与客户端填写此地址</td></tr>
+                  <tr><td>Anthropic 兼容 Host</td><td><code>https://api.anytoken.work</code></td><td>Claude Code 会自行追加 <code>/v1/messages</code></td></tr>
+                  <tr><td>Gemini 原生 Host</td><td><code>https://api.anytoken.work</code></td><td>Gemini CLI 会使用 <code>/v1beta</code> 路径</td></tr>
+                  <tr><td>文档</td><td><code>https://doc.anytoken.work</code></td><td>你当前正在阅读的站点</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout warning"><strong><code>/v1</code> 要不要填写？</strong><span>取决于配置项含义。名为 <em>Base URL</em> 的 OpenAI 兼容配置通常填写到 <code>/v1</code>；Claude Code 的 <code>ANTHROPIC_BASE_URL</code> 和 Gemini CLI 的 Host 填域名根地址。最终请求路径仍会包含对应版本前缀。</span></div>
+          </section>
+
+          <section id="authentication" class="doc-section" data-search="身份验证 Authorization Bearer API Key">
+            <div class="section-no">03 / AUTH</div>
+            <h2>身份验证</h2>
+            <p>所有模型请求都需要在 HTTP Header 中携带 API Key。</p>
+            <div class="code-block" data-language="http">
+              <div class="code-head"><span>HTTP Header</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>Authorization: Bearer YOUR_API_KEY
+Content-Type: application/json</code></pre>
+            </div>
+            <p>部分 Anthropic 兼容客户端会使用 <code>x-api-key</code>，官方客户端配置方式见下方 Claude Code 章节。</p>
+          </section>
+
+          <section id="responses" class="doc-section" data-search="Responses API POST input output OpenAI">
+            <div class="section-no">04 / API</div>
+            <h2>Responses API</h2>
+            <p>新项目推荐使用 Responses API。它使用统一的 <code>input</code> 输入格式，并支持文本、工具调用等能力。</p>
+            <div class="route-line"><span class="method">POST</span><code>/v1/responses</code></div>
+            <div class="code-block" data-language="json">
+              <div class="code-head"><span>请求体</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>{
+  "model": "gpt-5.6-sol",
+  "input": [
+    {
+      "role": "user",
+      "content": "写一个三行的产品介绍"
+    }
+  ]
+}</code></pre>
+            </div>
+          </section>
+
+          <section id="chat" class="doc-section" data-search="Chat Completions messages POST openai compatible">
+            <div class="section-no">05 / API</div>
+            <h2>Chat Completions</h2>
+            <p>兼容使用 <code>messages</code> 的既有 OpenAI 客户端。</p>
+            <div class="route-line"><span class="method">POST</span><code>/v1/chat/completions</code></div>
+            <div class="code-block" data-language="bash">
+              <div class="code-head"><span>cURL</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>curl https://api.anytoken.work/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.6-sol",
+    "messages": [{"role": "user", "content": "你好"}]
+  }'</code></pre>
+            </div>
+          </section>
+
+          <section id="models" class="doc-section" data-search="查询模型 models 可用模型 分组">
+            <div class="section-no">06 / API</div>
+            <h2>查询可用模型</h2>
+            <p>使用当前密钥查询它所在分组可访问的模型。不同密钥看到的列表可能不同。</p>
+            <div class="route-line"><span class="method get">GET</span><code>/v1/models</code></div>
+            <div class="code-block" data-language="bash">
+              <div class="code-head"><span>cURL</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>curl https://api.anytoken.work/v1/models \
+  -H "Authorization: Bearer YOUR_API_KEY"</code></pre>
+            </div>
+          </section>
+
+          <section id="streaming" class="doc-section" data-search="流式响应 stream SSE">
+            <div class="section-no">07 / STREAMING</div>
+            <h2>流式响应</h2>
+            <p>在支持的接口中加入 <code>"stream": true</code>，服务会以 SSE 事件流持续返回结果。客户端应读取直到流正常结束。</p>
+            <div class="code-block" data-language="json">
+              <div class="code-head"><span>请求片段</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>{
+  "model": "gpt-5.6-sol",
+  "input": "逐步解释快速排序",
+  "stream": true
+}</code></pre>
+            </div>
+          </section>
+
+          <section id="sdk" class="doc-section" data-search="SDK Python JavaScript Node OpenAI base_url baseURL">
+            <div class="section-no">08 / SDK</div>
+            <h2>OpenAI SDK</h2>
+            <div class="tabs" data-tabs>
+              <div class="tab-list" role="tablist">
+                <button class="tab active" type="button" role="tab" data-tab="python">Python</button>
+                <button class="tab" type="button" role="tab" data-tab="node">Node.js</button>
+              </div>
+              <div class="tab-panel active" data-panel="python">
+                <div class="code-block" data-language="python">
+                  <div class="code-head"><span>Python</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>from openai import OpenAI
+
+client = OpenAI(
+    api_key="YOUR_API_KEY",
+    base_url="https://api.anytoken.work/v1",
+)
+
+response = client.responses.create(
+    model="gpt-5.6-sol",
+    input="你好，请介绍一下你自己。",
+)
+print(response.output_text)</code></pre>
+                </div>
+              </div>
+              <div class="tab-panel" data-panel="node">
+                <div class="code-block" data-language="javascript">
+                  <div class="code-head"><span>Node.js</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: "YOUR_API_KEY",
+  baseURL: "https://api.anytoken.work/v1",
+});
+
+const response = await client.responses.create({
+  model: "gpt-5.6-sol",
+  input: "你好，请介绍一下你自己。",
+});
+console.log(response.output_text);</code></pre>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="codex" class="doc-section" data-search="Codex CLI config.toml model_provider wire_api responses">
+            <div class="section-no">09 / TOOLS</div>
+            <h2>Codex CLI</h2>
+            <p>将密钥放入环境变量，再在用户配置中新增 AnyToken Provider。这样密钥不会写进配置文件。</p>
+            <h3>1. 配置环境变量</h3>
+            <div class="tabs" data-tabs>
+              <div class="tab-list" role="tablist">
+                <button class="tab active" type="button" role="tab" data-tab="codex-unix">macOS / Linux</button>
+                <button class="tab" type="button" role="tab" data-tab="codex-windows">Windows</button>
+              </div>
+              <div class="tab-panel active" data-panel="codex-unix">
+                <div class="code-block" data-language="bash">
+                  <div class="code-head"><span>终端</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>export ANYTOKEN_API_KEY="YOUR_API_KEY"</code></pre>
+                </div>
+              </div>
+              <div class="tab-panel" data-panel="codex-windows">
+                <div class="code-block" data-language="powershell">
+                  <div class="code-head"><span>PowerShell</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>$env:ANYTOKEN_API_KEY="YOUR_API_KEY"</code></pre>
+                </div>
+              </div>
+            </div>
+            <h3>2. 编辑配置文件</h3>
+            <p>macOS/Linux：<code>~/.codex/config.toml</code>；Windows：<code>%USERPROFILE%\.codex\config.toml</code>。</p>
+            <div class="code-block" data-language="toml">
+              <div class="code-head"><span>config.toml</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>model_provider = "anytoken"
+model = "gpt-5.6-sol"
+
+[model_providers.anytoken]
+name = "AnyToken"
+base_url = "https://api.anytoken.work/v1"
+env_key = "ANYTOKEN_API_KEY"
+wire_api = "responses"
+requires_openai_auth = false
+supports_websockets = false</code></pre>
+            </div>
+            <div class="callout info"><strong>关于配置</strong><span>Codex 自定义 Provider 当前使用 Responses 协议。模型名请按模型广场实际可用项填写。</span></div>
+          </section>
+
+          <section id="claude-code" class="doc-section" data-search="Claude Code Anthropic Base URL Auth Token">
+            <div class="section-no">10 / TOOLS</div>
+            <h2>Claude Code</h2>
+            <p>Claude Code 会在 Base URL 后追加 Anthropic 协议路径，因此这里填写 API 域名根地址。</p>
+            <div class="tabs" data-tabs>
+              <div class="tab-list" role="tablist">
+                <button class="tab active" type="button" role="tab" data-tab="claude-unix">macOS / Linux</button>
+                <button class="tab" type="button" role="tab" data-tab="claude-windows">Windows</button>
+              </div>
+              <div class="tab-panel active" data-panel="claude-unix">
+                <div class="code-block" data-language="bash">
+                  <div class="code-head"><span>终端</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>export ANTHROPIC_BASE_URL="https://api.anytoken.work"
+export ANTHROPIC_AUTH_TOKEN="YOUR_API_KEY"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+
+claude</code></pre>
+                </div>
+              </div>
+              <div class="tab-panel" data-panel="claude-windows">
+                <div class="code-block" data-language="powershell">
+                  <div class="code-head"><span>PowerShell</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>$env:ANTHROPIC_BASE_URL="https://api.anytoken.work"
+$env:ANTHROPIC_AUTH_TOKEN="YOUR_API_KEY"
+$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+$env:CLAUDE_CODE_ATTRIBUTION_HEADER="0"
+
+claude</code></pre>
+                </div>
+              </div>
+            </div>
+            <p>如需永久生效，可把环境变量写入自己的 Shell 配置文件。不要把真实密钥提交到 Git。</p>
+          </section>
+
+          <section id="gemini-cli" class="doc-section" data-search="Gemini CLI GOOGLE_GEMINI_BASE_URL GEMINI_API_KEY">
+            <div class="section-no">11 / TOOLS</div>
+            <h2>Gemini CLI</h2>
+            <div class="tabs" data-tabs>
+              <div class="tab-list" role="tablist">
+                <button class="tab active" type="button" role="tab" data-tab="gemini-unix">macOS / Linux</button>
+                <button class="tab" type="button" role="tab" data-tab="gemini-windows">Windows</button>
+              </div>
+              <div class="tab-panel active" data-panel="gemini-unix">
+                <div class="code-block" data-language="bash">
+                  <div class="code-head"><span>终端</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>export GOOGLE_GEMINI_BASE_URL="https://api.anytoken.work"
+export GEMINI_API_KEY="YOUR_API_KEY"
+export GEMINI_MODEL="YOUR_GEMINI_MODEL"
+
+gemini</code></pre>
+                </div>
+              </div>
+              <div class="tab-panel" data-panel="gemini-windows">
+                <div class="code-block" data-language="powershell">
+                  <div class="code-head"><span>PowerShell</span><button type="button" class="copy-code">复制</button></div>
+                  <pre><code>$env:GOOGLE_GEMINI_BASE_URL="https://api.anytoken.work"
+$env:GEMINI_API_KEY="YOUR_API_KEY"
+$env:GEMINI_MODEL="YOUR_GEMINI_MODEL"
+
+gemini</code></pre>
+                </div>
+              </div>
+            </div>
+            <p><code>GEMINI_MODEL</code> 使用模型广场中实际可用的 Gemini 模型名称。</p>
+          </section>
+
+          <section id="opencode" class="doc-section" data-search="OpenCode provider npm openai compatible">
+            <div class="section-no">12 / TOOLS</div>
+            <h2>OpenCode</h2>
+            <p>在 OpenCode 配置中添加 OpenAI 兼容 Provider。</p>
+            <div class="code-block" data-language="json">
+              <div class="code-head"><span>opencode.json</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "anytoken": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "AnyToken",
+      "options": {
+        "baseURL": "https://api.anytoken.work/v1",
+        "apiKey": "YOUR_API_KEY"
+      },
+      "models": {
+        "gpt-5.6-sol": { "name": "GPT-5.6 Sol" }
+      }
+    }
+  }
+}</code></pre>
+            </div>
+          </section>
+
+          <section id="billing" class="doc-section" data-search="用量 计费 Token 费用 分组 倍率 使用记录">
+            <div class="section-no">13 / BILLING</div>
+            <h2>用量与计费</h2>
+            <p>每次成功调用后，可在控制台的「使用记录」中查看模型、Token、实际费用、请求状态和耗时。</p>
+            <div class="definition-grid">
+              <div><strong>实际费用</strong><p>本次请求从账户余额扣除的金额。</p></div>
+              <div><strong>Token</strong><p>按输入、输出及缓存类型统计的模型用量。</p></div>
+              <div><strong>分组</strong><p>决定当前密钥可以使用的模型、渠道和计费倍率。</p></div>
+              <div><strong>请求记录</strong><p>用于核对调用时间、模型、端点、状态和费用。</p></div>
+            </div>
+            <div class="callout info"><strong>价格以哪里为准？</strong><span>模型和渠道会动态调整。调用前请以模型广场展示的当前价格与分组倍率为准。</span></div>
+          </section>
+
+          <section id="errors" class="doc-section" data-search="错误码 400 401 403 404 429 500 排查 DNS no such host">
+            <div class="section-no">14 / TROUBLESHOOTING</div>
+            <h2>错误排查</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>现象 / 状态码</th><th>常见原因</th><th>处理方式</th></tr></thead>
+                <tbody>
+                  <tr><td><code>400</code></td><td>请求结构、参数或模型能力不匹配</td><td>检查 JSON、接口协议和模型支持项</td></tr>
+                  <tr><td><code>401</code></td><td>API Key 缺失、无效或已撤销</td><td>检查 Authorization Header 并重新复制密钥</td></tr>
+                  <tr><td><code>403</code></td><td>密钥、分组或客户端限制</td><td>检查密钥绑定分组及访问规则</td></tr>
+                  <tr><td><code>404</code></td><td>域名或路径错误</td><td>确认使用 <code>api.anytoken.work</code> 和正确版本路径</td></tr>
+                  <tr><td><code>429</code></td><td>余额、额度、并发或频率限制</td><td>查看余额和限制，退避后重试</td></tr>
+                  <tr><td><code>5xx</code></td><td>服务或模型渠道暂时异常</td><td>保留请求时间与错误内容，稍后重试或联系客服</td></tr>
+                  <tr><td><code>no such host</code></td><td>DNS 无法解析 API 域名</td><td>检查域名是否拼错、本地 DNS、代理和网络设置</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="security" class="doc-section" data-search="密钥安全 环境变量 服务端 Git 泄露">
+            <div class="section-no">15 / SECURITY</div>
+            <h2>密钥安全</h2>
+            <ul class="check-list">
+              <li>只在服务端或可信本地工具中使用 API Key。</li>
+              <li>不要把 Key 写入网页前端、公开仓库、截图或聊天记录。</li>
+              <li>优先使用环境变量或系统密钥管理工具保存 Key。</li>
+              <li>怀疑泄露时立即在控制台撤销旧 Key，并创建新 Key。</li>
+              <li>为不同项目创建独立 Key，便于审计与单独撤销。</li>
+            </ul>
+          </section>
+
+          <section id="faq" class="doc-section" data-search="常见问题 FAQ v1 官网 API 模型不可用 余额">
+            <div class="section-no">16 / FAQ</div>
+            <h2>常见问题</h2>
+            <div class="faq-list">
+              <details open><summary>为什么官网地址不能直接调用模型？</summary><p><code>anytoken.work</code> 只提供官网和控制台；模型请求统一发送到 <code>api.anytoken.work</code>，便于安全隔离和客户端配置。</p></details>
+              <details><summary>为什么有时填域名，有时要加 <code>/v1</code>？</summary><p>OpenAI 兼容 SDK 的 Base URL 通常包含 <code>/v1</code>。Claude Code、Gemini CLI 等工具会自行拼接协议路径，因此按本文对应章节填写。</p></details>
+              <details><summary>模型名称从哪里获取？</summary><p>前往模型广场查看，或使用当前 API Key 请求 <code>GET /v1/models</code>。密钥所属分组会影响可用模型。</p></details>
+              <details><summary>请求成功但客户端没有显示完整内容？</summary><p>先检查是否开启流式输出，以及客户端是否完整读取 SSE 数据；再到使用记录中确认请求状态和输出 Token。</p></details>
+              <details><summary>如何获得帮助？</summary><p>联系客服时请提供请求时间、接口路径、模型名和完整错误信息。不要发送真实 API Key。</p></details>
+            </div>
+          </section>
+
+          <footer class="doc-footer">
+            <div><span class="brand-mini">A</span><strong>AnyToken Docs</strong></div>
+            <p>文档会随接口和客户端能力持续更新。</p>
+            <div class="footer-links"><a href="https://anytoken.work">官网</a><a href="https://anytoken.work/model-plaza">模型广场</a><a href="https://anytoken.work/purchase">充值 / 订阅</a></div>
+          </footer>
+        </article>
+
+        <aside class="toc" aria-label="本页目录">
+          <p>本页内容</p>
+          <div class="toc-links"></div>
+          <a class="back-top" href="#start">回到顶部 ↑</a>
+        </aside>
+      </main>
+    </div>
+
+    <div class="search-modal" hidden>
+      <button class="search-backdrop" type="button" aria-label="关闭搜索"></button>
+      <div class="search-panel" role="dialog" aria-modal="true" aria-label="搜索文档">
+        <div class="search-input-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" /></svg>
+          <input class="search-input" type="search" placeholder="搜索接入、接口或错误…" autocomplete="off" />
+          <kbd>ESC</kbd>
+        </div>
+        <div class="search-results" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="toast" role="status" aria-live="polite">已复制</div>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
