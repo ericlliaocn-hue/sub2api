@@ -43,7 +43,7 @@ func TestFrontendSEO_PublicPages(t *testing.T) {
 		canonical string
 		schema    string
 	}{
-		{path: "/", titleText: "多模型 AI API 聚合平台", canonical: "https://anytoken.work/", schema: "WebSite"},
+		{path: "/", titleText: "AnyToken AI中转站", canonical: "https://anytoken.work/", schema: "WebSite"},
 		{path: "/model-plaza", titleText: "AI 模型 API 价格与模型列表", canonical: "https://anytoken.work/model-plaza", schema: "CollectionPage"},
 		{path: "/key-usage", titleText: "API Key 用量查询", canonical: "https://anytoken.work/key-usage", schema: "WebApplication"},
 	}

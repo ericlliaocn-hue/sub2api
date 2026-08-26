@@ -252,10 +252,10 @@ export default {
         pricing: '定价'
       },
       hero: {
-        eyebrow: 'anytoken · 多模型 AI API 聚合平台',
-        title: '连接主流模型，',
-        accent: '只需一个入口。',
-        description: '通过单个 API Key 接入 Claude、GPT、Grok 等主流模型，并可直接使用模型广场与创作中心。兼容常用调用协议，价格、余额及用量记录清晰可查。',
+        eyebrow: 'AnyToken · AI中转站',
+        title: 'AI中转站，',
+        accent: '一个入口连接主流模型。',
+        description: 'AnyToken 通过单个 API Key 接入 Claude、GPT、Grok 等主流模型，并可直接使用模型广场与创作中心。兼容常用调用协议，价格、余额及用量记录清晰可查。',
         primary: '浏览模型',
         secondary: '进入创作中心',
         proof1Title: '统一 API',

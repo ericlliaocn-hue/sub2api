@@ -17,6 +17,7 @@
 ### 1.1 业务目标
 
 - 稳定覆盖 `AnyToken`、`AnyToken 官网` 等品牌导航词。
+- 以 `AI中转站` 作为首页核心行业词，建立“AnyToken = AI中转站”的品牌与品类关联。
 - 用模型广场承接“模型 API 价格、支持模型、Claude/GPT/Grok/Gemini API”等商业调查意图。
 - 用公开用量查询页承接“AnyToken API Key 用量、额度、消费查询”等工具意图。
 - 用独立文档页承接 API 接入、SDK、CLI 配置、鉴权、流式响应和错误排查等长尾信息词。
@@ -153,21 +154,22 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 
 官网统一使用以下搜索定位：
 
-> **AnyToken 是面向开发者的多模型 AI API 聚合平台，通过统一 API Key 接入当前可用模型，并提供模型价格、用量查询和接入文档。**
+> **AnyToken 是面向开发者的 AI中转站，通过一个 API Key 统一接入当前可用模型，并提供模型价格、用量查询和接入文档。**
 
 核心词选择：
 
 | 词组 | 角色 | 使用位置 | 决策 |
 | --- | --- | --- | --- |
-| `多模型 AI API 聚合平台` | 核心品类词 | 首页 title、H1 附近、首屏摘要 | **主攻**；能表达“多模型 + API + 聚合”，中文意图明确 |
+| `AnyToken` | 核心品牌词 | 首页 title、首屏、结构化数据、文档站 | **主攻**；统一品牌大小写并与官网、文档、模型广场建立实体关联 |
+| `AI中转站` / `AI 中转站` | 核心行业词 | 首页 title、H1、首屏摘要、对比指南 | **主攻**；首页建立品牌与品类关联，对比指南承接解释和决策意图 |
+| `多模型 AI API 聚合平台` | 品类解释词 | 首页摘要、正文、对比指南 | **辅助**；用于准确解释统一接入多模型的产品能力 |
 | `统一 AI API` / `统一大模型 API` | 解决方案词 | 首页、快速开始、协议页 | **主攻**；对应一个接入点和统一 Key 的开发者需求 |
 | `一个 API Key 接入多模型` | 长尾价值词 | 首页首屏、Quickstart、模型广场说明 | **主攻**；自然语言表达，不作为唯一 H1 |
 | `AI API 网关` | 工程品类词 | 首页正文、架构/协议文档 | **辅助**；更适合有网关、路由、限流认知的工程用户 |
 | `OpenAI 兼容 API` | 协议高意图词 | 独立指南、Quickstart、Chat Completions | **主攻独立页面**；不要只埋在首页 |
-| `AI API 中转站` / `API 中转` | 中文搜索俗称 | 对比/FAQ 文章、自然问答 | **承接但不做品牌主定位**；该词流量意图杂，容易与低价和非正规渠道绑定 |
 | `API 代理` / `转发 API` | 技术或模糊词 | 必要的技术说明 | **不主攻**；容易混入网络代理和安全绕过意图 |
 
-首页不同时争夺“官网、网关、中转站、模型价格、所有模型 API、所有 CLI 配置”等多个主意图。首页主词固定为 `多模型 AI API 聚合平台`，品牌导航词由品牌名和域名自然覆盖。
+首页采用双核心：品牌词 `AnyToken` + 行业词 `AI中转站`。`多模型 API 聚合平台`、`统一 AI API` 用于解释能力；模型价格、错误码和 CLI 配置继续由各自页面承接，避免首页争夺过多意图。
 
 ### 4.3 关键词主题集群
 
@@ -176,7 +178,7 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 | 集群 | 搜索意图 | 一级关键词 | 二级/长尾词 | 首选承接页 |
 | --- | --- | --- | --- | --- |
 | 品牌导航 | 找官网、控制台或文档 | AnyToken、AnyToken 官网 | AnyToken API、AnyToken 文档、anytoken.work | `/`；文档首页 |
-| 品类商业 | 选择多模型接入平台 | 多模型 AI API 聚合平台 | AI API 聚合平台、统一大模型 API、统一 AI API、AI API 网关、一个 API Key 接入多模型 | `/` |
+| 品类商业 | 选择多模型接入平台 | AI中转站 | 多模型 AI API 聚合平台、AI API 聚合平台、统一大模型 API、统一 AI API、AI API 网关、一个 API Key 接入多模型 | `/` |
 | 模型与价格 | 比较可用模型和调用成本 | AI 模型 API 价格 | 大模型 API 价格、模型 API 价格对比、Token 价格、输入输出 Token 计费、按量计费、模型列表 | `/model-plaza`；计费说明 |
 | 海外模型 | 找具体模型 API | Claude API、GPT API、Gemini API、Grok API | `模型名 + 价格/计费/Base URL/国内接入/OpenAI 兼容/示例` | 未来的供应商主题页；模型广场 |
 | 国产模型 | 找具体模型 API | DeepSeek API、Qwen API、Kimi API、GLM API | `模型名 + 价格/模型列表/调用示例/上下文/计费` | 仅在生产实际可用后建设供应商主题页 |
@@ -186,7 +188,7 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 | 用量工具 | 查询余额和消费 | API Key 用量查询 | API 额度查询、API 消费查询、API Key 余额、请求记录 | `/key-usage` |
 | 问题排查 | 请求失败后找原因 | AI API 错误排查 | API 401/403/404/429、model not found、rate limit、流式中断、DNS 错误、Key invalid | `/troubleshooting/errors/`、FAQ |
 | 信任决策 | 接入前评估风险 | AI API Key 安全 | 是否存储 Prompt、数据保留、调用日志、Key 泄露、限流、预算、服务状态 | 安全文档；未来的隐私/状态页 |
-| 比较教育 | 判断是否适合聚合平台 | API 聚合平台和官方 API 区别 | API 中转站是什么、统一 API 的优缺点、聚合 API 适用场景 | 未来的中立对比指南 |
+| 比较教育 | 判断是否适合聚合平台 | AI中转站 | AI中转站是什么、AI 中转站与官方 API 的区别、统一 API 的优缺点、聚合 API 适用场景 | `/guides/api-aggregator-vs-direct/` |
 
 动态模型词的入选门槛：
 
@@ -201,7 +203,7 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 
 | 优先级 | 页面 | 唯一主关键词 | 必须自然出现的相关实体/词 | 不应争夺的词 |
 | --- | --- | --- | --- | --- |
-| P0 | `https://anytoken.work/` | 多模型 AI API 聚合平台 | AnyToken、统一 API、API Key、模型价格、用量、开发文档 | 单一模型价格、错误码、CLI 配置 |
+| P0 | `https://anytoken.work/` | AnyToken、AI中转站 | 多模型 API 聚合平台、统一 API、API Key、模型价格、用量、开发文档 | 单一模型价格、错误码、CLI 配置 |
 | P0 | `https://anytoken.work/model-plaza` | AI 模型 API 价格 | 模型列表、输入/输出 Token、倍率/计费口径、供应商、更新时间 | AnyToken 官网、API 错误排查 |
 | P0 | `https://anytoken.work/key-usage` | AnyToken API Key 用量查询 | 额度、消费、请求记录、Key 安全 | 模型价格、API 聚合平台 |
 | P0 | `https://doc.anytoken.work/quickstart/` | AnyToken API 快速开始 | 创建 API Key、Base URL、首个请求、模型 ID | 全量协议参考 |
@@ -212,7 +214,7 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 | P0 | 4 个现有 CLI 工具页 | 对应工具名 + API 配置 | Base URL、环境变量、API Key、验证命令 | 其他工具名称 |
 | P1 | `https://doc.anytoken.work/guides/openai-compatible-api/` | OpenAI 兼容 API | SDK、Chat Completions、Responses、迁移、差异 | “官方 OpenAI API” |
 | P1 | `https://doc.anytoken.work/account/token-billing/` | 大模型 API Token 计费 | 输入、输出、缓存、倍率、账单示例、更新时间 | 固定不变的最低价 |
-| P1 | `https://doc.anytoken.work/guides/api-aggregator-vs-direct/` | API 聚合平台和官方 API 区别 | API 中转站是什么、适用场景、成本、迁移、安全 | “最好”“第一名”等自评词 |
+| P1 | `https://doc.anytoken.work/guides/api-aggregator-vs-direct/` | AI中转站 | AI中转站是什么、与官方 API 的区别、适用场景、成本、迁移、安全 | “最好”“第一名”等自评词 |
 | P1 | 首批真实供应商页 | `供应商名 + API` | 当前可用模型、价格、模型 ID、协议、代码、限制 | 当前不可用模型 |
 
 本轮已新增并进入 `urls.txt` 的 URL：
@@ -271,7 +273,7 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 
 | URL | title | description |
 | --- | --- | --- |
-| `/` | `AnyToken - 多模型 AI API 聚合平台｜统一 API 接入` | `AnyToken 提供统一的多模型 API 接入。使用一个 API Key 调用当前可用模型，并查看模型价格、API 用量和开发接入文档。` |
+| `/` | `AnyToken - AI中转站｜多模型 API 聚合平台` | `AnyToken 是面向开发者的 AI中转站，通过一个 API Key 统一接入当前可用的 Claude、GPT、Grok 等模型，并提供模型价格、用量查询和开发文档。` |
 | `/model-plaza` | `AI 模型 API 价格与模型列表｜AnyToken 模型广场` | `查看 AnyToken 当前可用模型及 API 价格，比较输入、输出 Token 计费、倍率、模型能力和可用分组；价格与可用性以页面实时数据为准。` |
 | `/key-usage` | `AnyToken API Key 用量查询 - 额度、消费与请求记录` | `在浏览器本地使用 API Key 查询 AnyToken 额度、消费和请求记录；Key 不会被页面存储。` |
 
@@ -280,7 +282,7 @@ AnyToken 当前最有条件形成差异的真实内容是：公开模型广场�
 - 服务端首包和客户端路由切换必须输出相同的 title、description 和 canonical。
 - 每页保持一个 H1，H2/H3 按真实内容层级组织。
 - description 用作摘要，不堆关键词，不使用无法验证的“官方最低价”“永久稳定”等承诺。
-- 首页首屏自然出现 `AnyToken`、`多模型 AI API 聚合平台`、`统一 API`，模型广场首屏说明数据更新时间和价格口径。
+- 首页首屏自然出现 `AnyToken`、`AI中转站`、`多模型 API 聚合平台` 和 `统一 API`，模型广场首屏说明数据更新时间和价格口径。
 
 ### 5.2 Canonical 规则
 
@@ -449,7 +451,7 @@ X-Robots-Tag: noindex, follow
 - 新增内容优先级：
   1. OpenAI 兼容 API 迁移指南。
   2. 大模型 API Token 计费、倍率、输入/输出/缓存价格解释。
-  3. API 聚合平台与官方 API 的中立对比，解释“API 中转站”俗称、适用场景和风险。
+  3. AI中转站与官方 API 的中立对比，解释行业称呼、适用场景和风险。
   4. Anthropic/Claude Code 与 Gemini CLI 的接入差异和排错。
   5. 429、模型不可用、流式中断和 DNS 的独立问题章节。
   6. 基于生产可用性和真实查询数据建立首批供应商主题页。

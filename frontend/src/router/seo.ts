@@ -30,9 +30,9 @@ export function resolvePublicSEO(path: string, siteName?: string, locale = 'zh')
           schemaType: 'home',
         }
       : {
-          title: `${name} - 多模型 AI API 聚合平台｜统一 API 接入`,
-          description: `${name} 提供统一的多模型 API 接入。使用一个 API Key 调用当前可用模型，并查看模型价格、API 用量和开发接入文档。`,
-          heading: '多模型 AI API 聚合平台',
+          title: `${name} - AI中转站｜多模型 API 聚合平台`,
+          description: `${name} 是面向开发者的 AI中转站，通过一个 API Key 统一接入当前可用的 Claude、GPT、Grok 等模型，并提供模型价格、用量查询和开发文档。`,
+          heading: `${name} AI中转站`,
           schemaType: 'home',
         }
   }

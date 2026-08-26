@@ -8,7 +8,7 @@ describe('resolvePublicSEO', () => {
     expect(pages.every(Boolean)).toBe(true)
     expect(new Set(pages.map((page) => page?.title)).size).toBe(3)
     expect(new Set(pages.map((page) => page?.description)).size).toBe(3)
-    expect(pages[0]?.title).toContain('多模型 AI API 聚合平台')
+    expect(pages[0]?.title).toContain('AI中转站')
     expect(pages[1]?.title).toContain('AI 模型 API 价格')
     expect(pages[2]?.title).toContain('API Key 用量查询')
   })

@@ -70,10 +70,10 @@ func resolveSEOPage(requestPath string, settingsJSON []byte, frontendURL string)
 	case "/":
 		return seoPage{
 			Key:         "home",
-			Title:       settings.SiteName + " - 多模型 AI API 聚合平台｜统一 API 接入",
-			Description: settings.SiteName + " 提供统一的多模型 API 接入。使用一个 API Key 调用当前可用模型，并查看模型价格、API 用量和开发接入文档。",
-			Heading:     "多模型 AI API 聚合平台",
-			Intro:       "通过统一 API Key 接入当前可用模型，集中查看模型价格、调用用量与开发文档。",
+			Title:       settings.SiteName + " - AI中转站｜多模型 API 聚合平台",
+			Description: settings.SiteName + " 是面向开发者的 AI中转站，通过一个 API Key 统一接入当前可用的 Claude、GPT、Grok 等模型，并提供模型价格、用量查询和开发文档。",
+			Heading:     settings.SiteName + " AI中转站",
+			Intro:       "通过一个 API Key 统一接入当前可用的主流模型，集中查看模型价格、调用用量与开发文档。",
 			Canonical:   canonicalURL(canonicalBase, "/"),
 			Robots:      robotsIndex,
 			SchemaType:  "home",

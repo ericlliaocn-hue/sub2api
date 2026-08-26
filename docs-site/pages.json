@@ -6,7 +6,7 @@
     { "id": "concepts", "route": "/guides/endpoints/", "title": "API 地址与路径", "description": "了解 AnyToken 官网、OpenAI 兼容 API、Anthropic 兼容接口与版本路径的区别。", "group": "接入指南", "lastmod": "2026-08-26" },
     { "id": "authentication", "route": "/guides/authentication/", "title": "API 身份验证", "description": "使用 Bearer API Key 或兼容请求头安全访问 AnyToken 模型 API。", "group": "接入指南", "lastmod": "2026-08-26" },
     { "id": "openai-compatible", "route": "/guides/openai-compatible-api/", "title": "OpenAI 兼容 API 迁移指南", "description": "将现有 OpenAI SDK、Chat Completions 与 Responses API 应用迁移到 AnyToken 统一 API。", "group": "接入指南", "lastmod": "2026-08-26" },
-    { "id": "aggregator-vs-direct", "route": "/guides/api-aggregator-vs-direct/", "title": "API 聚合平台与官方 API 的区别", "description": "比较多模型 API 聚合平台与厂商官方 API 的接入、计费、迁移、安全和适用场景。", "group": "接入指南", "lastmod": "2026-08-26" },
+    { "id": "aggregator-vs-direct", "route": "/guides/api-aggregator-vs-direct/", "title": "AI中转站是什么？与官方 API 的区别", "description": "了解 AI中转站与多模型 API 聚合平台的工作方式，比较其与厂商官方 API 在接入、计费、迁移、安全和适用场景上的区别。", "group": "接入指南", "lastmod": "2026-08-26" },
     { "id": "responses", "route": "/api/responses/", "title": "Responses API", "description": "使用 AnyToken OpenAI 兼容 Responses API 发送文本和工具调用请求。", "group": "API 调用", "lastmod": "2026-08-26" },
     { "id": "chat", "route": "/api/chat-completions/", "title": "Chat Completions API", "description": "通过 AnyToken 调用兼容 OpenAI Chat Completions 的 messages 接口。", "group": "API 调用", "lastmod": "2026-08-26" },
     { "id": "models", "route": "/api/models/", "title": "查询可用模型", "description": "使用 API Key 查询当前分组可以访问的 AnyToken 模型列表。", "group": "API 调用", "lastmod": "2026-08-26" },
