@@ -570,7 +570,13 @@ export default {
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
     title: 'Model Plaza',
-    description: 'Browse available models and pricing by group',
+    description: 'AI model API pricing and catalog',
+    seoIntro: 'Compare currently available models by provider, group and rate, including input and output token billing. Models, pricing and availability follow the live data on this page.',
+    relatedPages: 'Related Model Plaza pages',
+    quickstart: 'API quickstart',
+    modelsApi: 'List available models API',
+    billingGuide: 'Token billing guide',
+    keyUsage: 'API Key usage',
     loading: 'Loading...',
     empty: 'No groups to display',
     loadFailed: 'Failed to load model plaza',

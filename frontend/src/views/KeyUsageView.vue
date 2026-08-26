@@ -3,7 +3,7 @@
     <!-- Header (same pattern as HomeView) -->
     <header class="relative z-20 px-6 py-4">
       <nav class="mx-auto flex max-w-6xl items-center justify-between">
-        <router-link to="/home" class="flex items-center gap-3">
+        <router-link to="/" class="flex items-center gap-3">
           <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
             <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
           </div>
@@ -396,21 +396,33 @@
         <p class="text-sm text-gray-500 dark:text-dark-400">
           &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
         </p>
-        <div class="flex items-center gap-4">
+        <nav class="flex flex-wrap items-center justify-center gap-4" :aria-label="t('keyUsage.relatedPages')">
+          <router-link
+            to="/model-plaza"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
+          >{{ t('modelPlaza.title') }}</router-link>
           <a
             v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
+            :href="docLink('/security/api-keys/')"
             class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >{{ t('home.docs') }}</a>
+          >{{ t('keyUsage.securityGuide') }}</a>
+          <a
+            v-if="docUrl"
+            :href="docLink('/account/billing/')"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
+          >{{ t('keyUsage.billingGuide') }}</a>
+          <a
+            v-if="docUrl"
+            :href="docLink('/troubleshooting/errors/')"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
+          >{{ t('keyUsage.errorGuide') }}</a>
           <a
             :href="githubUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
           >GitHub</a>
-        </div>
+        </nav>
       </div>
     </footer>
   </div>
@@ -435,6 +447,16 @@ const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appS
 const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
 const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
+
+function docLink(path: string): string {
+  if (!docUrl.value) return ''
+  try {
+    const base = docUrl.value.endsWith('/') ? docUrl.value : `${docUrl.value}/`
+    return new URL(path.replace(/^\//, ''), base).toString()
+  } catch {
+    return docUrl.value
+  }
+}
 
 // ==================== Theme (same as HomeView) ====================
 

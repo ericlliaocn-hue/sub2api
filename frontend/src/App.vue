@@ -4,7 +4,8 @@ import { onMounted, onBeforeUnmount, watch } from 'vue'
 import Toast from '@/components/common/Toast.vue'
 import NavigationProgress from '@/components/common/NavigationProgress.vue'
 import AdminComplianceDialog from '@/components/admin/AdminComplianceDialog.vue'
-import { resolveRouteDocumentTitle } from '@/router/title'
+import { applyRouteSEO } from '@/router/seo'
+import { i18n } from '@/i18n'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
@@ -19,12 +20,12 @@ const announcementStore = useAnnouncementStore()
 const adminComplianceStore = useAdminComplianceStore()
 const adminSettingsStore = useAdminSettingsStore()
 
-function updateDocumentTitle() {
+function updateDocumentSEO() {
   const customMenuItems = [
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  document.title = resolveRouteDocumentTitle(route, appStore.siteName, customMenuItems)
+  applyRouteSEO(route, appStore.siteName, String(i18n.global.locale.value), customMenuItems)
 }
 
 // Watch for site settings changes and update favicon/title
@@ -43,12 +44,13 @@ watch(
     () => route.fullPath,
     () => route.meta.title,
     () => route.meta.titleKey,
+    () => i18n.global.locale.value,
     () => appStore.siteName,
     () => appStore.cachedPublicSettings?.custom_menu_items,
     () => authStore.isAdmin,
     () => adminSettingsStore.customMenuItems,
   ],
-  updateDocumentTitle,
+  updateDocumentSEO,
   { deep: true }
 )
 
@@ -133,7 +135,7 @@ onMounted(async () => {
   await appStore.fetchCreationSettings()
 
   // Re-resolve document title now that site settings are available
-  updateDocumentTitle()
+  updateDocumentSEO()
 })
 </script>
 

@@ -2,6 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Server-rendered public-page fallback. Vue replaces this node after hydration;
+   it remains readable when JavaScript is unavailable. */
+.seo-fallback {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 3rem 1.25rem;
+  background: #f5f5f3;
+  color: #1d1d1f;
+}
+
+.seo-fallback__content {
+  width: min(100%, 48rem);
+  padding: 2.5rem;
+  border: 1px solid rgb(29 29 31 / 10%);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 1.5rem 4rem rgb(29 29 31 / 8%);
+}
+
+.seo-fallback h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.seo-fallback p {
+  margin: 1.25rem 0 0;
+  max-width: 42rem;
+  color: rgb(29 29 31 / 68%);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.seo-fallback nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.seo-fallback a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  border-radius: 999px;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+html.dark .seo-fallback {
+  background: #0b0c0d;
+  color: #f5f5f7;
+}
+
+html.dark .seo-fallback__content {
+  border-color: rgb(255 255 255 / 12%);
+  background: #111214;
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 22%);
+}
+
+html.dark .seo-fallback p {
+  color: rgb(255 255 255 / 66%);
+}
+
+html.dark .seo-fallback a {
+  background: #f5f5f7;
+  color: #111214;
+}
+
 @font-face {
   font-family: 'Fusion Pixel 12px SC';
   src: url('./assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2') format('woff2');

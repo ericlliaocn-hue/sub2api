@@ -1,4 +1,4 @@
-.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical
+.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical seo seo-check
 
 FRONTEND_CRITICAL_VITEST := \
 	src/api/__tests__/client.spec.ts \
@@ -39,3 +39,11 @@ test-frontend:
 
 test-frontend-critical:
 	@pnpm --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST)
+
+seo:
+	@node tools/generate-seo-assets.mjs
+	@node docs-site/build.mjs
+
+seo-check:
+	@node tools/generate-seo-assets.mjs --check
+	@node docs-site/build.mjs --check

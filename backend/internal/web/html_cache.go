@@ -12,6 +12,8 @@ import (
 type HTMLCache struct {
 	mu              sync.RWMutex
 	cachedHTML      []byte
+	settingsJSON    []byte
+	frontendURL     string
 	etag            string
 	baseHTMLHash    string // Hash of the original index.html (immutable after build)
 	settingsVersion uint64 // Incremented when settings change
@@ -19,8 +21,10 @@ type HTMLCache struct {
 
 // CachedHTML represents the cache state
 type CachedHTML struct {
-	Content []byte
-	ETag    string
+	Content      []byte
+	SettingsJSON []byte
+	FrontendURL  string
+	ETag         string
 }
 
 // NewHTMLCache creates a new HTML cache instance
@@ -44,6 +48,8 @@ func (c *HTMLCache) Invalidate() {
 
 	c.settingsVersion++
 	c.cachedHTML = nil
+	c.settingsJSON = nil
+	c.frontendURL = ""
 	c.etag = ""
 }
 
@@ -56,22 +62,30 @@ func (c *HTMLCache) Get() *CachedHTML {
 		return nil
 	}
 	return &CachedHTML{
-		Content: c.cachedHTML,
-		ETag:    c.etag,
+		Content:      append([]byte(nil), c.cachedHTML...),
+		SettingsJSON: append([]byte(nil), c.settingsJSON...),
+		FrontendURL:  c.frontendURL,
+		ETag:         c.etag,
 	}
 }
 
 // Set updates the cache with new rendered HTML
-func (c *HTMLCache) Set(html []byte, settingsJSON []byte) {
+func (c *HTMLCache) Set(html []byte, settingsJSON []byte, frontendURL ...string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.cachedHTML = html
-	c.etag = c.generateETag(settingsJSON)
+	c.cachedHTML = append([]byte(nil), html...)
+	c.settingsJSON = append([]byte(nil), settingsJSON...)
+	if len(frontendURL) > 0 {
+		c.frontendURL = frontendURL[0]
+	} else {
+		c.frontendURL = ""
+	}
+	c.etag = c.generateETag(settingsJSON, c.frontendURL)
 }
 
 // generateETag creates an ETag from base HTML hash + settings hash
-func (c *HTMLCache) generateETag(settingsJSON []byte) string {
-	settingsHash := sha256.Sum256(settingsJSON)
+func (c *HTMLCache) generateETag(settingsJSON []byte, frontendURL string) string {
+	settingsHash := sha256.Sum256(append(append([]byte(nil), settingsJSON...), frontendURL...))
 	return `"` + c.baseHTMLHash + "-" + hex.EncodeToString(settingsHash[:8]) + `"`
 }

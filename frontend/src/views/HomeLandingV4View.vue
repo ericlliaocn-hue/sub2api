@@ -4,7 +4,7 @@
   <div v-else class="v4-page min-h-screen bg-[#f5f5f3] text-[#1d1d1f] dark:bg-[#0b0c0d] dark:text-[#f5f5f7]">
     <header class="relative z-30 px-4 pt-4 sm:px-6 lg:px-10">
       <nav class="v4-nav mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
-        <RouterLink to="/home" class="flex min-w-0 items-center gap-2.5" aria-label="Home">
+        <RouterLink to="/" class="flex min-w-0 items-center gap-2.5" aria-label="Home">
           <span class="v4-logo"><img :src="siteLogo || '/logo.svg'" alt="" class="h-full w-full object-contain" /></span>
           <span class="truncate text-[13px] font-semibold">{{ siteName }}</span>
         </RouterLink>
@@ -200,7 +200,11 @@
       <div class="mx-auto max-w-[1280px]">
         <div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
           <span>© {{ currentYear }} {{ siteName }}</span>
-          <RouterLink to="/model-plaza" class="v4-footer-link">{{ t('home.v4.nav.models') }} ↗</RouterLink>
+          <nav class="flex flex-wrap items-center justify-center gap-4" :aria-label="t('home.v4.footerNavLabel')">
+            <RouterLink to="/model-plaza" class="v4-footer-link">{{ t('home.v4.nav.models') }} ↗</RouterLink>
+            <RouterLink to="/key-usage" class="v4-footer-link">{{ t('home.v4.footerUsage') }} ↗</RouterLink>
+            <a v-if="docUrl" :href="docUrl" class="v4-footer-link">{{ t('home.docs') }} ↗</a>
+          </nav>
         </div>
         <div class="mt-5 border-t border-black/8 pt-4 text-center dark:border-white/8">
           <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" class="v4-footer-link inline-flex">闽ICP备2026032371号-2</a>

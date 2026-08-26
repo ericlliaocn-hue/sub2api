@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
@@ -6,6 +6,7 @@ import i18n, { initI18n } from './i18n'
 import { useAppStore } from '@/stores/app'
 import { updateFavicon } from '@/utils/branding'
 import { isIOSDevice } from '@/utils/device'
+import { applyRouteSEO } from '@/router/seo'
 import './style.css'
 
 function initIOSViewportZoomFix() {
@@ -57,6 +58,11 @@ async function bootstrap() {
 
   // 等待路由器完成初始导航后再挂载，避免竞态条件导致的空白渲染
   await router.isReady()
+  watch(
+    [() => appStore.siteName, () => String(i18n.global.locale.value)],
+    ([siteName, locale]) => applyRouteSEO(router.currentRoute.value, siteName, locale),
+    { immediate: true },
+  )
   app.mount('#app')
 }
 

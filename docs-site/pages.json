@@ -1,0 +1,25 @@
+{
+  "origin": "https://doc.anytoken.work",
+  "pages": [
+    { "id": "start", "route": "/", "title": "AnyToken API 文档", "description": "AnyToken API 接入文档：接口地址、身份验证、SDK、开发工具与错误排查。", "group": "开始", "lastmod": "2026-08-26" },
+    { "id": "quickstart", "route": "/quickstart/", "title": "快速开始", "description": "创建 AnyToken API Key，并通过 Responses API 完成第一次模型请求。", "group": "开始", "lastmod": "2026-08-26" },
+    { "id": "concepts", "route": "/guides/endpoints/", "title": "API 地址与路径", "description": "了解 AnyToken 官网、OpenAI 兼容 API、Anthropic 兼容接口与版本路径的区别。", "group": "接入指南", "lastmod": "2026-08-26" },
+    { "id": "authentication", "route": "/guides/authentication/", "title": "API 身份验证", "description": "使用 Bearer API Key 或兼容请求头安全访问 AnyToken 模型 API。", "group": "接入指南", "lastmod": "2026-08-26" },
+    { "id": "openai-compatible", "route": "/guides/openai-compatible-api/", "title": "OpenAI 兼容 API 迁移指南", "description": "将现有 OpenAI SDK、Chat Completions 与 Responses API 应用迁移到 AnyToken 统一 API。", "group": "接入指南", "lastmod": "2026-08-26" },
+    { "id": "aggregator-vs-direct", "route": "/guides/api-aggregator-vs-direct/", "title": "API 聚合平台与官方 API 的区别", "description": "比较多模型 API 聚合平台与厂商官方 API 的接入、计费、迁移、安全和适用场景。", "group": "接入指南", "lastmod": "2026-08-26" },
+    { "id": "responses", "route": "/api/responses/", "title": "Responses API", "description": "使用 AnyToken OpenAI 兼容 Responses API 发送文本和工具调用请求。", "group": "API 调用", "lastmod": "2026-08-26" },
+    { "id": "chat", "route": "/api/chat-completions/", "title": "Chat Completions API", "description": "通过 AnyToken 调用兼容 OpenAI Chat Completions 的 messages 接口。", "group": "API 调用", "lastmod": "2026-08-26" },
+    { "id": "models", "route": "/api/models/", "title": "查询可用模型", "description": "使用 API Key 查询当前分组可以访问的 AnyToken 模型列表。", "group": "API 调用", "lastmod": "2026-08-26" },
+    { "id": "streaming", "route": "/api/streaming/", "title": "流式响应", "description": "通过 SSE 流式读取 AnyToken 模型 API 的实时输出。", "group": "API 调用", "lastmod": "2026-08-26" },
+    { "id": "sdk", "route": "/sdks/openai/", "title": "OpenAI SDK 接入", "description": "使用 Python 和 Node.js OpenAI SDK 连接 AnyToken API。", "group": "开发工具", "lastmod": "2026-08-26" },
+    { "id": "codex", "route": "/tools/codex-cli/", "title": "Codex CLI 配置", "description": "配置 Codex CLI 通过 AnyToken OpenAI 兼容接口调用模型。", "group": "开发工具", "lastmod": "2026-08-26" },
+    { "id": "claude-code", "route": "/tools/claude-code/", "title": "Claude Code 配置", "description": "配置 Claude Code 使用 AnyToken Anthropic 兼容接口。", "group": "开发工具", "lastmod": "2026-08-26" },
+    { "id": "gemini-cli", "route": "/tools/gemini-cli/", "title": "Gemini CLI 配置", "description": "配置 Gemini CLI 使用 AnyToken 兼容接口和 API Key。", "group": "开发工具", "lastmod": "2026-08-26" },
+    { "id": "opencode", "route": "/tools/opencode/", "title": "OpenCode 配置", "description": "配置 OpenCode 通过 AnyToken 调用 OpenAI 兼容模型。", "group": "开发工具", "lastmod": "2026-08-26" },
+    { "id": "billing", "route": "/account/billing/", "title": "用量与计费", "description": "查看 AnyToken 请求 Token、费用、倍率和使用记录。", "group": "账户与排错", "lastmod": "2026-08-26" },
+    { "id": "token-billing", "route": "/account/token-billing/", "title": "大模型 API Token 计费说明", "description": "了解大模型 API 输入、输出、缓存 Token、分组倍率和最终费用的计算口径。", "group": "账户与排错", "lastmod": "2026-08-26" },
+    { "id": "errors", "route": "/troubleshooting/errors/", "title": "API 错误排查", "description": "排查 AnyToken API 常见的鉴权、模型、限流、服务和 DNS 错误。", "group": "账户与排错", "lastmod": "2026-08-26" },
+    { "id": "security", "route": "/security/api-keys/", "title": "API Key 安全", "description": "安全保存、使用、审计和撤销 AnyToken API Key。", "group": "账户与排错", "lastmod": "2026-08-26" },
+    { "id": "faq", "route": "/faq/", "title": "常见问题", "description": "AnyToken API 地址、版本路径、模型列表和流式输出常见问题。", "group": "账户与排错", "lastmod": "2026-08-26" }
+  ]
+}

@@ -15,6 +15,7 @@ import (
 // This stub is needed for compilation when frontend is not embedded
 type PublicSettingsProvider interface {
 	GetPublicSettingsForInjection(ctx context.Context) (any, error)
+	GetFrontendURL(ctx context.Context) string
 }
 
 // FrontendServer is a stub for non-embed builds

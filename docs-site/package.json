@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "dev": "node watch.mjs",
     "preview": "python3 -m http.server 4174 --directory dist"
   }
 }

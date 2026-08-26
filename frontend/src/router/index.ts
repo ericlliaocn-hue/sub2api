@@ -12,7 +12,8 @@ import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
-import { resolveRouteDocumentTitle } from './title'
+import { applyRouteSEO } from './seo'
+import { i18n } from '@/i18n'
 
 /**
  * Route definitions with lazy loading
@@ -31,7 +32,7 @@ const routes: RouteRecordRaw[] = [
 
   // ==================== Public Routes ====================
   {
-    path: '/home',
+    path: '/',
     name: 'Home',
     component: () => import('@/views/HomeLandingV4View.vue'),
     meta: {
@@ -40,22 +41,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/home',
+    redirect: '/',
+  },
+  {
     path: '/home-v4',
-    name: 'HomeV4',
-    component: () => import('@/views/HomeLandingV4View.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Home'
-    }
+    redirect: '/',
   },
   {
     path: '/home-classic',
-    name: 'HomeClassic',
-    component: () => import('@/views/HomeView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Home'
-    }
+    redirect: '/',
   },
   {
     path: '/login',
@@ -205,10 +200,6 @@ const routes: RouteRecordRaw[] = [
   },
 
   // ==================== User Routes ====================
-  {
-    path: '/',
-    redirect: '/home'
-  },
   {
     path: '/dashboard',
     name: 'Dashboard',
@@ -867,7 +858,7 @@ router.beforeEach(async (to, _from, next) => {
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  document.title = resolveRouteDocumentTitle(to, appStore.siteName, customMenuItems)
+  applyRouteSEO(to, appStore.siteName, String(i18n.global.locale.value), customMenuItems)
 
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
@@ -916,7 +907,7 @@ router.beforeEach(async (to, _from, next) => {
             ? authStore.isAdmin
               ? '/admin/dashboard'
               : '/dashboard'
-            : '/home'
+            : '/'
         )
         return
       }
@@ -1053,6 +1044,15 @@ router.beforeEach(async (to, _from, next) => {
  * Navigation guard: End loading and trigger prefetch
  */
 router.afterEach((to) => {
+  const appStore = useAppStore()
+  const authStore = useAuthStore()
+  const adminSettingsStore = useAdminSettingsStore()
+  const customMenuItems = [
+    ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
+    ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
+  ]
+  applyRouteSEO(to, appStore.siteName, String(i18n.global.locale.value), customMenuItems)
+
   // 结束导航加载状态
   navigationLoading.endNavigation()
 

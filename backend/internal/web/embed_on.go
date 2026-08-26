@@ -32,6 +32,7 @@ var frontendFS embed.FS
 // PublicSettingsProvider is an interface to fetch public settings
 type PublicSettingsProvider interface {
 	GetPublicSettingsForInjection(ctx context.Context) (any, error)
+	GetFrontendURL(ctx context.Context) string
 }
 
 // FrontendServer serves the embedded frontend with settings injection
@@ -93,6 +94,11 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		if redirectTo, ok := legacyFrontendRedirect(path); ok {
+			c.Redirect(http.StatusMovedPermanently, redirectTo)
+			c.Abort()
+			return
+		}
 
 		cleanPath := strings.TrimPrefix(path, "/")
 		if cleanPath == "" {
@@ -149,20 +155,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	// Check cache first
 	cached := s.cache.Get()
 	if cached != nil {
-		// Check If-None-Match for 304 response
-		if match := c.GetHeader("If-None-Match"); match == cached.ETag {
-			c.Status(http.StatusNotModified)
-			c.Abort()
-			return
-		}
-
-		// Replace nonce placeholder with actual nonce before serving
-		content := replaceNoncePlaceholder(cached.Content, nonce)
-
-		c.Header("ETag", cached.ETag)
-		c.Header("Cache-Control", "no-cache") // Must revalidate
-		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
-		c.Abort()
+		s.serveCachedIndexHTML(c, cached, nonce)
 		return
 	}
 
@@ -172,33 +165,71 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 
 	settings, err := s.settings.GetPublicSettingsForInjection(ctx)
 	if err != nil {
-		// Fallback: serve without injection
-		c.Data(http.StatusOK, "text/html; charset=utf-8", s.baseHTML)
+		// Fallback: keep route status and SEO semantics even when public settings fail.
+		frontendURL := s.settings.GetFrontendURL(ctx)
+		page := resolveSEOPage(c.Request.URL.Path, nil, frontendURL)
+		content := injectRouteSEO(s.baseHTML, page, nil, frontendURL)
+		content = replaceNoncePlaceholder(content, nonce)
+		applySEOResponseHeaders(c, page)
+		c.Header("Cache-Control", "no-cache")
+		c.Data(page.Status, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
 	}
 
 	settingsJSON, err := json.Marshal(settings)
 	if err != nil {
-		// Fallback: serve without injection
-		c.Data(http.StatusOK, "text/html; charset=utf-8", s.baseHTML)
+		frontendURL := s.settings.GetFrontendURL(ctx)
+		page := resolveSEOPage(c.Request.URL.Path, nil, frontendURL)
+		content := injectRouteSEO(s.baseHTML, page, nil, frontendURL)
+		content = replaceNoncePlaceholder(content, nonce)
+		applySEOResponseHeaders(c, page)
+		c.Header("Cache-Control", "no-cache")
+		c.Data(page.Status, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
 	}
 
 	rendered := s.injectSettings(settingsJSON)
-	s.cache.Set(rendered, settingsJSON)
-
-	// Replace nonce placeholder with actual nonce before serving
-	content := replaceNoncePlaceholder(rendered, nonce)
+	frontendURL := s.settings.GetFrontendURL(ctx)
+	s.cache.Set(rendered, settingsJSON, frontendURL)
 
 	cached = s.cache.Get()
-	if cached != nil {
-		c.Header("ETag", cached.ETag)
+	if cached == nil {
+		page := resolveSEOPage(c.Request.URL.Path, settingsJSON, frontendURL)
+		content := replaceNoncePlaceholder(injectRouteSEO(rendered, page, settingsJSON, frontendURL), nonce)
+		applySEOResponseHeaders(c, page)
+		c.Header("Cache-Control", "no-cache")
+		c.Data(page.Status, "text/html; charset=utf-8", content)
+		c.Abort()
+		return
 	}
+	s.serveCachedIndexHTML(c, cached, nonce)
+}
+
+func (s *FrontendServer) serveCachedIndexHTML(c *gin.Context, cached *CachedHTML, nonce string) {
+	page := resolveSEOPage(c.Request.URL.Path, cached.SettingsJSON, cached.FrontendURL)
+	etag := routeETag(cached.ETag, c.Request.URL.Path, page.Status)
+	applySEOResponseHeaders(c, page)
+	c.Header("ETag", etag)
 	c.Header("Cache-Control", "no-cache")
-	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
+
+	if match := c.GetHeader("If-None-Match"); match == etag {
+		c.Status(http.StatusNotModified)
+		c.Abort()
+		return
+	}
+
+	content := injectRouteSEO(cached.Content, page, cached.SettingsJSON, cached.FrontendURL)
+	content = replaceNoncePlaceholder(content, nonce)
+	c.Data(page.Status, "text/html; charset=utf-8", content)
 	c.Abort()
+}
+
+func applySEOResponseHeaders(c *gin.Context, page seoPage) {
+	if page.Robots == robotsNoIndex {
+		c.Header("X-Robots-Tag", robotsNoIndex)
+	}
 }
 
 func (s *FrontendServer) injectSettings(settingsJSON []byte) []byte {
@@ -315,6 +346,11 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		if redirectTo, ok := legacyFrontendRedirect(path); ok {
+			c.Redirect(http.StatusMovedPermanently, redirectTo)
+			c.Abort()
+			return
+		}
 
 		cleanPath := strings.TrimPrefix(path, "/")
 		if cleanPath == "" {
@@ -385,7 +421,12 @@ func serveIndexHTML(c *gin.Context, fsys fs.FS) {
 		return
 	}
 
-	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
+	page := resolveSEOPage(c.Request.URL.Path, nil, "")
+	content = injectRouteSEO(content, page, nil, "")
+	content = replaceNoncePlaceholder(content, middleware.GetNonceFromContext(c))
+	applySEOResponseHeaders(c, page)
+	c.Header("Cache-Control", "no-cache")
+	c.Data(page.Status, "text/html; charset=utf-8", content)
 	c.Abort()
 }
 

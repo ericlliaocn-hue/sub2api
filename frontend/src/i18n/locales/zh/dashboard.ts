@@ -575,7 +575,13 @@ export default {
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
     title: '模型广场',
-    description: '按分组浏览可用模型与价格',
+    description: 'AI 模型 API 价格与模型列表',
+    seoIntro: '按供应商、分组和倍率比较当前可用模型，以及输入、输出 Token 的计费信息。模型、价格与可用性以本页实时数据为准。',
+    relatedPages: '模型广场相关页面',
+    quickstart: 'API 快速开始',
+    modelsApi: '查询可用模型 API',
+    billingGuide: 'Token 计费说明',
+    keyUsage: 'API Key 用量查询',
     loading: '加载中...',
     empty: '暂无可展示的分组',
     loadFailed: '加载模型广场失败',

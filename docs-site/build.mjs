@@ -4,27 +4,21 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 const output = path.join(root, 'dist')
-const origin = 'https://doc.anytoken.work'
+const checkOnly = process.argv.includes('--check')
+const catalog = JSON.parse(await readFile(path.join(root, 'pages.json'), 'utf8'))
+const origin = catalog.origin
+const pages = catalog.pages
 
-const pages = [
-  { id: 'start', route: '/', title: 'AnyToken API 文档', description: 'AnyToken API 接入文档：接口地址、身份验证、SDK、开发工具与错误排查。', group: '开始' },
-  { id: 'quickstart', route: '/quickstart/', title: '快速开始', description: '创建 AnyToken API Key，并通过 Responses API 完成第一次模型请求。', group: '开始' },
-  { id: 'concepts', route: '/guides/endpoints/', title: 'API 地址与路径', description: '了解 AnyToken 官网、OpenAI 兼容 API、Anthropic 兼容接口与版本路径的区别。', group: '接入指南' },
-  { id: 'authentication', route: '/guides/authentication/', title: 'API 身份验证', description: '使用 Bearer API Key 或兼容请求头安全访问 AnyToken 模型 API。', group: '接入指南' },
-  { id: 'responses', route: '/api/responses/', title: 'Responses API', description: '使用 AnyToken OpenAI 兼容 Responses API 发送文本和工具调用请求。', group: 'API 调用' },
-  { id: 'chat', route: '/api/chat-completions/', title: 'Chat Completions API', description: '通过 AnyToken 调用兼容 OpenAI Chat Completions 的 messages 接口。', group: 'API 调用' },
-  { id: 'models', route: '/api/models/', title: '查询可用模型', description: '使用 API Key 查询当前分组可以访问的 AnyToken 模型列表。', group: 'API 调用' },
-  { id: 'streaming', route: '/api/streaming/', title: '流式响应', description: '通过 SSE 流式读取 AnyToken 模型 API 的实时输出。', group: 'API 调用' },
-  { id: 'sdk', route: '/sdks/openai/', title: 'OpenAI SDK 接入', description: '使用 Python 和 Node.js OpenAI SDK 连接 AnyToken API。', group: '开发工具' },
-  { id: 'codex', route: '/tools/codex-cli/', title: 'Codex CLI 配置', description: '配置 Codex CLI 通过 AnyToken OpenAI 兼容接口调用模型。', group: '开发工具' },
-  { id: 'claude-code', route: '/tools/claude-code/', title: 'Claude Code 配置', description: '配置 Claude Code 使用 AnyToken Anthropic 兼容接口。', group: '开发工具' },
-  { id: 'gemini-cli', route: '/tools/gemini-cli/', title: 'Gemini CLI 配置', description: '配置 Gemini CLI 使用 AnyToken 兼容接口和 API Key。', group: '开发工具' },
-  { id: 'opencode', route: '/tools/opencode/', title: 'OpenCode 配置', description: '配置 OpenCode 通过 AnyToken 调用 OpenAI 兼容模型。', group: '开发工具' },
-  { id: 'billing', route: '/account/billing/', title: '用量与计费', description: '查看 AnyToken 请求 Token、费用、倍率和使用记录。', group: '账户与排错' },
-  { id: 'errors', route: '/troubleshooting/errors/', title: 'API 错误排查', description: '排查 AnyToken API 常见的鉴权、模型、限流、服务和 DNS 错误。', group: '账户与排错' },
-  { id: 'security', route: '/security/api-keys/', title: 'API Key 安全', description: '安全保存、使用、审计和撤销 AnyToken API Key。', group: '账户与排错' },
-  { id: 'faq', route: '/faq/', title: '常见问题', description: 'AnyToken API 地址、版本路径、模型列表和流式输出常见问题。', group: '账户与排错' },
-]
+if (new Set(pages.map((page) => page.id)).size !== pages.length) throw new Error('Duplicate documentation page id')
+if (new Set(pages.map((page) => page.route)).size !== pages.length) throw new Error('Duplicate documentation route')
+if (new Set(pages.map((page) => page.title)).size !== pages.length) throw new Error('Duplicate documentation page title')
+if (new Set(pages.map((page) => page.description)).size !== pages.length) throw new Error('Duplicate documentation page description')
+
+for (const page of pages) {
+  if (page.route !== '/' && !/^\/[a-z0-9/-]+\/$/.test(page.route)) throw new Error(`Invalid documentation route: ${page.route}`)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(page.lastmod)) throw new Error(`Invalid lastmod: ${page.route}`)
+  if (!page.title.trim() || !page.description.trim()) throw new Error(`Missing metadata: ${page.route}`)
+}
 
 const source = await readFile(path.join(root, 'index.html'), 'utf8')
 
@@ -82,7 +76,18 @@ function articleSection(page) {
 
 function breadcrumbs(page) {
   if (page.id === 'start') return ''
-  return `<nav class="breadcrumbs" aria-label="面包屑"><a href="/">文档</a><span>/</span><span>${escapeHTML(page.group)}</span><span>/</span><span aria-current="page">${escapeHTML(page.title)}</span></nav>`
+  return `<nav class="breadcrumbs" aria-label="面包屑" itemscope itemtype="https://schema.org/BreadcrumbList"><span itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a href="/" itemprop="item"><span itemprop="name">文档</span></a><meta itemprop="position" content="1" /></span><span>/</span><span itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name">${escapeHTML(page.group)}</span><meta itemprop="position" content="2" /></span><span>/</span><span itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span aria-current="page" itemprop="name">${escapeHTML(page.title)}</span><meta itemprop="position" content="3" /></span></nav>`
+}
+
+function relatedNavigation(page) {
+  const index = pages.findIndex((candidate) => candidate.id === page.id)
+  const previous = index > 0 ? pages[index - 1] : null
+  const next = index < pages.length - 1 ? pages[index + 1] : null
+  const links = [
+    previous ? `<a rel="prev" href="${previous.route}"><span>上一篇</span><strong>${escapeHTML(previous.title)}</strong></a>` : '',
+    next ? `<a rel="next" href="${next.route}"><span>下一篇</span><strong>${escapeHTML(next.title)}</strong></a>` : '',
+  ].filter(Boolean).join('')
+  return links ? `<nav class="related-pages" aria-label="相关文档">${links}</nav>` : ''
 }
 
 function render(page) {
@@ -123,9 +128,11 @@ function render(page) {
         <article itemscope itemtype="https://schema.org/TechArticle">
           <meta itemprop="name" content="${escapeHTML(page.title)}" />
           <meta itemprop="description" content="${escapeHTML(page.description)}" />
+          <meta itemprop="dateModified" content="${escapeHTML(page.lastmod)}" />
           <link itemprop="url" href="${url}" />
           ${breadcrumbs(page)}
           ${article}
+          ${relatedNavigation(page)}
           ${pageFooter}
         </article>
         <aside class="toc" aria-label="本页目录">
@@ -141,16 +148,55 @@ function render(page) {
 `
 }
 
-await rm(output, { recursive: true, force: true })
-await mkdir(output, { recursive: true })
-await cp(path.join(root, 'assets'), path.join(output, 'assets'), { recursive: true })
-await cp(path.join(root, 'styles.css'), path.join(output, 'styles.css'))
-await cp(path.join(root, 'app.js'), path.join(output, 'app.js'))
+function occurrences(html, pattern) {
+  return [...html.matchAll(pattern)].length
+}
+
+function validateRenderedPage(page, html) {
+  const expectedCanonical = `${origin}${page.route}`
+  if (occurrences(html, /<h1(?:\s|>)/g) !== 1) throw new Error(`Expected exactly one H1: ${page.route}`)
+  if (occurrences(html, /<title>/g) !== 1) throw new Error(`Expected exactly one title: ${page.route}`)
+  if (occurrences(html, /<meta name="description"/g) !== 1) throw new Error(`Expected exactly one description: ${page.route}`)
+  if (occurrences(html, /<link rel="canonical"/g) !== 1 || !html.includes(`href="${expectedCanonical}"`)) {
+    throw new Error(`Invalid canonical: ${page.route}`)
+  }
+  if (!html.includes('itemtype="https://schema.org/TechArticle"')) throw new Error(`Missing TechArticle schema: ${page.route}`)
+  if (page.id !== 'start' && !html.includes('itemtype="https://schema.org/BreadcrumbList"')) {
+    throw new Error(`Missing breadcrumb schema: ${page.route}`)
+  }
+}
+
+let stale = false
+
+async function emit(file, content) {
+  if (checkOnly) {
+    const current = await readFile(file, 'utf8').catch(() => '')
+    if (current !== content) {
+      stale = true
+      console.error(`Documentation output is stale: ${path.relative(root, file)}`)
+    }
+    return
+  }
+  await mkdir(path.dirname(file), { recursive: true })
+  await writeFile(file, content)
+}
+
+if (!checkOnly) {
+  await rm(output, { recursive: true, force: true })
+  await mkdir(output, { recursive: true })
+  await cp(path.join(root, 'assets'), path.join(output, 'assets'), { recursive: true })
+  await cp(path.join(root, 'styles.css'), path.join(output, 'styles.css'))
+  await cp(path.join(root, 'app.js'), path.join(output, 'app.js'))
+} else {
+  await emit(path.join(output, 'styles.css'), await readFile(path.join(root, 'styles.css'), 'utf8'))
+  await emit(path.join(output, 'app.js'), await readFile(path.join(root, 'app.js'), 'utf8'))
+}
 
 for (const page of pages) {
   const directory = page.route === '/' ? output : path.join(output, page.route)
-  await mkdir(directory, { recursive: true })
-  await writeFile(path.join(directory, 'index.html'), render(page))
+  const html = render(page)
+  validateRenderedPage(page, html)
+  await emit(path.join(directory, 'index.html'), html)
 }
 
 const searchIndex = pages.map((page) => {
@@ -163,17 +209,23 @@ const searchIndex = pages.map((page) => {
   return { id: page.id, url: page.route, title: page.title, description: page.description, text: `${page.title} ${page.description} ${plainText}`.toLowerCase() }
 })
 
-await writeFile(path.join(output, 'search-index.json'), `${JSON.stringify(searchIndex, null, 2)}\n`)
-await writeFile(path.join(output, 'search-index.js'), `window.__ANYTOKEN_SEARCH_INDEX__ = ${JSON.stringify(searchIndex)};\n`)
-await writeFile(path.join(output, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`)
-await writeFile(path.join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+await emit(path.join(output, 'search-index.json'), `${JSON.stringify(searchIndex, null, 2)}\n`)
+await emit(path.join(output, 'search-index.js'), `window.__ANYTOKEN_SEARCH_INDEX__ = ${JSON.stringify(searchIndex)};\n`)
+await emit(path.join(output, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`)
+await emit(path.join(output, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map((page) => `  <url><loc>${origin}${page.route}</loc></url>`).join('\n')}
+${pages.map((page) => `  <url><loc>${origin}${page.route}</loc><lastmod>${page.lastmod}</lastmod></url>`).join('\n')}
 </urlset>\n`)
 
-const notFound = render({ ...pages[0], id: 'start', title: '页面未找到', description: '你访问的 AnyToken 文档页面不存在。' })
+const notFound = render({ ...pages[0], id: 'start', route: '/404.html', title: '页面未找到', description: '你访问的 AnyToken 文档页面不存在。' })
   .replace(articleSection(pages[0]), '<section class="doc-section"><div class="section-no">404 / NOT FOUND</div><h1>页面未找到</h1><p>该文档地址不存在或已经调整。</p><a class="button primary" href="/">返回文档首页 →</a></section>')
   .replace('<meta name="robots" content="index,follow,max-image-preview:large" />', '<meta name="robots" content="noindex,follow" />')
-await writeFile(path.join(output, '404.html'), notFound)
+  .replace(/\n    <link rel="canonical"[^>]+>/, '')
+  .replace(/\n    <meta property="og:url"[^>]+>/, '')
+await emit(path.join(output, '404.html'), notFound)
 
-console.log(`Built ${pages.length} static documentation pages in ${output}`)
+if (stale) {
+  process.exitCode = 1
+} else {
+  console.log(`${checkOnly ? 'Verified' : 'Built'} ${pages.length} static documentation pages in ${output}`)
+}

@@ -252,7 +252,7 @@ export default {
         pricing: '定价'
       },
       hero: {
-        eyebrow: 'anytoken · AI 模型中转站',
+        eyebrow: 'anytoken · 多模型 AI API 聚合平台',
         title: '连接主流模型，',
         accent: '只需一个入口。',
         description: '通过单个 API Key 接入 Claude、GPT、Grok 等主流模型，并可直接使用模型广场与创作中心。兼容常用调用协议，价格、余额及用量记录清晰可查。',
@@ -347,6 +347,8 @@ export default {
         description: '进入模型广场，比较模型能力、可用分组及当前价格，并选择相应接入方式。',
         action: '进入模型广场'
       },
+      footerNavLabel: '相关页面',
+      footerUsage: 'API Key 用量查询',
       footer: '一个入口，连接你的 AI 工作流'
     }
   },
@@ -359,6 +361,10 @@ export default {
     query: '查询',
     querying: '查询中...',
     privacyNote: '您的 Key 仅在浏览器本地处理，不会被存储',
+    relatedPages: '相关页面',
+    securityGuide: 'API Key 安全',
+    billingGuide: '用量与计费',
+    errorGuide: '错误排查',
     dateRange: '统计范围:',
     dateRangeToday: '今日',
     dateRange7d: '7 天',

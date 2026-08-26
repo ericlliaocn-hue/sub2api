@@ -252,7 +252,7 @@ export default {
         pricing: 'Pricing'
       },
       hero: {
-        eyebrow: 'anytoken · AI model gateway',
+        eyebrow: 'anytoken · multi-model AI API platform',
         title: 'Connect leading models.',
         accent: 'Keep one entry point.',
         description: 'Use one API key for Claude, GPT, Grok and more, or work directly in the Model Plaza and Creation Studio. Keep familiar protocols while pricing and usage stay visible.',
@@ -347,6 +347,8 @@ export default {
         description: 'Open the Model Plaza, compare capability, groups and price, then choose how to connect.',
         action: 'Open Model Plaza'
       },
+      footerNavLabel: 'Related pages',
+      footerUsage: 'API Key usage',
       footer: 'One entry point for your AI workflow'
     }
   },
@@ -359,6 +361,10 @@ export default {
     query: 'Query',
     querying: 'Querying...',
     privacyNote: 'Your Key is processed locally in the browser and will not be stored',
+    relatedPages: 'Related pages',
+    securityGuide: 'API Key security',
+    billingGuide: 'Usage and billing',
+    errorGuide: 'Troubleshooting',
     dateRange: 'Date Range:',
     dateRangeToday: 'Today',
     dateRange7d: '7 Days',

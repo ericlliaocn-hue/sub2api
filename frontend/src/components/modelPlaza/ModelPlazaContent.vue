@@ -4,6 +4,13 @@
     <div v-if="!embedded">
       <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">{{ t('modelPlaza.title') }}</h1>
       <p class="mt-1.5 text-sm text-gray-500 dark:text-dark-400">{{ t('modelPlaza.description') }}</p>
+      <p class="mt-3 max-w-4xl text-sm leading-6 text-gray-600 dark:text-dark-300">{{ t('modelPlaza.seoIntro') }}</p>
+      <nav class="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm" :aria-label="t('modelPlaza.relatedPages')">
+        <a v-if="docUrl" :href="docLink('/quickstart/')" class="text-primary-600 hover:underline dark:text-primary-300">{{ t('modelPlaza.quickstart') }}</a>
+        <a v-if="docUrl" :href="docLink('/api/models/')" class="text-primary-600 hover:underline dark:text-primary-300">{{ t('modelPlaza.modelsApi') }}</a>
+        <a v-if="docUrl" :href="docLink('/account/token-billing/')" class="text-primary-600 hover:underline dark:text-primary-300">{{ t('modelPlaza.billingGuide') }}</a>
+        <RouterLink to="/key-usage" class="text-primary-600 hover:underline dark:text-primary-300">{{ t('modelPlaza.keyUsage') }}</RouterLink>
+      </nav>
     </div>
 
     <!-- 全局价格说明(管理员配置,Markdown) -->
@@ -72,6 +79,8 @@ import PlazaFilterBar from './PlazaFilterBar.vue'
 import PlazaGroupSection from './PlazaGroupSection.vue'
 import type { ModelPlazaGroup, ModelPlazaResponse } from '@/api/modelPlaza'
 import { useAuthStore } from '@/stores/auth'
+import { useAppStore } from '@/stores/app'
+import { sanitizeUrl } from '@/utils/url'
 
 const props = defineProps<{
   response: ModelPlazaResponse | null
@@ -83,7 +92,19 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
+
+function docLink(path: string): string {
+  if (!docUrl.value) return ''
+  try {
+    const base = docUrl.value.endsWith('/') ? docUrl.value : `${docUrl.value}/`
+    return new URL(path.replace(/^\//, ''), base).toString()
+  } catch {
+    return docUrl.value
+  }
+}
 
 const selectedPlatform = ref<string>('all')
 const selectedGroupId = ref<number | 'all'>('all')

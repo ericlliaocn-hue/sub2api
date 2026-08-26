@@ -51,6 +51,8 @@
           <a href="#quickstart" class="nav-link">快速开始</a>
           <a href="#concepts" class="nav-link">地址与路径</a>
           <a href="#authentication" class="nav-link">身份验证</a>
+          <a href="#openai-compatible" class="nav-link">OpenAI 兼容迁移</a>
+          <a href="#aggregator-vs-direct" class="nav-link">聚合与官方 API</a>
 
           <p class="nav-label">API 调用</p>
           <a href="#responses" class="nav-link">Responses API</a>
@@ -67,6 +69,7 @@
 
           <p class="nav-label">账户与排错</p>
           <a href="#billing" class="nav-link">用量与计费</a>
+          <a href="#token-billing" class="nav-link">Token 计费说明</a>
           <a href="#errors" class="nav-link">错误排查</a>
           <a href="#security" class="nav-link">密钥安全</a>
           <a href="#faq" class="nav-link">常见问题</a>
@@ -168,6 +171,63 @@
 Content-Type: application/json</code></pre>
             </div>
             <p>部分 Anthropic 兼容客户端会使用 <code>x-api-key</code>，官方客户端配置方式见下方 Claude Code 章节。</p>
+          </section>
+
+          <section id="openai-compatible" class="doc-section" data-search="OpenAI 兼容 API 迁移 Base URL SDK Chat Completions Responses">
+            <div class="section-no">03A / OPENAI COMPATIBLE</div>
+            <h2>OpenAI 兼容 API 迁移指南</h2>
+            <p>已经使用 OpenAI SDK 的项目通常不需要重写业务调用。保留 SDK 和请求结构，把 API Key、Base URL 与模型名切换到 AnyToken 即可。</p>
+
+            <ol class="steps">
+              <li><span class="step-no">1</span><div><strong>替换密钥</strong><p>使用 AnyToken 控制台创建的 API Key，不要继续发送原厂密钥。</p></div></li>
+              <li><span class="step-no">2</span><div><strong>替换 Base URL</strong><p>OpenAI SDK 配置为 <code>https://api.anytoken.work/v1</code>。</p></div></li>
+              <li><span class="step-no">3</span><div><strong>选择实际可用模型</strong><p>从模型广场或 <code>GET /v1/models</code> 获取当前 Key 可以访问的模型 ID。</p></div></li>
+              <li><span class="step-no">4</span><div><strong>执行最小验证</strong><p>先发送非流式文本请求，再验证流式、工具调用和业务超时。</p></div></li>
+            </ol>
+
+            <div class="code-block" data-language="python">
+              <div class="code-head"><span>Python 迁移示例</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>from openai import OpenAI
+
+client = OpenAI(
+    api_key="YOUR_ANYTOKEN_API_KEY",
+    base_url="https://api.anytoken.work/v1",
+)
+
+response = client.chat.completions.create(
+    model="MODEL_FROM_MODEL_PLAZA",
+    messages=[{"role": "user", "content": "连接测试"}],
+)
+print(response.choices[0].message.content)</code></pre>
+            </div>
+
+            <div class="definition-grid">
+              <div><strong>可以保留</strong><p>OpenAI SDK、Chat Completions 请求结构、Bearer 鉴权和常见流式读取方式。</p></div>
+              <div><strong>必须核对</strong><p>模型 ID、具体参数支持、上下文限制、工具调用能力和计费口径。</p></div>
+              <div><strong>不要假设</strong><p>不同供应商模型不会自动拥有完全一致的参数、输出格式或多模态能力。</p></div>
+              <div><strong>回滚方式</strong><p>把 Base URL、Key 和模型名恢复到原配置；不要在代码中散落固定地址。</p></div>
+            </div>
+          </section>
+
+          <section id="aggregator-vs-direct" class="doc-section" data-search="API 聚合平台 官方 API 区别 API 中转站 统一 API 优缺点">
+            <div class="section-no">03B / DECISION GUIDE</div>
+            <h2>API 聚合平台与官方 API 的区别</h2>
+            <p>“API 中转站”是中文搜索中的常见俗称。更准确的判断维度不是名称，而是平台是否公开说明接入协议、模型来源、计费规则、数据处理、安全边界和故障责任。</p>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>维度</th><th>多模型 API 聚合平台</th><th>厂商官方 API</th></tr></thead>
+                <tbody>
+                  <tr><td>接入</td><td>一个入口管理多个已接入模型，迁移时通常调整模型 ID</td><td>每家厂商分别维护账号、Key、SDK 和协议</td></tr>
+                  <tr><td>模型选择</td><td>适合需要跨模型试验、切换或统一用量管理的项目</td><td>适合长期绑定单一厂商能力或使用其独有功能的项目</td></tr>
+                  <tr><td>计费</td><td>按平台实时价格、分组和倍率结算，应查看最终账单口径</td><td>按厂商定价和账户协议结算</td></tr>
+                  <tr><td>兼容性</td><td>兼容协议不代表每个模型支持完全相同的参数和能力</td><td>最新专属能力通常最先出现在原厂接口</td></tr>
+                  <tr><td>风险</td><td>需要额外评估平台安全、数据、可用性和上游变化</td><td>仍需评估厂商区域、配额、支付和服务条款</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout info"><strong>适用建议</strong><span>先用非敏感测试数据完成兼容性验证，再根据数据敏感度、供应商条款、故障容忍度和预算决定是否进入生产。AnyToken 当前模型和价格以模型广场实时页面为准。</span></div>
           </section>
 
           <section id="responses" class="doc-section" data-search="Responses API POST input output OpenAI">
@@ -423,6 +483,31 @@ gemini</code></pre>
             <div class="callout info"><strong>价格以哪里为准？</strong><span>模型和渠道会动态调整。调用前请以模型广场展示的当前价格与分组倍率为准。</span></div>
           </section>
 
+          <section id="token-billing" class="doc-section" data-search="大模型 API Token 计费 输入 输出 缓存 分组倍率 费用计算">
+            <div class="section-no">13B / TOKEN BILLING</div>
+            <h2>大模型 API Token 计费说明</h2>
+            <p>大模型调用通常分别统计输入、输出和缓存 Token。最终扣费还会受到模型单价、分组倍率和具体计费单位影响，不能只用总 Token 数推算。</p>
+
+            <div class="code-block" data-language="text">
+              <div class="code-head"><span>通用计算口径</span><button type="button" class="copy-code">复制</button></div>
+              <pre><code>基础费用 = 输入 Token × 输入单价
+         + 输出 Token × 输出单价
+         + 缓存写入 Token × 缓存写入单价
+         + 缓存读取 Token × 缓存读取单价
+
+最终费用 = 基础费用 × 当前分组倍率</code></pre>
+            </div>
+
+            <div class="definition-grid">
+              <div><strong>输入 Token</strong><p>系统提示、对话历史、用户输入和工具定义等发送给模型的内容。</p></div>
+              <div><strong>输出 Token</strong><p>模型实际生成的文本、推理或工具调用内容，单价可能与输入不同。</p></div>
+              <div><strong>缓存 Token</strong><p>只有模型和渠道支持缓存时才会出现；写入与命中读取可能使用不同单价。</p></div>
+              <div><strong>分组倍率</strong><p>由当前 API Key 所属分组和页面实时规则决定，变化后只影响对应结算周期或请求。</p></div>
+            </div>
+
+            <div class="callout warning"><strong>不要写死价格</strong><span>模型价格和可用分组可能调整。本文只解释计算方法；调用前查看模型广场，调用后以使用记录中的 Token 和实际费用核对。</span></div>
+          </section>
+
           <section id="errors" class="doc-section" data-search="错误码 400 401 403 404 429 500 排查 DNS no such host">
             <div class="section-no">14 / TROUBLESHOOTING</div>
             <h2>错误排查</h2>
@@ -469,7 +554,7 @@ gemini</code></pre>
           <footer class="doc-footer">
             <div><span class="brand-mini">A</span><strong>AnyToken Docs</strong></div>
             <p>文档会随接口和客户端能力持续更新。</p>
-            <div class="footer-links"><a href="https://anytoken.work">官网</a><a href="https://anytoken.work/model-plaza">模型广场</a><a href="https://anytoken.work/purchase">充值 / 订阅</a></div>
+            <div class="footer-links"><a href="https://anytoken.work">官网</a><a href="https://anytoken.work/model-plaza">模型广场</a><a href="https://anytoken.work/key-usage">API Key 用量查询</a><a href="https://anytoken.work/purchase">登录后充值 / 订阅</a></div>
           </footer>
         </article>
 

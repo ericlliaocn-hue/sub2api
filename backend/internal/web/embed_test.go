@@ -206,14 +206,19 @@ func TestNonceHTMLPlaceholder(t *testing.T) {
 
 // mockSettingsProvider implements PublicSettingsProvider for testing
 type mockSettingsProvider struct {
-	settings any
-	err      error
-	called   int
+	settings    any
+	err         error
+	called      int
+	frontendURL string
 }
 
 func (m *mockSettingsProvider) GetPublicSettingsForInjection(ctx context.Context) (any, error) {
 	m.called++
 	return m.settings, m.err
+}
+
+func (m *mockSettingsProvider) GetFrontendURL(context.Context) string {
+	return m.frontendURL
 }
 
 func TestFrontendServer_InjectSettings(t *testing.T) {
@@ -621,8 +626,8 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		spaPaths := []string{
 			"/",
 			"/dashboard",
-			"/users/123",
-			"/settings/profile",
+			"/profile",
+			"/admin/users",
 		}
 
 		for _, path := range spaPaths {
@@ -650,7 +655,7 @@ func TestFrontendServer_Middleware(t *testing.T) {
 
 		// Request for existing static file
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		req := httptest.NewRequest(http.MethodGet, "/anytoken-logo.png", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -735,7 +740,7 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		router.Use(middleware)
 
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		req := httptest.NewRequest(http.MethodGet, "/anytoken-logo.png", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -763,7 +768,7 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		router := gin.New()
 		router.Use(middleware)
 
-		spaPaths := []string{"/dashboard", "/users/123", "/settings"}
+		spaPaths := []string{"/dashboard", "/profile", "/admin/users"}
 
 		for _, path := range spaPaths {
 			t.Run(path, func(t *testing.T) {
