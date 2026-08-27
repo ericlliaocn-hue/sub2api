@@ -1084,4 +1084,3 @@ PostgreSQL/Redis 集成测试覆盖：
 - 《互联网广告管理办法》：<https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_d93a579afd45413e8576e4623fab348f.html>
 - AnyToken 官网：<https://anytoken.work>
 - AnyToken 文档站：<https://doc.anytoken.work>
-
