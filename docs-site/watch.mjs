@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
-const sourceEntries = ['build.mjs', 'watch.mjs', 'index.html', 'pages.json', 'styles.css', 'app.js', 'assets']
+const sourceEntries = ['build.mjs', 'watch.mjs', 'index.html', 'pages.json', 'styles.css', 'app.js', 'analytics.js', 'assets']
 
 let buildRunning = false
 let buildPending = false
