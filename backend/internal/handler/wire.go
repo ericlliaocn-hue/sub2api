@@ -201,6 +201,7 @@ func ProvideHandlers(
 	creationHistoryHandler *CreationHistoryHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
+	_ *service.OpenAIQuotaAutoResetService,
 ) *Handlers {
 	return &Handlers{
 		Auth:             authHandler,
