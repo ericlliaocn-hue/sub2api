@@ -82,6 +82,15 @@ type stubAdminService struct {
 	mu sync.Mutex
 }
 
+func (s *stubAdminService) GrantExpiringBonus(_ context.Context, input service.AdminBonusGrantInput) (*service.AdminBonusGrantResult, error) {
+	return &service.AdminBonusGrantResult{
+		Affected: len(input.UserIDs), Amount: input.Amount,
+		TotalGranted: input.Amount * float64(len(input.UserIDs)),
+		ExpiresAt: input.ExpiresAt, CampaignID: input.CampaignID,
+		OperationID: input.OperationID,
+	}, nil
+}
+
 func newStubAdminService() *stubAdminService {
 	now := time.Now().UTC()
 	user := service.User{

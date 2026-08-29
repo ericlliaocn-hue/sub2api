@@ -36,6 +36,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import businessFinanceAPI from './businessFinance'
+import upstreamConnectionsAPI from './upstreamConnections'
 
 /**
  * Unified admin API object for convenient access
@@ -73,7 +74,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  businessFinance: businessFinanceAPI
+  businessFinance: businessFinanceAPI,
+  upstreamConnections: upstreamConnectionsAPI
 }
 
 export {
@@ -109,7 +111,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  businessFinanceAPI
+  businessFinanceAPI,
+  upstreamConnectionsAPI
 }
 
 export default adminAPI

@@ -119,6 +119,7 @@ func RegisterAdminRoutes(
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h, settingService)
 		registerChannelMonitorV2Routes(admin, h, settingService)
+		registerUpstreamConnectionRoutes(admin, h)
 
 		// 风控中心
 		registerContentModerationRoutes(admin, h)
@@ -132,6 +133,15 @@ func RegisterAdminRoutes(
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
 	}
+}
+
+func registerUpstreamConnectionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	connections := admin.Group("/upstream-connections")
+	connections.GET("", h.Admin.UpstreamConnection.List)
+	connections.POST("", h.Admin.UpstreamConnection.Create)
+	connections.PUT("/:id", h.Admin.UpstreamConnection.Update)
+	connections.DELETE("/:id", h.Admin.UpstreamConnection.Delete)
+	connections.POST("/:id/test", h.Admin.UpstreamConnection.Test)
 }
 
 func registerPromotionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
@@ -338,6 +348,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)
 		users.DELETE("/:id", h.Admin.User.Delete)
+		users.POST("/bonus-grants", h.Admin.User.GrantExpiringBonus)
 		users.POST("/:id/balance", h.Admin.User.UpdateBalance)
 		users.GET("/:id/api-keys", h.Admin.User.GetUserAPIKeys)
 		users.GET("/:id/usage", h.Admin.User.GetUserUsage)

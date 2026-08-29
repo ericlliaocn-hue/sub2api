@@ -95,6 +95,14 @@ type UpdateBalanceRequest struct {
 	Notes     string  `json:"notes"`
 }
 
+type GrantExpiringBonusRequest struct {
+	UserIDs    []int64 `json:"user_ids" binding:"required,min=1,max=500,dive,gt=0"`
+	Amount     float64 `json:"amount" binding:"required,gt=0"`
+	ExpiresAt  string  `json:"expires_at" binding:"required"`
+	CampaignID string  `json:"campaign_id" binding:"required,max=100"`
+	Notes      string  `json:"notes" binding:"max=255"`
+}
+
 type BindUserAuthIdentityRequest struct {
 	ProviderType    string                              `json:"provider_type"`
 	ProviderKey     string                              `json:"provider_key"`
@@ -409,6 +417,38 @@ func (h *UserHandler) UpdateBalance(c *gin.Context) {
 			return nil, execErr
 		}
 		return dto.UserFromServiceAdmin(user), nil
+	})
+}
+
+// GrantExpiringBonus grants one expiring promotional balance lot to each selected user.
+// POST /api/v1/admin/users/bonus-grants
+func (h *UserHandler) GrantExpiringBonus(c *gin.Context) {
+	var req GrantExpiringBonusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	expiresAt, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
+	if err != nil {
+		response.BadRequest(c, "expires_at must be an RFC3339 timestamp")
+		return
+	}
+	operationID := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+	if operationID == "" {
+		response.BadRequest(c, "Idempotency-Key header is required")
+		return
+	}
+	adminID := getAdminIDFromContext(c)
+	idempotencyPayload := struct {
+		AdminID int64                     `json:"admin_id"`
+		Body    GrantExpiringBonusRequest `json:"body"`
+	}{AdminID: adminID, Body: req}
+	executeAdminIdempotentJSON(c, "admin.users.bonus_grants.create", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.adminService.GrantExpiringBonus(ctx, service.AdminBonusGrantInput{
+			UserIDs: req.UserIDs, Amount: req.Amount, ExpiresAt: expiresAt,
+			CampaignID: req.CampaignID, Notes: req.Notes,
+			OperationID: operationID, GrantedBy: adminID,
+		})
 	})
 }
 

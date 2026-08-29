@@ -77,7 +77,7 @@ func TestExpireRechargeBonusLotsReclaimsBalanceAndRecordsLedger(t *testing.T) {
 		WHERE user_id = $1 AND status = 'active' AND remaining_amount > 0 AND expires_at > NOW()
 	`)).WithArgs(int64(9)).WillReturnRows(sqlmock.NewRows([]string{"total"}).AddRow(0.75))
 	mock.ExpectExec("INSERT INTO user_balance_ledgers").
-		WithArgs(int64(9), "bonus_expired", -2.0, 10.0, 8.0, 2.75, 0.75, "bonus_expiry", sqlmock.AnyArg(), "充值赠送额度到期收回", "null").
+		WithArgs(int64(9), "bonus_expired", -2.0, 10.0, 8.0, 2.75, 0.75, "bonus_expiry", sqlmock.AnyArg(), "赠送余额到期收回", "null").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	expired, err := ExpireRechargeBonusLots(context.Background(), db, 9)

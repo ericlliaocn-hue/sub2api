@@ -51,6 +51,7 @@ func ProvideAdminHandlers(
 	creationHistoryHandler *admin.CreationHistoryHandler,
 	businessFinanceHandler *admin.BusinessFinanceHandler,
 	promotionHandler *admin.PromotionHandler,
+	upstreamConnectionHandler *admin.UpstreamConnectionHandler,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
@@ -93,6 +94,7 @@ func ProvideAdminHandlers(
 		Creation:               creationHistoryHandler,
 		BusinessFinance:        businessFinanceHandler,
 		Promotion:              promotionHandler,
+		UpstreamConnection:     upstreamConnectionHandler,
 	}
 }
 
@@ -287,6 +289,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewCreationHistoryHandler,
 	admin.NewBusinessFinanceHandler,
 	admin.NewPromotionHandler,
+	admin.NewUpstreamConnectionHandler,
 	admin.NewContentModerationHandler,
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,

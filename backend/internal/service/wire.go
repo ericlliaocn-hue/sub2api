@@ -843,6 +843,7 @@ var ProviderSet = wire.NewSet(
 	NewCreationHistoryService,
 	NewBusinessFinanceService,
 	NewPromotionService,
+	NewUpstreamConnectionService,
 	ProvideBatchImageCleanupService,
 	ProvideBatchImageWorkerRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),
@@ -971,9 +972,10 @@ func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, 
 }
 
 // ProvidePaymentOrderExpiryService creates and starts PaymentOrderExpiryService.
-func ProvidePaymentOrderExpiryService(paymentSvc *PaymentService, lockCache LeaderLockCache, db *sql.DB) *PaymentOrderExpiryService {
+func ProvidePaymentOrderExpiryService(paymentSvc *PaymentService, billingCache *BillingCacheService, authCache APIKeyAuthCacheInvalidator, lockCache LeaderLockCache, db *sql.DB) *PaymentOrderExpiryService {
 	svc := NewPaymentOrderExpiryService(paymentSvc, 60*time.Second)
 	svc.SetLeaderLock(lockCache, db)
+	svc.SetBonusExpiryInvalidators(billingCache, authCache)
 	svc.Start()
 	return svc
 }

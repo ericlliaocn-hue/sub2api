@@ -45,6 +45,7 @@ type AdminHandlers struct {
 	Creation               *admin.CreationHistoryHandler
 	BusinessFinance        *admin.BusinessFinanceHandler
 	Promotion              *admin.PromotionHandler
+	UpstreamConnection     *admin.UpstreamConnectionHandler
 }
 
 // Handlers contains all HTTP handlers
