@@ -14,6 +14,7 @@ type AtomicMetrics struct {
 	allowed      atomic.Int64
 	flagged      atomic.Int64
 	blocked      atomic.Int64
+	busy         atomic.Int64
 	unavailable  atomic.Int64
 	invalid      atomic.Int64
 	timeouts     atomic.Int64
@@ -37,7 +38,7 @@ func (m *AtomicMetrics) Snapshot() GuardMetricsSnapshot {
 	}
 	snapshot := GuardMetricsSnapshot{
 		Total: m.total.Load(), Allowed: m.allowed.Load(), Flagged: m.flagged.Load(),
-		Blocked: m.blocked.Load(), Unavailable: m.unavailable.Load(), Invalid: m.invalid.Load(),
+		Blocked: m.blocked.Load(), Busy: m.busy.Load(), Unavailable: m.unavailable.Load(), Invalid: m.invalid.Load(),
 		Timeouts: m.timeouts.Load(), Failovers: m.failovers.Load(), BulkheadFull: m.bulkheadFull.Load(),
 		RecordFailed: m.recordFailed.Load(), LatencyCount: m.total.Load(), LatencyMaxMS: m.latencyMax.Load(),
 	}
@@ -88,6 +89,8 @@ func (m *AtomicMetrics) Observe(kind DecisionKind, latency time.Duration) {
 		m.flagged.Add(1)
 	case DecisionBlock:
 		m.blocked.Add(1)
+	case DecisionBusy:
+		m.busy.Add(1)
 	case DecisionUnavailable:
 		m.unavailable.Add(1)
 	case DecisionInvalid:

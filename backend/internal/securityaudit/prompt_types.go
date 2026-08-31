@@ -13,6 +13,7 @@ const (
 	PayloadKeyPrefix          = "sub2api:prompt_audit:payload:"
 
 	ErrorCodeBlocked               = "prompt_guard_blocked"
+	ErrorCodeBusy                  = "prompt_guard_busy"
 	ErrorCodeUnavailable           = "prompt_guard_unavailable"
 	ErrorCodeInvalidResponse       = "prompt_guard_invalid_response"
 	ErrorCodeConfigConflict        = "prompt_audit_config_conflict"
@@ -37,6 +38,7 @@ const (
 	DecisionAllow       DecisionKind = "allow"
 	DecisionFlag        DecisionKind = "flag"
 	DecisionBlock       DecisionKind = "block"
+	DecisionBusy        DecisionKind = "busy"
 	DecisionUnavailable DecisionKind = "unavailable"
 	DecisionInvalid     DecisionKind = "invalid"
 )
@@ -200,6 +202,7 @@ type GuardMetricsSnapshot struct {
 	Allowed      int64 `json:"allowed"`
 	Flagged      int64 `json:"flagged"`
 	Blocked      int64 `json:"blocked"`
+	Busy         int64 `json:"busy"`
 	Unavailable  int64 `json:"unavailable"`
 	Invalid      int64 `json:"invalid"`
 	Timeouts     int64 `json:"timeouts"`

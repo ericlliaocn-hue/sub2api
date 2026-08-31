@@ -447,6 +447,31 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 	require.Equal(t, int64(1), metrics.Snapshot().Failovers)
 }
 
+func TestWorkerRetriesWithoutCallingScannerWhenAsyncCapacityIsBusy(t *testing.T) {
+	now := time.Unix(250, 0).UTC()
+	cfg := asyncConfig()
+	repo := &fakeJobRepository{}
+	payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
+	metrics := NewAtomicMetrics()
+	capacity := newPromptCapacity(2, 2, 1, 1)
+	heldRelease, acquired := capacity.TryAcquireAsync("guard")
+	require.True(t, acquired)
+	defer heldRelease()
+	scannerCalls := 0
+	runner := newRunnerWithCapacity(&fakeConfigStore{cfg: cfg, active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		scannerCalls++
+		return integrationResult(EventPass), nil
+	}), metrics, capacity)
+	runner.clock = fixedClock{now: now}
+
+	err := runner.processJob(context.Background(), 0, cfg, workerJob(1, 3))
+	require.Error(t, err)
+	require.Zero(t, scannerCalls)
+	require.Equal(t, 1, repo.retried)
+	require.Equal(t, ErrorCodeUnavailable, repo.retryCode)
+	require.Equal(t, int64(1), metrics.Snapshot().BulkheadFull)
+}
+
 func TestWorkerPanicLeaseLossAndLifecycleAreContained(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		repo := &fakeJobRepository{}

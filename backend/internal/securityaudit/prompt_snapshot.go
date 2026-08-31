@@ -48,7 +48,7 @@ func extractPromptSnapshot(req Request, latestTurnOnly bool) (PromptSnapshot, er
 	extracted := extractProtocolSegments(req.Protocol, document)
 	segments := normalizeSegmentsLatestUserFirst(extracted)
 	if latestTurnOnly {
-		segments = blockingSegmentsLatestUserAndPreviousOutput(extracted)
+		segments = blockingSegmentsLatestClientTurn(extracted)
 	}
 	if len(segments) == 0 {
 		return PromptSnapshot{}, ErrNoPromptText
@@ -457,11 +457,11 @@ func normalizeSegmentsLatestUserFirst(values []promptSegment) []string {
 	return result
 }
 
-// blockingSegmentsLatestUserAndPreviousOutput limits synchronous guard input to
-// the current user turn and the nearest preceding assistant/model turn. It is
-// deliberately opt-in because full transcript scanning remains stronger at
-// finding client-controlled content placed in older or non-user messages.
-func blockingSegmentsLatestUserAndPreviousOutput(values []promptSegment) []string {
+// blockingSegmentsLatestClientTurn limits synchronous Guard input to the latest
+// user turn and any assistant/tool segments the client submits after it. Older
+// model output is intentionally excluded; the full transcript is reviewed by
+// the persistent background audit after the synchronous decision.
+func blockingSegmentsLatestClientTurn(values []promptSegment) []string {
 	normalized := normalizedPromptSegments(values)
 	latestUserStart := latestUserSegmentStart(normalized)
 	if latestUserStart < 0 {
@@ -478,20 +478,9 @@ func blockingSegmentsLatestUserAndPreviousOutput(values []promptSegment) []strin
 		currentUserText = append(currentUserText, segment.text)
 	}
 	// A single client turn may have several text content parts. Keep it in one
-	// priority segment so every part of the latest input is scanned before the
-	// prior output begins.
+	// priority segment so every part is scanned before any later tool content.
 	selected := []promptSegment{{text: strings.Join(currentUserText, "\n\n"), user: true, role: "user"}}
-	for index := latestUserStart - 1; index >= 0; index-- {
-		if !isAssistantOutputSegment(normalized[index]) {
-			continue
-		}
-		start := index
-		for start > 0 && isAssistantOutputSegment(normalized[start-1]) {
-			start--
-		}
-		selected = append(selected, normalized[start:index+1]...)
-		break
-	}
+	selected = append(selected, normalized[latestUserEnd:]...)
 	return promptSegmentTexts(selected)
 }
 

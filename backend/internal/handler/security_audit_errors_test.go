@@ -24,6 +24,10 @@ func promptGuardDecision(kind securityaudit.DecisionKind) *securityaudit.Decisio
 		decision.HTTPStatus = http.StatusServiceUnavailable
 		decision.ErrorCode = securityaudit.ErrorCodeInvalidResponse
 		decision.ClientMessage = "提示词安全审计暂时不可用，请稍后重试"
+	case securityaudit.DecisionBusy:
+		decision.HTTPStatus = http.StatusTooManyRequests
+		decision.ErrorCode = securityaudit.ErrorCodeBusy
+		decision.ClientMessage = "提示词安全审计繁忙，请稍后重试"
 	default:
 		decision.HTTPStatus = http.StatusServiceUnavailable
 		decision.ErrorCode = securityaudit.ErrorCodeUnavailable
@@ -64,7 +68,7 @@ func requireArray(t *testing.T, value any) []any {
 
 func TestPromptGuardOpenAIAndClaudeErrorEnvelopesGolden(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, kind := range []securityaudit.DecisionKind{securityaudit.DecisionBlock, securityaudit.DecisionUnavailable, securityaudit.DecisionInvalid} {
+	for _, kind := range []securityaudit.DecisionKind{securityaudit.DecisionBlock, securityaudit.DecisionBusy, securityaudit.DecisionUnavailable, securityaudit.DecisionInvalid} {
 		decision := promptGuardDecision(kind)
 		t.Run("openai_"+string(kind), func(t *testing.T) {
 			c, recorder := securityAuditErrorTestContext(t)
@@ -110,7 +114,7 @@ func TestPromptGuardOpenAIAndClaudeErrorEnvelopesGolden(t *testing.T) {
 
 func TestPromptGuardGeminiErrorEnvelopeGolden(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, kind := range []securityaudit.DecisionKind{securityaudit.DecisionBlock, securityaudit.DecisionUnavailable, securityaudit.DecisionInvalid} {
+	for _, kind := range []securityaudit.DecisionKind{securityaudit.DecisionBlock, securityaudit.DecisionBusy, securityaudit.DecisionUnavailable, securityaudit.DecisionInvalid} {
 		decision := promptGuardDecision(kind)
 		c, recorder := securityAuditErrorTestContext(t)
 		googleSecurityAuditError(c, decision)
@@ -122,6 +126,8 @@ func TestPromptGuardGeminiErrorEnvelopeGolden(t *testing.T) {
 			require.Equal(t, "INVALID_ARGUMENT", errorObject["status"])
 		} else if decision.HTTPStatus == http.StatusForbidden {
 			require.Equal(t, "PERMISSION_DENIED", errorObject["status"])
+		} else if decision.HTTPStatus == http.StatusTooManyRequests {
+			require.Equal(t, "RESOURCE_EXHAUSTED", errorObject["status"])
 		} else {
 			require.Equal(t, "UNAVAILABLE", errorObject["status"])
 		}

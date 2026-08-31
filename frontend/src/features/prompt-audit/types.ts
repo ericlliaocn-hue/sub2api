@@ -96,6 +96,7 @@ export interface PromptGuardMetrics {
   allowed: number
   flagged: number
   blocked: number
+  busy?: number
   unavailable: number
   invalid: number
   timeouts: number

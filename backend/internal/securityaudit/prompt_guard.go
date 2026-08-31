@@ -3,35 +3,38 @@ package securityaudit
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 )
 
 type GuardEvaluator struct {
-	scanner PromptScanner
-	repo    JobRepository
-	metrics Metrics
-	clock   Clock
-
-	global       chan struct{}
-	perNodeLimit int
-	nodeMu       sync.Mutex
-	nodes        map[string]chan struct{}
+	scanner  PromptScanner
+	repo     JobRepository
+	metrics  Metrics
+	clock    Clock
+	capacity *promptCapacity
 }
 
 func NewGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metrics) *GuardEvaluator {
-	return newGuardEvaluator(scanner, repo, metrics, 64, 16)
+	return newGuardEvaluatorWithCapacity(scanner, repo, metrics, newPromptCapacity(
+		defaultPromptSyncGlobalLimit,
+		defaultPromptSyncNodeLimit,
+		defaultPromptAsyncGlobalLimit,
+		defaultPromptAsyncNodeLimit,
+	))
 }
 
 func newGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metrics, globalLimit, perNodeLimit int) *GuardEvaluator {
-	if globalLimit < 1 {
-		globalLimit = 64
-	}
-	if perNodeLimit < 1 {
-		perNodeLimit = 16
-	}
-	return &GuardEvaluator{scanner: scanner, repo: repo, metrics: metrics, clock: realClock{},
-		global: make(chan struct{}, globalLimit), perNodeLimit: perNodeLimit, nodes: map[string]chan struct{}{}}
+	return newGuardEvaluatorWithCapacity(scanner, repo, metrics, newPromptCapacity(
+		globalLimit,
+		perNodeLimit,
+		defaultPromptAsyncGlobalLimit,
+		defaultPromptAsyncNodeLimit,
+	))
+
+}
+
+func newGuardEvaluatorWithCapacity(scanner PromptScanner, repo JobRepository, metrics Metrics, capacity *promptCapacity) *GuardEvaluator {
+	return &GuardEvaluator{scanner: scanner, repo: repo, metrics: metrics, clock: realClock{}, capacity: capacity}
 }
 
 func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapshot PromptSnapshot) (*PromptDecision, error) {
@@ -48,17 +51,6 @@ func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapsho
 	endpoints := cfg.EnabledEndpoints()
 	if len(endpoints) == 0 {
 		if g.metrics != nil {
-			g.metrics.Observe(DecisionUnavailable, g.clock.Now().Sub(start))
-		}
-		logGuardFailure(snapshot, cfg, DecisionUnavailable, ErrorCodeUnavailable, "", g.clock.Now().Sub(start))
-		return nil, &GuardError{Code: ErrorCodeUnavailable}
-	}
-	select {
-	case g.global <- struct{}{}:
-		defer func() { <-g.global }()
-	default:
-		if g.metrics != nil {
-			g.metrics.IncBulkheadFull()
 			g.metrics.Observe(DecisionUnavailable, g.clock.Now().Sub(start))
 		}
 		logGuardFailure(snapshot, cfg, DecisionUnavailable, ErrorCodeUnavailable, "", g.clock.Now().Sub(start))
@@ -189,24 +181,23 @@ func logGuardFailure(snapshot PromptSnapshot, cfg ActiveConfig, kind DecisionKin
 
 func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoints []ActiveEndpoint, chunk string) (*NormalizedResult, error) {
 	var lastErr error
+	capacity := g.capacity
+	if capacity == nil {
+		capacity = newPromptCapacity(defaultPromptSyncGlobalLimit, defaultPromptSyncNodeLimit, defaultPromptAsyncGlobalLimit, defaultPromptAsyncNodeLimit)
+	}
 	for index, endpoint := range endpoints {
-		semaphore := g.nodeSemaphore(endpoint.ID)
-		select {
-		case semaphore <- struct{}{}:
-		case <-ctx.Done():
-			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Timeout: errors.Is(ctx.Err(), context.DeadlineExceeded), Cause: ctx.Err()}
-		default:
+		release, acquired := capacity.AcquireSync(ctx, endpoint.ID)
+		if !acquired {
 			if g.metrics != nil {
 				g.metrics.IncBulkheadFull()
 			}
-			lastErr = &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
-			if index < len(endpoints)-1 && g.metrics != nil {
-				g.metrics.IncFailover()
+			return nil, &GuardError{
+				Code: ErrorCodeUnavailable, Retryable: true,
+				Timeout: errors.Is(ctx.Err(), context.DeadlineExceeded), Cause: ctx.Err(),
 			}
-			continue
 		}
 		result, err := callPromptScanner(ctx, g.scanner, endpoint, chunk, cfg.Scanners)
-		<-semaphore
+		release()
 		if err == nil && result != nil {
 			return result, nil
 		}
@@ -236,17 +227,6 @@ func callPromptScanner(ctx context.Context, scanner PromptScanner, endpoint Acti
 		}
 	}()
 	return scanner.Scan(ctx, endpoint, chunk, scanners)
-}
-
-func (g *GuardEvaluator) nodeSemaphore(id string) chan struct{} {
-	g.nodeMu.Lock()
-	defer g.nodeMu.Unlock()
-	semaphore := g.nodes[id]
-	if semaphore == nil {
-		semaphore = make(chan struct{}, g.perNodeLimit)
-		g.nodes[id] = semaphore
-	}
-	return semaphore
 }
 
 func minimumInputLimit(endpoints []ActiveEndpoint) int {

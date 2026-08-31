@@ -73,16 +73,16 @@ func TestGuardEvaluatorOrderedFailoverAndInvalidTerminal(t *testing.T) {
 	require.Equal(t, int64(1), snapshotMetrics.Invalid)
 }
 
-func TestGuardEvaluatorGlobalBulkheadIsNonBlocking(t *testing.T) {
+func TestGuardEvaluatorGlobalCapacityWaitsUntilSharedDeadline(t *testing.T) {
 	release := make(chan struct{})
 	entered := make(chan struct{}, 1)
 	scanner := &scriptedScanner{block: release, entered: entered}
 	metrics := NewAtomicMetrics()
 	evaluator := newGuardEvaluator(scanner, nil, metrics, 1, 1)
-	cfg := guardConfig(ActiveEndpoint{ID: "good", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
+	firstCfg := guardConfig(ActiveEndpoint{ID: "good", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
 	done := make(chan error, 1)
 	go func() {
-		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
+		_, err := evaluator.Evaluate(context.Background(), firstCfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
 		done <- err
 	}()
 	select {
@@ -91,9 +91,11 @@ func TestGuardEvaluatorGlobalBulkheadIsNonBlocking(t *testing.T) {
 		t.Fatal("first evaluation did not enter scanner")
 	}
 	start := time.Now()
-	_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
+	secondCfg := guardConfig(ActiveEndpoint{ID: "good", Enabled: true, TimeoutMS: 60, InputLimit: 100})
+	_, err := evaluator.Evaluate(context.Background(), secondCfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
 	require.Error(t, err)
-	require.Less(t, time.Since(start), 200*time.Millisecond)
+	require.GreaterOrEqual(t, time.Since(start), 40*time.Millisecond)
+	require.Less(t, time.Since(start), 500*time.Millisecond)
 	require.Equal(t, int64(1), metrics.Snapshot().BulkheadFull)
 	close(release)
 	require.NoError(t, <-done)
@@ -103,16 +105,16 @@ func TestGuardEvaluatorGlobalBulkheadIsNonBlocking(t *testing.T) {
 	require.Equal(t, int64(1), snapshotMetrics.Unavailable)
 }
 
-func TestGuardEvaluatorPerNodeBulkheadIsNonBlocking(t *testing.T) {
+func TestGuardEvaluatorPerNodeCapacityWaitsUntilSharedDeadline(t *testing.T) {
 	release := make(chan struct{})
 	entered := make(chan struct{}, 1)
 	scanner := &scriptedScanner{block: release, entered: entered}
 	metrics := NewAtomicMetrics()
 	evaluator := newGuardEvaluator(scanner, nil, metrics, 2, 1)
-	cfg := guardConfig(ActiveEndpoint{ID: "same-node", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
+	firstCfg := guardConfig(ActiveEndpoint{ID: "same-node", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
 	done := make(chan error, 1)
 	go func() {
-		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
+		_, err := evaluator.Evaluate(context.Background(), firstCfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
 		done <- err
 	}()
 	select {
@@ -121,9 +123,11 @@ func TestGuardEvaluatorPerNodeBulkheadIsNonBlocking(t *testing.T) {
 		t.Fatal("first evaluation did not enter scanner")
 	}
 	started := time.Now()
-	_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
+	secondCfg := guardConfig(ActiveEndpoint{ID: "same-node", Enabled: true, TimeoutMS: 60, InputLimit: 100})
+	_, err := evaluator.Evaluate(context.Background(), secondCfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
 	require.Error(t, err)
-	require.Less(t, time.Since(started), 200*time.Millisecond)
+	require.GreaterOrEqual(t, time.Since(started), 40*time.Millisecond)
+	require.Less(t, time.Since(started), 500*time.Millisecond)
 	require.GreaterOrEqual(t, metrics.Snapshot().BulkheadFull, int64(1))
 	close(release)
 	require.NoError(t, <-done)
