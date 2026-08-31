@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"time"
 )
 
 // ContextPricingBasis 阶梯的计价基准。
@@ -30,11 +31,28 @@ type ContextPricingTier struct {
 	CacheRead  *float64
 }
 
+// TimePricingPeriod 分时倍率时段：配置时区当天 [StartTime, EndTime) 内整单费用乘 Multiplier。
+type TimePricingPeriod struct {
+	StartTime  string
+	EndTime    string
+	Multiplier float64
+}
+
+// TimePricingSchedule 分组+模型生效的分时倍率（仅列出倍率 ≠ 1 的时段，按开始时间升序）。
+// WeekdaysOnly 为 true 时时段仅周一至周五生效，周末整天按标准价计费。
+type TimePricingSchedule struct {
+	Timezone     string
+	WeekdaysOnly bool
+	Periods      []TimePricingPeriod
+}
+
 // ContextPricingSchedule 分组+模型按上下文长度分档的有效单价表。
 // 单价由真实计费函数探针得出，与扣费同源；单档表示无阶梯。
+// Tiers 为标准时段单价；TimePricing 非 nil 时，落在时段内的请求整单再乘对应倍率。
 type ContextPricingSchedule struct {
-	Basis ContextPricingBasis
-	Tiers []ContextPricingTier
+	Basis       ContextPricingBasis
+	Tiers       []ContextPricingTier
+	TimePricing *TimePricingSchedule
 }
 
 // ContextPricingScheduleInput 阶梯表查询输入。
@@ -119,17 +137,66 @@ func (s *BillingService) ResolveContextPricingSchedule(ctx context.Context, reso
 		}
 		tiers = append(tiers, tier)
 	}
-	if legacy == nil {
-		applyIntervalContextLabels(tiers, resolved.Intervals)
-	}
 	tiers = mergeEqualContextTiers(tiers)
-	applyGeneratedContextLabels(tiers, plan)
+	applyContextTierLabels(tiers, plan)
 
 	basis := ContextPricingBasisWholeRequest
 	if legacy != nil {
 		basis = ContextPricingBasisMarginal
 	}
-	return &ContextPricingSchedule{Basis: basis, Tiers: tiers}, nil
+	return &ContextPricingSchedule{Basis: basis, Tiers: tiers, TimePricing: resolvedTimePricingSchedule(resolved)}, nil
+}
+
+// resolvedTimePricingSchedule 列出计费会生效的分时倍率时段。
+// 时段来自解析到的渠道定价配置，每个时段的倍率用计费自己的 resolvedChannelTimeMultiplier
+// 在时段内取值：定价来源不是渠道（分组价卡覆盖）、配置非法等情况下计费按 1 计，
+// 这里也就自然得到"无分时"。倍率为 1 的时段不列出。
+func resolvedTimePricingSchedule(resolved *ResolvedPricing) *TimePricingSchedule {
+	if resolved == nil || resolved.channelPricing == nil || resolved.channelPricing.TimePricing == nil {
+		return nil
+	}
+	cfg := resolved.channelPricing.TimePricing
+	location, err := loadChannelTimePricingLocation(cfg.Timezone)
+	if err != nil {
+		return nil
+	}
+	type probedPeriod struct {
+		start  int
+		period TimePricingPeriod
+	}
+	probed := make([]probedPeriod, 0, len(cfg.Periods))
+	for _, period := range cfg.Periods {
+		start, err := parseChannelTime(period.StartTime, false)
+		if err != nil {
+			continue
+		}
+		// 时段按每日循环，取该时段开始后 1 秒作为探针时刻。
+		// 锚点日必须是工作日（2026-01-05 为周一）：weekdays_only 配置在周末恒为 1，
+		// 锚点落在周末会把时段整组剔除。
+		at := time.Date(2026, time.January, 5, 0, 0, start+1, 0, location)
+		multiplier := resolvedChannelTimeMultiplier(resolved, at)
+		if multiplier == 1 {
+			continue
+		}
+		probed = append(probed, probedPeriod{start: start, period: TimePricingPeriod{
+			StartTime:  period.StartTime,
+			EndTime:    period.EndTime,
+			Multiplier: multiplier,
+		}})
+	}
+	if len(probed) == 0 {
+		return nil
+	}
+	sort.SliceStable(probed, func(i, j int) bool { return probed[i].start < probed[j].start })
+	out := &TimePricingSchedule{
+		Timezone:     cfg.Timezone,
+		WeekdaysOnly: cfg.WeekdaysOnly,
+		Periods:      make([]TimePricingPeriod, 0, len(probed)),
+	}
+	for _, p := range probed {
+		out.Periods = append(out.Periods, p.period)
+	}
+	return out
 }
 
 // contextBreakpointPlan 描述断点来源。
@@ -330,35 +397,14 @@ func contextPricePtr(v *float64, explicit bool) *float64 {
 	return v
 }
 
-// applyIntervalContextLabels 把管理员在渠道区间上配置的 tier_label 带到对应档位。
-func applyIntervalContextLabels(tiers []ContextPricingTier, intervals []PricingInterval) {
-	for i := range tiers {
-		for j := range intervals {
-			iv := &intervals[j]
-			if iv.TierLabel == "" || iv.MinTokens != tiers[i].MinTokens {
-				continue
-			}
-			if (iv.MaxTokens == nil) != (tiers[i].MaxTokens == nil) {
-				continue
-			}
-			if iv.MaxTokens != nil && *iv.MaxTokens != *tiers[i].MaxTokens {
-				continue
-			}
-			tiers[i].Label = iv.TierLabel
-			break
-		}
-	}
-}
-
-// mergeEqualContextTiers 合并相邻、四项单价相同且都没有管理员标签的段
-// （倍率 ≤1 的目录、关闭阶梯等场景塌成单档）。
+// mergeEqualContextTiers 合并相邻且四项单价相同的段（倍率 ≤1 的目录、关闭阶梯等场景塌成单档）。
 func mergeEqualContextTiers(tiers []ContextPricingTier) []ContextPricingTier {
 	if len(tiers) < 2 {
 		return tiers
 	}
 	merged := make([]ContextPricingTier, 0, len(tiers))
 	for _, t := range tiers {
-		if n := len(merged); n > 0 && merged[n-1].Label == "" && t.Label == "" && sameContextPrices(merged[n-1], t) {
+		if n := len(merged); n > 0 && sameContextPrices(merged[n-1], t) {
 			merged[n-1].MaxTokens = t.MaxTokens
 			continue
 		}
@@ -383,25 +429,25 @@ func samePricePtr(a, b *float64) bool {
 	return math.Abs(*a-*b) <= scale*1e-9
 }
 
-// applyGeneratedContextLabels 给档位打标签：渠道区间沿用管理员配置的 tier_label；
-// 目录阶梯/旧规则的两档按阈值生成（达到阈值即进高档时用 < / ≥）。
-func applyGeneratedContextLabels(tiers []ContextPricingTier, plan contextBreakpointPlan) {
+// applyContextTierLabels 给多档阶梯打统一形态的标签：有上限的档为「≤上限」，
+// 末档为「>下限」；档位按上下文升序，因此相邻的 ≤100K / ≤200K 即表示 (100K,200K]。
+// 目录阶梯/旧规则在"达到阈值即进高档"时改用 < / ≥ 表达阈值本身。
+// 渠道区间上的 tier_label 不用于 token 档位（token 模式的管理表单不暴露该字段）。
+func applyContextTierLabels(tiers []ContextPricingTier, plan contextBreakpointPlan) {
 	if len(tiers) < 2 {
 		return
 	}
-	if plan.thresholdBound > 0 {
-		label := formatContextTokenCount(plan.threshold)
-		lowPrefix, highPrefix := "≤", ">"
-		if plan.thresholdInclusive {
-			lowPrefix, highPrefix = "<", "≥"
-		}
-		for i := range tiers {
-			switch {
-			case tiers[i].MaxTokens != nil && *tiers[i].MaxTokens == plan.thresholdBound:
-				tiers[i].Label = lowPrefix + label
-			case tiers[i].MinTokens == plan.thresholdBound:
-				tiers[i].Label = highPrefix + label
-			}
+	for i := range tiers {
+		t := &tiers[i]
+		switch {
+		case plan.thresholdInclusive && t.MaxTokens != nil && *t.MaxTokens == plan.thresholdBound:
+			t.Label = "<" + formatContextTokenCount(plan.threshold)
+		case plan.thresholdInclusive && t.MinTokens == plan.thresholdBound:
+			t.Label = "≥" + formatContextTokenCount(plan.threshold)
+		case t.MaxTokens != nil:
+			t.Label = "≤" + formatContextTokenCount(*t.MaxTokens)
+		default:
+			t.Label = ">" + formatContextTokenCount(t.MinTokens)
 		}
 	}
 }

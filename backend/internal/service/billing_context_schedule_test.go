@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
@@ -106,7 +107,7 @@ func scheduleScenarios() []scheduleScenario {
 			},
 		},
 		{
-			name: "渠道倍率区间按渠道平价覆盖后的 base 折算", model: "claude-sonnet-4", platform: PlatformAnthropic, groupPlatform: PlatformAnthropic,
+			name: "渠道倍率区间按渠道平价覆盖后的 base 折算（区间自定义标签不用于档位）", model: "claude-sonnet-4", platform: PlatformAnthropic, groupPlatform: PlatformAnthropic,
 			group: enabledGroup(PlatformAnthropic), wantBasis: ContextPricingBasisWholeRequest,
 			channel: sonnetChannel(
 				PricingInterval{MinTokens: 0, MaxTokens: intPtr(200000), InputMultiplier: p(1)},
@@ -114,8 +115,8 @@ func scheduleScenarios() []scheduleScenario {
 			),
 			check: func(t *testing.T, s *ContextPricingSchedule) {
 				require.Len(t, s.Tiers, 2)
-				requireTier(t, s.Tiers[0], 0, intPtr(200000), "", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
-				requireTier(t, s.Tiers[1], 200000, nil, "long", p(4e-6), p(22.5e-6), p(7.5e-6), p(0.6e-6))
+				requireTier(t, s.Tiers[0], 0, intPtr(200000), "≤200K", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[1], 200000, nil, ">200K", p(4e-6), p(22.5e-6), p(7.5e-6), p(0.6e-6))
 			},
 		},
 		{
@@ -139,9 +140,9 @@ func scheduleScenarios() []scheduleScenario {
 			),
 			check: func(t *testing.T, s *ContextPricingSchedule) {
 				require.Len(t, s.Tiers, 3)
-				requireTier(t, s.Tiers[0], 0, intPtr(100000), "", p(1e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
-				requireTier(t, s.Tiers[1], 100000, intPtr(200000), "", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
-				requireTier(t, s.Tiers[2], 200000, nil, "", p(4e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[0], 0, intPtr(100000), "≤100K", p(1e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[1], 100000, intPtr(200000), "≤200K", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[2], 200000, nil, ">200K", p(4e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
 			},
 		},
 		{
@@ -153,8 +154,8 @@ func scheduleScenarios() []scheduleScenario {
 			),
 			check: func(t *testing.T, s *ContextPricingSchedule) {
 				require.Len(t, s.Tiers, 2)
-				requireTier(t, s.Tiers[0], 0, intPtr(200000), "", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
-				requireTier(t, s.Tiers[1], 200000, nil, "", p(4e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[0], 0, intPtr(200000), "≤200K", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[1], 200000, nil, ">200K", p(4e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
 			},
 		},
 		{
@@ -166,8 +167,8 @@ func scheduleScenarios() []scheduleScenario {
 			),
 			check: func(t *testing.T, s *ContextPricingSchedule) {
 				require.Len(t, s.Tiers, 3)
-				requireTier(t, s.Tiers[1], 200000, intPtr(1000000), "", p(4e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
-				requireTier(t, s.Tiers[2], 1000000, nil, "", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[1], 200000, intPtr(1000000), "≤1M", p(4e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
+				requireTier(t, s.Tiers[2], 1000000, nil, ">1M", p(2e-6), p(15e-6), p(3.75e-6), p(0.3e-6))
 			},
 		},
 		{
@@ -336,6 +337,13 @@ func TestResolveContextPricingSchedule_Scenarios(t *testing.T) {
 			for i := 1; i < len(sched.Tiers); i++ {
 				require.NotNil(t, sched.Tiers[i-1].MaxTokens)
 				require.Equal(t, *sched.Tiers[i-1].MaxTokens, sched.Tiers[i].MinTokens, "档位连续")
+				require.Less(t, sched.Tiers[i-1].MinTokens, sched.Tiers[i].MinTokens, "档位按上下文升序")
+			}
+			if len(sched.Tiers) > 1 {
+				for i, tier := range sched.Tiers {
+					require.NotEmpty(t, tier.Label, "多档时每档都有标签 #%d", i)
+				}
+				require.Nil(t, sched.Tiers[len(sched.Tiers)-1].MaxTokens, "末档无上限")
 			}
 			if sc.check != nil {
 				sc.check(t, sched)
@@ -483,4 +491,130 @@ func assertCostClose(t *testing.T, want, got float64, format string, args ...any
 	t.Helper()
 	tolerance := 1e-12 + 1e-9*math.Abs(want)
 	require.InDeltaf(t, want, got, tolerance, format, args...)
+}
+
+func sonnetChannelWithTimePricing(tp *ChannelTimePricing) []ChannelModelPricing {
+	return []ChannelModelPricing{{
+		Platform: PlatformAnthropic, Models: []string{"claude-sonnet-4"}, BillingMode: BillingModeToken,
+		InputPrice: testPtrFloat64(2e-6), TimePricing: tp,
+	}}
+}
+
+func TestResolveContextPricingSchedule_TimePricing(t *testing.T) {
+	valid := &ChannelTimePricing{Timezone: "Asia/Shanghai", Periods: []ChannelTimePricingPeriod{
+		{StartTime: "18:00", EndTime: "22:00:00", Multiplier: 1.2},
+		{StartTime: "00:30", EndTime: "08:30", Multiplier: 0.5},
+		{StartTime: "12:00", EndTime: "13:00", Multiplier: 1},
+	}}
+
+	t.Run("渠道分时按开始时间升序列出且跳过倍率 1 的时段", func(t *testing.T) {
+		bs, resolver := newTokenCostTestEnv(t, PlatformAnthropic, sonnetChannelWithTimePricing(valid), nil)
+		sched, err := bs.ResolveContextPricingSchedule(context.Background(), resolver, ContextPricingScheduleInput{
+			Model: "claude-sonnet-4", Group: enabledGroup(PlatformAnthropic), Platform: PlatformAnthropic,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, sched.TimePricing)
+		require.Equal(t, "Asia/Shanghai", sched.TimePricing.Timezone)
+		require.False(t, sched.TimePricing.WeekdaysOnly)
+		require.Equal(t, []TimePricingPeriod{
+			{StartTime: "00:30", EndTime: "08:30", Multiplier: 0.5},
+			{StartTime: "18:00", EndTime: "22:00:00", Multiplier: 1.2},
+		}, sched.TimePricing.Periods)
+		// 阶梯表单价是标准时段价，不含分时倍率
+		requirePrice(t, testPtrFloat64(2e-6), sched.Tiers[0].Input, "input")
+
+		// 对账：时段内的真实计费 = 标准单价 × token × 倍率
+		group := enabledGroup(PlatformAnthropic)
+		gid := group.ID
+		resolved := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4", GroupID: &gid, Group: group})
+		loc, err := time.LoadLocation("Asia/Shanghai")
+		require.NoError(t, err)
+		for _, tc := range []struct {
+			at   time.Time
+			want float64
+		}{
+			{time.Date(2026, 8, 23, 3, 0, 0, 0, loc), 0.5},
+			{time.Date(2026, 8, 23, 12, 30, 0, 0, loc), 1},
+			{time.Date(2026, 8, 23, 21, 59, 59, 0, loc), 1.2},
+			{time.Date(2026, 8, 23, 22, 0, 0, 0, loc), 1},
+		} {
+			cost, err := bs.CalculateTokenCostForRequest(TokenCostRequest{
+				Ctx: context.Background(), Model: "claude-sonnet-4", Group: group, Tokens: UsageTokens{InputTokens: 1000},
+				RateMultiplier: 1, PricingAt: tc.at, Resolver: resolver, Resolved: resolved,
+			})
+			require.NoError(t, err)
+			assertCostClose(t, 1000*2e-6*tc.want, cost.ActualCost, "at %s", tc.at)
+		}
+	})
+
+	t.Run("仅工作日配置透传标注且时段仍列出", func(t *testing.T) {
+		weekdays := &ChannelTimePricing{Timezone: "Asia/Shanghai", WeekdaysOnly: true, Periods: []ChannelTimePricingPeriod{
+			{StartTime: "00:30", EndTime: "08:30", Multiplier: 0.5},
+		}}
+		bs, resolver := newTokenCostTestEnv(t, PlatformAnthropic, sonnetChannelWithTimePricing(weekdays), nil)
+		sched, err := bs.ResolveContextPricingSchedule(context.Background(), resolver, ContextPricingScheduleInput{
+			Model: "claude-sonnet-4", Group: enabledGroup(PlatformAnthropic), Platform: PlatformAnthropic,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, sched.TimePricing, "探针锚点必须落在工作日，否则仅工作日配置的时段会被整组剔除")
+		require.True(t, sched.TimePricing.WeekdaysOnly)
+		require.Equal(t, []TimePricingPeriod{
+			{StartTime: "00:30", EndTime: "08:30", Multiplier: 0.5},
+		}, sched.TimePricing.Periods)
+
+		// 对账：工作日时段内乘倍率，周末同一时段按标准价
+		group := enabledGroup(PlatformAnthropic)
+		gid := group.ID
+		resolved := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4", GroupID: &gid, Group: group})
+		loc, err := time.LoadLocation("Asia/Shanghai")
+		require.NoError(t, err)
+		for _, tc := range []struct {
+			at   time.Time
+			want float64
+		}{
+			{time.Date(2026, 8, 24, 3, 0, 0, 0, loc), 0.5}, // 周一
+			{time.Date(2026, 8, 23, 3, 0, 0, 0, loc), 1},   // 周日
+		} {
+			cost, err := bs.CalculateTokenCostForRequest(TokenCostRequest{
+				Ctx: context.Background(), Model: "claude-sonnet-4", Group: group, Tokens: UsageTokens{InputTokens: 1000},
+				RateMultiplier: 1, PricingAt: tc.at, Resolver: resolver, Resolved: resolved,
+			})
+			require.NoError(t, err)
+			assertCostClose(t, 1000*2e-6*tc.want, cost.ActualCost, "at %s", tc.at)
+		}
+	})
+
+	t.Run("配置非法时计费按 1 计，阶梯表不列分时", func(t *testing.T) {
+		invalid := &ChannelTimePricing{Timezone: "Asia/Shanghai", Periods: []ChannelTimePricingPeriod{
+			{StartTime: "00:30", EndTime: "08:30", Multiplier: 0.5},
+			{StartTime: "08:00", EndTime: "09:00", Multiplier: 0.8}, // 与上一段重叠
+		}}
+		bs, resolver := newTokenCostTestEnv(t, PlatformAnthropic, sonnetChannelWithTimePricing(invalid), nil)
+		sched, err := bs.ResolveContextPricingSchedule(context.Background(), resolver, ContextPricingScheduleInput{
+			Model: "claude-sonnet-4", Group: enabledGroup(PlatformAnthropic), Platform: PlatformAnthropic,
+		})
+		require.NoError(t, err)
+		require.Nil(t, sched.TimePricing)
+	})
+
+	t.Run("分组价卡覆盖后渠道分时不再生效", func(t *testing.T) {
+		bs, resolver := newTokenCostTestEnv(t, PlatformAnthropic, sonnetChannelWithTimePricing(valid), nil)
+		group := &Group{ID: 100, Platform: PlatformAnthropic, LongContextPricingEnabled: true, ModelPricing: []ChannelModelPricing{{
+			Models: []string{"claude-sonnet-4"}, BillingMode: BillingModeToken, InputPrice: testPtrFloat64(1e-6),
+		}}}
+		sched, err := bs.ResolveContextPricingSchedule(context.Background(), resolver, ContextPricingScheduleInput{
+			Model: "claude-sonnet-4", Group: group, Platform: PlatformAnthropic,
+		})
+		require.NoError(t, err)
+		require.Nil(t, sched.TimePricing)
+	})
+
+	t.Run("无分时配置为 nil", func(t *testing.T) {
+		bs, resolver := newTokenCostTestEnv(t, PlatformAnthropic, sonnetChannelWithTimePricing(nil), nil)
+		sched, err := bs.ResolveContextPricingSchedule(context.Background(), resolver, ContextPricingScheduleInput{
+			Model: "claude-sonnet-4", Group: enabledGroup(PlatformAnthropic), Platform: PlatformAnthropic,
+		})
+		require.NoError(t, err)
+		require.Nil(t, sched.TimePricing)
+	})
 }
