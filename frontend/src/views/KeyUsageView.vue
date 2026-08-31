@@ -549,7 +549,7 @@ function setDailyUsageDays(days: 7 | 30 | 90) {
 
 const CIRCUMFERENCE = 2 * Math.PI * 68
 const RING_GRADIENTS = [
-  { from: '#5c9e3c', to: '#9ed273' },
+  { from: '#2f6eea', to: '#9dbbff' },
   { from: '#6366F1', to: '#A5B4FC' },
   { from: '#10B981', to: '#6EE7B7' },
   { from: '#F59E0B', to: '#FCD34D' },
@@ -967,8 +967,8 @@ onUnmounted(() => {
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .input-ring:focus {
-  box-shadow: 0 0 0 3px rgba(92, 158, 60, 0.2);
-  border-color: #5c9e3c;
+  box-shadow: 0 0 0 3px rgba(47, 110, 234, 0.2);
+  border-color: #2f6eea;
   outline: none;
 }
 

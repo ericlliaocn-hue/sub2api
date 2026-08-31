@@ -84,7 +84,7 @@ const ACCENT: Record<Platform, string> = {
   deepseek: '#14b8a6', // teal-500
   composite: '#06b6d4', // cyan-500
 }
-const ACCENT_DEFAULT = '#5c9e3c' // primary-600 (brand green)
+const ACCENT_DEFAULT = '#2f6eea' // primary-600 (oioio blue)
 
 // ── Accent bar (gradient) ───────────────────────────────────────────
 const ACCENT_BAR: Record<Platform, string> = {
