@@ -153,6 +153,11 @@ func registerPromotionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	p.POST("/channels", h.Admin.Promotion.SaveChannel)
 	p.PUT("/channels/:id", h.Admin.Promotion.SaveChannel)
 	p.GET("/report", h.Admin.Promotion.Report)
+	p.GET("/attribution-events", h.Admin.Promotion.ListAttributionEvents)
+	p.GET("/commissions", h.Admin.Promotion.ListCommissions)
+	p.GET("/settlements", h.Admin.Promotion.ListSettlements)
+	p.POST("/settlements", h.Admin.Promotion.CreateSettlement)
+	p.PUT("/settlements/:id/status", h.Admin.Promotion.UpdateSettlementStatus)
 }
 
 func registerBusinessFinanceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
