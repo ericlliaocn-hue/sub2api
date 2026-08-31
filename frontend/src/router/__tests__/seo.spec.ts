@@ -8,13 +8,13 @@ describe('resolvePublicSEO', () => {
     expect(pages.every(Boolean)).toBe(true)
     expect(new Set(pages.map((page) => page?.title)).size).toBe(3)
     expect(new Set(pages.map((page) => page?.description)).size).toBe(3)
-    expect(pages[0]?.title).toContain('AI中转站')
+    expect(pages[0]?.title).toContain('AI数字俱乐部')
     expect(pages[1]?.title).toContain('AI 模型 API 价格')
     expect(pages[2]?.title).toContain('API Key 用量查询')
   })
 
   it('提供对应的英文元数据', () => {
-    expect(resolvePublicSEO('/', 'AnyToken', 'en-US')?.title).toContain('Multi-model AI API Platform')
+    expect(resolvePublicSEO('/', 'AnyToken', 'en-US')?.title).toContain('AI Digital Club')
   })
 
   it('不把私有页面当作公开 SEO 页面', () => {

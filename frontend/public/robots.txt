@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://anytoken.work/sitemap.xml
+Sitemap: https://oioio.chat/sitemap.xml
