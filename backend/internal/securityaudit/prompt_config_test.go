@@ -422,6 +422,8 @@ func TestParseLegacyConfigDefaultsMissingFieldsWithoutEnablingBlocking(t *testin
 func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {
 	valid := promptAuditUpdateRequest(1, 1, "")
 	require.NoError(t, validateUpdateConfigRequest(valid))
+	valid.Endpoints[0].TimeoutMS = 60000
+	require.NoError(t, validateUpdateConfigRequest(valid), "60 second Guard timeout should be accepted")
 
 	tests := []struct {
 		name   string

@@ -20,7 +20,7 @@ const (
 	MaxQueueCapacity     = 100000
 	DefaultTimeoutMS     = 3000
 	MinTimeoutMS         = 100
-	MaxTimeoutMS         = 30000
+	MaxTimeoutMS         = 60000
 	DefaultInputLimit    = 4000
 	MinInputLimit        = 128
 	MaxInputLimit        = 100000
