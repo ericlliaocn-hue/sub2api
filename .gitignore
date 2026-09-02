@@ -112,6 +112,7 @@ data/model_pricing.sha256
 # ===================
 # 本地配置文件（包含敏感信息）
 # ===================
+.fastRequest/
 backend/config.yaml
 deploy/config.yaml
 backend/.installed
