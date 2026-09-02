@@ -105,6 +105,10 @@ backend/internal/web/dist/*
 # 后端运行时缓存数据
 backend/data/
 
+# 模型定价运行时缓存（可由远程定价源重新生成）
+data/model_pricing.json
+data/model_pricing.sha256
+
 # ===================
 # 本地配置文件（包含敏感信息）
 # ===================
