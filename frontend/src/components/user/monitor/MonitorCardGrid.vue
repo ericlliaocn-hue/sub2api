@@ -31,24 +31,29 @@
       :description="t('channelStatus.empty.description')"
     />
 
-    <div
-      v-else
-      class="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-    >
-      <MonitorCard
-        v-for="item in items"
-        :key="item.id"
-        :item="item"
-        :window="window"
-        :availability-value="resolveAvailability(item)"
-        :countdown-seconds="countdownSeconds"
-        @click="emit('cardClick', item)"
-      />
+    <div v-else class="space-y-8">
+      <section v-for="group in monitorGroups" :key="group.endpoint" class="space-y-3">
+        <h2 class="text-sm font-semibold tracking-wide text-gray-700 dark:text-gray-300">
+          {{ group.endpoint }}
+        </h2>
+        <div class="grid gap-5 grid-cols-1 md:grid-cols-3">
+          <MonitorCard
+            v-for="item in group.items"
+            :key="item.id"
+            :item="item"
+            :window="window"
+            :availability-value="resolveAvailability(item)"
+            :countdown-seconds="countdownSeconds"
+            @click="emit('cardClick', item)"
+          />
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { UserMonitorView, UserMonitorDetail } from '@/api/channelMonitor'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -67,6 +72,27 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const endpointOrder = ['oioio.chat', 'api.oioio.chat', 'jp.oioio.chat']
+
+const monitorGroups = computed(() => {
+  const groups = new Map<string, UserMonitorView[]>()
+  for (const item of props.items) {
+    const separatorIndex = item.name.lastIndexOf(' · ')
+    const endpoint = separatorIndex >= 0 ? item.name.slice(separatorIndex + 3) : item.name
+    const group = groups.get(endpoint) || []
+    group.push(item)
+    groups.set(endpoint, group)
+  }
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => {
+      const leftIndex = endpointOrder.indexOf(left)
+      const rightIndex = endpointOrder.indexOf(right)
+      return (leftIndex < 0 ? endpointOrder.length : leftIndex) - (rightIndex < 0 ? endpointOrder.length : rightIndex)
+    })
+    .map(([endpoint, items]) => ({ endpoint, items }))
+})
 
 function resolveAvailability(item: UserMonitorView): number | null {
   if (props.window === '7d') {

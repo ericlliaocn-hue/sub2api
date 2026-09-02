@@ -7,16 +7,83 @@ import (
 	"time"
 )
 
+const (
+	// DefaultSyncGuardQueueCapacity bounds requests waiting for a synchronous
+	// Guard slot. Waiting is preferable to an immediate 503 during short
+	// bursts, but an unbounded queue would turn load spikes into goroutine and
+	// memory exhaustion.
+	DefaultSyncGuardQueueCapacity = 128
+	// A global slot is acquired before a node slot. Keep the per-node wait
+	// queue at least as large as the global active limit so requests do not get
+	// rejected merely because they already passed the global bulkhead.
+	defaultSyncGuardNodeQueue = DefaultSyncGuardQueueCapacity
+)
+
+var errGuardQueueFull = errors.New("prompt guard queue full")
+
+type guardLimiter struct {
+	slots   chan struct{}
+	waiters chan struct{}
+}
+
+func newGuardLimiter(limit, queueCapacity int) *guardLimiter {
+	if limit < 1 {
+		limit = 1
+	}
+	if queueCapacity < 0 {
+		queueCapacity = 0
+	}
+	return &guardLimiter{
+		slots:   make(chan struct{}, limit),
+		waiters: make(chan struct{}, queueCapacity),
+	}
+}
+
+// acquire obtains a slot immediately when possible, otherwise reserves one
+// bounded waiter slot and waits until a slot is released or ctx is canceled.
+// A full waiter queue is returned as a stable GuardError so callers can fail
+// closed without creating unbounded goroutines.
+func (l *guardLimiter) acquire(ctx context.Context) error {
+	if l == nil {
+		return &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
+	}
+	select {
+	case l.slots <- struct{}{}:
+		return nil
+	default:
+	}
+	select {
+	case l.waiters <- struct{}{}:
+		defer func() { <-l.waiters }()
+		select {
+		case l.slots <- struct{}{}:
+			return nil
+		case <-ctx.Done():
+			return &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Timeout: errors.Is(ctx.Err(), context.DeadlineExceeded), Cause: ctx.Err()}
+		}
+	default:
+		return &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Cause: errGuardQueueFull}
+	}
+}
+
+func (l *guardLimiter) release() {
+	if l == nil {
+		return
+	}
+	<-l.slots
+}
+
 type GuardEvaluator struct {
 	scanner PromptScanner
 	repo    JobRepository
 	metrics Metrics
 	clock   Clock
 
-	global       chan struct{}
-	perNodeLimit int
-	nodeMu       sync.Mutex
-	nodes        map[string]chan struct{}
+	global               *guardLimiter
+	perNodeLimit         int
+	perNodeQueueCapacity int
+	nodeMu               sync.Mutex
+	nodes                map[string]*guardLimiter
 }
 
 func NewGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metrics) *GuardEvaluator {
@@ -24,6 +91,10 @@ func NewGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metric
 }
 
 func newGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metrics, globalLimit, perNodeLimit int) *GuardEvaluator {
+	return newGuardEvaluatorWithQueue(scanner, repo, metrics, globalLimit, perNodeLimit, DefaultSyncGuardQueueCapacity, defaultSyncGuardNodeQueue)
+}
+
+func newGuardEvaluatorWithQueue(scanner PromptScanner, repo JobRepository, metrics Metrics, globalLimit, perNodeLimit, globalQueueCapacity, nodeQueueCapacity int) *GuardEvaluator {
 	if globalLimit < 1 {
 		globalLimit = 64
 	}
@@ -31,7 +102,8 @@ func newGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metric
 		perNodeLimit = 16
 	}
 	return &GuardEvaluator{scanner: scanner, repo: repo, metrics: metrics, clock: realClock{},
-		global: make(chan struct{}, globalLimit), perNodeLimit: perNodeLimit, nodes: map[string]chan struct{}{}}
+		global: newGuardLimiter(globalLimit, globalQueueCapacity), perNodeLimit: perNodeLimit,
+		perNodeQueueCapacity: nodeQueueCapacity, nodes: map[string]*guardLimiter{}}
 }
 
 func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapshot PromptSnapshot) (*PromptDecision, error) {
@@ -53,23 +125,27 @@ func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapsho
 		logGuardFailure(snapshot, cfg, DecisionUnavailable, ErrorCodeUnavailable, "", g.clock.Now().Sub(start))
 		return nil, &GuardError{Code: ErrorCodeUnavailable}
 	}
-	select {
-	case g.global <- struct{}{}:
-		defer func() { <-g.global }()
-	default:
-		if g.metrics != nil {
-			g.metrics.IncBulkheadFull()
-			g.metrics.Observe(DecisionUnavailable, g.clock.Now().Sub(start))
-		}
-		logGuardFailure(snapshot, cfg, DecisionUnavailable, ErrorCodeUnavailable, "", g.clock.Now().Sub(start))
-		return nil, &GuardError{Code: ErrorCodeUnavailable}
-	}
 	timeout := time.Duration(endpoints[0].TimeoutMS) * time.Millisecond
 	if timeout <= 0 {
 		timeout = DefaultTimeoutMS * time.Millisecond
 	}
+	// The queue wait and the actual model call share one deadline. Otherwise a
+	// request could wait 60 seconds in the queue and then spend another 60
+	// seconds in Guard, defeating the endpoint timeout contract.
 	evalCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	acquireErr := g.global.acquire(evalCtx)
+	if acquireErr != nil {
+		if g.metrics != nil {
+			if isGuardQueueFull(acquireErr) {
+				g.metrics.IncBulkheadFull()
+			}
+			g.metrics.Observe(DecisionUnavailable, g.clock.Now().Sub(start))
+		}
+		logGuardFailure(snapshot, cfg, DecisionUnavailable, ErrorCodeUnavailable, "", g.clock.Now().Sub(start))
+		return nil, acquireErr
+	}
+	defer g.global.release()
 	inputLimit := minimumInputLimit(endpoints)
 	chunks := SplitRunes(snapshot.ScanText, inputLimit)
 	if len(chunks) == 0 {
@@ -191,22 +267,23 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 	var lastErr error
 	for index, endpoint := range endpoints {
 		semaphore := g.nodeSemaphore(endpoint.ID)
-		select {
-		case semaphore <- struct{}{}:
-		case <-ctx.Done():
-			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Timeout: errors.Is(ctx.Err(), context.DeadlineExceeded), Cause: ctx.Err()}
-		default:
-			if g.metrics != nil {
+		acquireErr := semaphore.acquire(ctx)
+		if acquireErr != nil {
+			if g.metrics != nil && isGuardQueueFull(acquireErr) {
 				g.metrics.IncBulkheadFull()
 			}
-			lastErr = &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
+			var guardErr *GuardError
+			if errors.As(acquireErr, &guardErr) && guardErr.Cause != nil && !errors.Is(guardErr.Cause, errGuardQueueFull) {
+				return nil, acquireErr
+			}
+			lastErr = acquireErr
 			if index < len(endpoints)-1 && g.metrics != nil {
 				g.metrics.IncFailover()
 			}
 			continue
 		}
 		result, err := callPromptScanner(ctx, g.scanner, endpoint, chunk, cfg.Scanners)
-		<-semaphore
+		semaphore.release()
 		if err == nil && result != nil {
 			return result, nil
 		}
@@ -238,15 +315,20 @@ func callPromptScanner(ctx context.Context, scanner PromptScanner, endpoint Acti
 	return scanner.Scan(ctx, endpoint, chunk, scanners)
 }
 
-func (g *GuardEvaluator) nodeSemaphore(id string) chan struct{} {
+func (g *GuardEvaluator) nodeSemaphore(id string) *guardLimiter {
 	g.nodeMu.Lock()
 	defer g.nodeMu.Unlock()
 	semaphore := g.nodes[id]
 	if semaphore == nil {
-		semaphore = make(chan struct{}, g.perNodeLimit)
+		semaphore = newGuardLimiter(g.perNodeLimit, g.perNodeQueueCapacity)
 		g.nodes[id] = semaphore
 	}
 	return semaphore
+}
+
+func isGuardQueueFull(err error) bool {
+	var guardErr *GuardError
+	return errors.As(err, &guardErr) && errors.Is(guardErr.Cause, errGuardQueueFull)
 }
 
 func minimumInputLimit(endpoints []ActiveEndpoint) int {

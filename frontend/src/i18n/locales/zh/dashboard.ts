@@ -477,6 +477,7 @@ export default {
     availabilityPrefix: '可用性',
     dialogLatency: '对话延迟',
     endpointPing: '端点 PING',
+    cacheRate: '缓存率（7 天）',
     history60pts: '近 {n} 次记录',
     nextUpdateIn: '{n}s 后刷新',
     past: 'PAST',

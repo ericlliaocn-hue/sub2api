@@ -66,13 +66,18 @@ func (s *ChannelMonitorService) ListUserView(ctx context.Context) ([]*UserMonito
 
 	ids, primaryByID, extrasByID := collectMonitorIndexes(monitors)
 	summaries := s.BatchMonitorStatusSummary(ctx, ids, primaryByID, extrasByID)
+	cacheRates, err := s.repo.ComputeCacheRatesForMonitors(ctx, ids, monitorAvailability7Days)
+	if err != nil {
+		slog.Warn("channel_monitor: user view cache rates failed", "error", err)
+		cacheRates = map[int64]*float64{}
+	}
 	latestMap := s.batchLatest(ctx, ids)
 	timelineMap := s.batchTimeline(ctx, ids, primaryByID)
 
 	views := make([]*UserMonitorView, 0, len(monitors))
 	for _, m := range monitors {
 		primaryLatest := pickLatest(latestMap[m.ID], m.PrimaryModel)
-		views = append(views, buildUserViewFromSummary(m, summaries[m.ID], primaryLatest, timelineMap[m.ID]))
+		views = append(views, buildUserViewFromSummary(m, summaries[m.ID], cacheRates[m.ID], primaryLatest, timelineMap[m.ID]))
 	}
 	return views, nil
 }
@@ -227,6 +232,7 @@ func buildStatusSummary(
 func buildUserViewFromSummary(
 	m *ChannelMonitor,
 	summary MonitorStatusSummary,
+	cacheRate7d *float64,
 	primaryLatest *ChannelMonitorLatest,
 	timelineEntries []*ChannelMonitorHistoryEntry,
 ) *UserMonitorView {
@@ -239,6 +245,7 @@ func buildUserViewFromSummary(
 		PrimaryStatus:    summary.PrimaryStatus,
 		PrimaryLatencyMs: summary.PrimaryLatencyMs,
 		Availability7d:   summary.Availability7d,
+		CacheRate7d:      cacheRate7d,
 		ExtraModels:      summary.ExtraModels,
 		Timeline:         buildTimelinePoints(timelineEntries),
 	}

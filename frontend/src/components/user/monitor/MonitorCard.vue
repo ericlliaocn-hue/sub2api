@@ -53,6 +53,10 @@
       :secondary-label="t('monitorCommon.endpointPing')"
       :secondary-value="formatLatency(item.primary_ping_latency_ms)"
       secondary-unit="ms"
+      tertiary-icon="database"
+      :tertiary-label="t('monitorCommon.cacheRate')"
+      :tertiary-value="formatCacheRate(item.cache_rate_7d)"
+      tertiary-unit=""
     />
 
     <!-- 配额模式：最新用量/余额快照（服务端已按系统开关剥离，此处 flag 为纵深防御） -->
@@ -121,8 +125,13 @@ const {
   providerLabel,
   providerBadgeClass,
   formatLatency,
+  formatPercent,
   formatMonitorModel,
 } = useChannelMonitorFormat()
+
+function formatCacheRate(value: number | null | undefined): string {
+  return value == null || Number.isNaN(value) ? '-' : formatPercent(value * 100)
+}
 
 const providerTintClass = computed(() =>
   PROVIDER_TINT[props.item.provider] ?? 'text-gray-500 dark:text-gray-300'

@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-5 grid grid-cols-2 gap-2">
+  <div :class="['mt-5 grid gap-2', tertiaryLabel ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2']">
     <div
       class="rounded-xl p-3 bg-gray-50/80 dark:bg-dark-900/40 border border-gray-100 dark:border-dark-700/50"
     >
@@ -11,6 +11,20 @@
       </div>
       <div class="mt-1.5 text-lg font-bold font-mono tabular-nums text-gray-900 dark:text-gray-100">
         {{ primaryValue }}<span class="text-xs font-normal text-gray-400 ml-0.5">{{ primaryUnit }}</span>
+      </div>
+    </div>
+    <div
+      v-if="tertiaryLabel"
+      class="rounded-xl p-3 bg-gray-50/80 dark:bg-dark-900/40 border border-gray-100 dark:border-dark-700/50"
+    >
+      <div
+        class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400"
+      >
+        <Icon :name="tertiaryIcon ?? 'database'" size="xs" />
+        <span>{{ tertiaryLabel }}</span>
+      </div>
+      <div class="mt-1.5 text-lg font-bold font-mono tabular-nums text-gray-900 dark:text-gray-100">
+        {{ tertiaryValue }}<span class="text-xs font-normal text-gray-400 ml-0.5">{{ tertiaryUnit }}</span>
       </div>
     </div>
     <div
@@ -41,5 +55,9 @@ defineProps<{
   secondaryValue: string
   secondaryUnit: string
   secondaryIcon: 'bolt' | 'globe' | 'clock' | 'link'
+  tertiaryLabel?: string
+  tertiaryValue?: string
+  tertiaryUnit?: string
+  tertiaryIcon?: 'bolt' | 'globe' | 'clock' | 'link' | 'database'
 }>()
 </script>

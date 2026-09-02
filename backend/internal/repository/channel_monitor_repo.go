@@ -604,6 +604,57 @@ func (r *channelMonitorRepository) ComputeAvailabilityForMonitors(ctx context.Co
 	return out, nil
 }
 
+// ComputeCacheRatesForMonitors computes the primary-model cache hit rate for
+// each monitor using the same successful-request and token denominator rules as
+// the V2 monitor aggregation. A monitor is omitted when no valid denominator
+// exists, allowing the API to distinguish "no data" from a real 0% rate.
+func (r *channelMonitorRepository) ComputeCacheRatesForMonitors(ctx context.Context, ids []int64, windowDays int) (map[int64]*float64, error) {
+	out := make(map[int64]*float64, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	if windowDays <= 0 {
+		windowDays = 7
+	}
+	const q = `
+		SELECT cm.id,
+		       COALESCE(SUM(ul.cache_read_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
+		       COALESCE(SUM(ul.input_tokens + ul.cache_creation_tokens + ul.cache_read_tokens)
+		                FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0)
+		FROM channel_monitors cm
+		JOIN usage_logs ul
+		  ON COALESCE(NULLIF(BTRIM(ul.requested_model), ''), NULLIF(BTRIM(ul.model), ''), 'unknown') = cm.primary_model
+		LEFT JOIN groups g ON g.id = ul.group_id
+		LEFT JOIN accounts a ON a.id = ul.account_id
+		WHERE cm.id = ANY($1)
+		  AND ul.created_at >= NOW() - ($2::int || ' days')::interval
+		  AND lower(` + usageLogEffectivePlatformExpr + `) = lower(cm.provider)
+		  AND (NULLIF(BTRIM(cm.group_name), '') IS NULL
+		       OR lower(BTRIM(COALESCE(g.name, ''))) = lower(BTRIM(cm.group_name)))
+		GROUP BY cm.id
+	`
+	rows, err := r.db.QueryContext(ctx, q, pq.Array(ids), windowDays)
+	if err != nil {
+		return nil, fmt.Errorf("query cache rates batch: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var monitorID, cacheRead, denominator int64
+		if err := rows.Scan(&monitorID, &cacheRead, &denominator); err != nil {
+			return nil, fmt.Errorf("scan cache rate batch row: %w", err)
+		}
+		if denominator <= 0 {
+			continue
+		}
+		rate := float64(cacheRead) / float64(denominator)
+		out[monitorID] = &rate
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ---------- 聚合维护 ----------
 
 // UpsertDailyRollupsFor 把 targetDate 当天（[targetDate, targetDate+1d)）的明细

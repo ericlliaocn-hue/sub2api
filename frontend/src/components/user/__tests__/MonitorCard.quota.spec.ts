@@ -47,7 +47,6 @@ function mountCard(item: UserMonitorView) {
     },
     global: {
       stubs: {
-        MonitorMetricPair: true,
         MonitorAvailabilityRow: true,
         MonitorTimeline: true,
       },
@@ -56,6 +55,18 @@ function mountCard(item: UserMonitorView) {
 }
 
 describe('MonitorCard quota snapshot visibility', () => {
+  it('renders the 7-day cache hit rate using the API ratio', () => {
+    const wrapper = mountCard(makeItem({ cache_rate_7d: 0.5 }))
+    expect(wrapper.text()).toContain('monitorCommon.cacheRate')
+    expect(wrapper.text()).toContain('50.00%')
+  })
+
+  it('renders a dash when the cache rate has no valid denominator', () => {
+    const wrapper = mountCard(makeItem())
+    expect(wrapper.text()).toContain('monitorCommon.cacheRate')
+    expect(wrapper.text()).toContain('-')
+  })
+
   it('hides the quota block when the system switch is off even if data exists', () => {
     isQuotaVisible.mockReturnValue(false)
     const wrapper = mountCard(

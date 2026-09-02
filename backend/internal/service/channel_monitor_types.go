@@ -157,6 +157,8 @@ type UserMonitorView struct {
 	Availability7d       float64 // 0-100
 	ExtraModels          []ExtraModelStatus
 	Timeline             []UserMonitorTimelinePoint // 主模型最近 N 个历史点（按 checked_at DESC，最新在前）
+	// CacheRate7d 主模型近 7 天缓存命中率；无有效 token 分母时为 nil。
+	CacheRate7d *float64
 	// LatestQuota 主模型最近一次配额快照；channel_monitor_show_quota=false
 	// 时由 handler 服务端剥离。
 	LatestQuota *domain.MonitorQuotaSnapshot

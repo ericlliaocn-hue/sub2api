@@ -73,12 +73,113 @@ func TestGuardEvaluatorOrderedFailoverAndInvalidTerminal(t *testing.T) {
 	require.Equal(t, int64(1), snapshotMetrics.Invalid)
 }
 
-func TestGuardEvaluatorGlobalBulkheadIsNonBlocking(t *testing.T) {
+func TestGuardEvaluatorGlobalBulkheadQueuesBurst(t *testing.T) {
 	release := make(chan struct{})
 	entered := make(chan struct{}, 1)
 	scanner := &scriptedScanner{block: release, entered: entered}
 	metrics := NewAtomicMetrics()
-	evaluator := newGuardEvaluator(scanner, nil, metrics, 1, 1)
+	evaluator := newGuardEvaluatorWithQueue(scanner, nil, metrics, 1, 1, 1, 1)
+	cfg := guardConfig(ActiveEndpoint{ID: "good", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
+	done := make(chan error, 2)
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
+		done <- err
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("first evaluation did not enter scanner")
+	}
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
+		done <- err
+	}()
+	time.Sleep(30 * time.Millisecond)
+	select {
+	case err := <-done:
+		t.Fatalf("queued evaluation returned before a slot was released: %v", err)
+	default:
+	}
+	close(release)
+	require.NoError(t, <-done)
+	require.NoError(t, <-done)
+	snapshotMetrics := metrics.Snapshot()
+	require.Equal(t, int64(2), snapshotMetrics.Total)
+	require.Equal(t, int64(2), snapshotMetrics.Allowed)
+	require.Zero(t, snapshotMetrics.BulkheadFull)
+}
+
+func TestGuardEvaluatorPerNodeBulkheadQueuesBurst(t *testing.T) {
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	scanner := &scriptedScanner{block: release, entered: entered}
+	metrics := NewAtomicMetrics()
+	evaluator := newGuardEvaluatorWithQueue(scanner, nil, metrics, 2, 1, 1, 1)
+	cfg := guardConfig(ActiveEndpoint{ID: "same-node", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
+	done := make(chan error, 2)
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
+		done <- err
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("first evaluation did not enter scanner")
+	}
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
+		done <- err
+	}()
+	time.Sleep(30 * time.Millisecond)
+	select {
+	case err := <-done:
+		t.Fatalf("queued evaluation returned before a slot was released: %v", err)
+	default:
+	}
+	close(release)
+	require.NoError(t, <-done)
+	require.NoError(t, <-done)
+}
+
+func TestGuardEvaluatorQueueFullFailsClosed(t *testing.T) {
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	scanner := &scriptedScanner{block: release, entered: entered}
+	metrics := NewAtomicMetrics()
+	evaluator := newGuardEvaluatorWithQueue(scanner, nil, metrics, 1, 1, 1, 1)
+	cfg := guardConfig(ActiveEndpoint{ID: "good", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
+	done := make(chan error, 2)
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
+		done <- err
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("first evaluation did not enter scanner")
+	}
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
+		done <- err
+	}()
+	time.Sleep(30 * time.Millisecond)
+	_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "three", PromptLength: 5})
+	var guardErr *GuardError
+	require.ErrorAs(t, err, &guardErr)
+	require.Equal(t, ErrorCodeUnavailable, guardErr.Code)
+	require.True(t, isGuardQueueFull(err))
+	require.Equal(t, int64(1), metrics.Snapshot().BulkheadFull)
+	close(release)
+	require.NoError(t, <-done)
+	require.NoError(t, <-done)
+}
+
+func TestGuardEvaluatorQueueWaitHonorsContextCancellation(t *testing.T) {
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	scanner := &scriptedScanner{block: release, entered: entered}
+	metrics := NewAtomicMetrics()
+	evaluator := newGuardEvaluatorWithQueue(scanner, nil, metrics, 1, 1, 1, 1)
 	cfg := guardConfig(ActiveEndpoint{ID: "good", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
 	done := make(chan error, 1)
 	go func() {
@@ -90,41 +191,12 @@ func TestGuardEvaluatorGlobalBulkheadIsNonBlocking(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("first evaluation did not enter scanner")
 	}
-	start := time.Now()
-	_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
-	require.Error(t, err)
-	require.Less(t, time.Since(start), 200*time.Millisecond)
-	require.Equal(t, int64(1), metrics.Snapshot().BulkheadFull)
-	close(release)
-	require.NoError(t, <-done)
-	snapshotMetrics := metrics.Snapshot()
-	require.Equal(t, int64(2), snapshotMetrics.Total)
-	require.Equal(t, int64(1), snapshotMetrics.Allowed)
-	require.Equal(t, int64(1), snapshotMetrics.Unavailable)
-}
-
-func TestGuardEvaluatorPerNodeBulkheadIsNonBlocking(t *testing.T) {
-	release := make(chan struct{})
-	entered := make(chan struct{}, 1)
-	scanner := &scriptedScanner{block: release, entered: entered}
-	metrics := NewAtomicMetrics()
-	evaluator := newGuardEvaluator(scanner, nil, metrics, 2, 1)
-	cfg := guardConfig(ActiveEndpoint{ID: "same-node", Enabled: true, TimeoutMS: 2000, InputLimit: 100})
-	done := make(chan error, 1)
-	go func() {
-		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "one", PromptLength: 3})
-		done <- err
-	}()
-	select {
-	case <-entered:
-	case <-time.After(time.Second):
-		t.Fatal("first evaluation did not enter scanner")
-	}
-	started := time.Now()
-	_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
-	require.Error(t, err)
-	require.Less(t, time.Since(started), 200*time.Millisecond)
-	require.GreaterOrEqual(t, metrics.Snapshot().BulkheadFull, int64(1))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	_, err := evaluator.Evaluate(ctx, cfg, PromptSnapshot{ScanText: "two", PromptLength: 3})
+	var guardErr *GuardError
+	require.ErrorAs(t, err, &guardErr)
+	require.True(t, guardErr.Timeout)
 	close(release)
 	require.NoError(t, <-done)
 }
