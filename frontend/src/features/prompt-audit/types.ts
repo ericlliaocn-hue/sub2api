@@ -27,7 +27,7 @@ export interface PromptAuditConfig {
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
   effective_mode: PromptAuditMode
-  strategy: 'priority'
+  strategy: 'priority' | 'least_inflight'
   worker_count: number
   queue_capacity: number
   scanners: string[]
@@ -51,7 +51,7 @@ export interface PromptAuditUpdateRequest {
   blocking_enabled: boolean
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
-  strategy: 'priority'
+  strategy: 'priority' | 'least_inflight'
   worker_count: number
   queue_capacity: number
   scanners: string[]

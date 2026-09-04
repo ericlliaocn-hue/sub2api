@@ -2,6 +2,8 @@ package securityaudit
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -111,6 +113,30 @@ func (c *promptCapacity) TryAcquireAsync(nodeID string) (func(), bool) {
 	node.active++
 	node.asyncActive++
 	return c.releaseFunc(nodeID, node, true), true
+}
+
+// OrderEndpoints returns a detached endpoint slice ordered for the configured
+// selection strategy. Least-inflight is deliberately based on local admission
+// state, so a slow or unreachable node naturally stops attracting new work
+// after its active slots fill. Stable sorting preserves configured priority for
+// ties and for the legacy priority strategy.
+func (c *promptCapacity) OrderEndpoints(strategy string, endpoints []ActiveEndpoint) []ActiveEndpoint {
+	ordered := append([]ActiveEndpoint(nil), endpoints...)
+	if c == nil || strings.TrimSpace(strategy) != PromptAuditStrategyLeastInflight || len(ordered) < 2 {
+		return ordered
+	}
+	loads := make(map[string]int, len(ordered))
+	c.mu.Lock()
+	for _, endpoint := range ordered {
+		if node := c.nodes[normalizePromptCapacityNodeID(endpoint.ID)]; node != nil {
+			loads[endpoint.ID] = node.active
+		}
+	}
+	c.mu.Unlock()
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return loads[ordered[i].ID] < loads[ordered[j].ID]
+	})
+	return ordered
 }
 
 func (c *promptCapacity) nodeLocked(nodeID string) *promptCapacityNode {

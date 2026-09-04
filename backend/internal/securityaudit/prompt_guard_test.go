@@ -172,6 +172,49 @@ func TestGuardEvaluatorMergesSameChunkInFlight(t *testing.T) {
 	require.Equal(t, 1, callCount)
 }
 
+func TestGuardEvaluatorLeastInflightDistributesConcurrentScans(t *testing.T) {
+	release := make(chan struct{})
+	entered := make(chan string, 2)
+	var mu sync.Mutex
+	var calls []string
+	scanner := PromptScannerFunc(func(ctx context.Context, endpoint ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
+		mu.Lock()
+		calls = append(calls, endpoint.ID)
+		mu.Unlock()
+		entered <- endpoint.ID
+		select {
+		case <-release:
+			return integrationResult(EventPass), nil
+		case <-ctx.Done():
+			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Timeout: true, Cause: ctx.Err()}
+		}
+	})
+	evaluator := newGuardEvaluator(scanner, nil, NewAtomicMetrics(), 4, 2)
+	cfg := guardConfig(
+		ActiveEndpoint{ID: "first", Enabled: true, TimeoutMS: 1000, InputLimit: 100},
+		ActiveEndpoint{ID: "second", Enabled: true, TimeoutMS: 1000, InputLimit: 100},
+	)
+	cfg.Strategy = PromptAuditStrategyLeastInflight
+	done := make(chan error, 2)
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{PromptHash: "one", ScanText: "one", PromptLength: 3})
+		done <- err
+	}()
+	seen := []string{<-entered}
+	go func() {
+		_, err := evaluator.Evaluate(context.Background(), cfg, PromptSnapshot{PromptHash: "two", ScanText: "two", PromptLength: 3})
+		done <- err
+	}()
+	seen = append(seen, <-entered)
+	close(release)
+	require.NoError(t, <-done)
+	require.NoError(t, <-done)
+	mu.Lock()
+	defer mu.Unlock()
+	require.ElementsMatch(t, []string{"first", "second"}, calls)
+	require.ElementsMatch(t, []string{"first", "second"}, seen)
+}
+
 func TestGuardEvaluatorOrderedFailoverAndInvalidTerminal(t *testing.T) {
 	scanner := &scriptedScanner{}
 	metrics := NewAtomicMetrics()

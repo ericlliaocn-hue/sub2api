@@ -166,7 +166,7 @@ func (r *Runner) processJob(ctx context.Context, workerID int, cfg ActiveConfig,
 		}
 		chunkStarted := r.clock.Now()
 		LogInfo(EventChunkStarted, mergeLogFields(baseFields, map[string]any{"worker_id": workerID, "chunk_index": index + 1, "chunk_total": len(chunks), "chunk_chars": len([]rune(chunk)), "input_chars": job.Snapshot.PromptLength, "input_limit": minimumInputLimit(endpoints), "status": "started"}))
-		result, scanErr := scanWithFailover(ctx, r.scanner, cfg.Scanners, endpoints, chunk, r.metrics, r.capacity)
+		result, scanErr := scanWithFailover(ctx, r.scanner, cfg.Scanners, endpoints, chunk, r.metrics, r.capacity, cfg.Strategy)
 		if scanErr != nil {
 			LogWarn(EventChunkFailed, mergeLogFields(baseFields, map[string]any{
 				"worker_id": workerID, "chunk_index": index + 1, "chunk_total": len(chunks),
@@ -316,12 +316,16 @@ func (r *Runner) setLastError(code, _ string) {
 	r.runtime.lastErrorMu.Unlock()
 }
 
-func scanWithFailover(ctx context.Context, scanner PromptScanner, scanners []string, endpoints []ActiveEndpoint, chunk string, metrics Metrics, capacity *promptCapacity) (*NormalizedResult, error) {
+func scanWithFailover(ctx context.Context, scanner PromptScanner, scanners []string, endpoints []ActiveEndpoint, chunk string, metrics Metrics, capacity *promptCapacity, strategy ...string) (*NormalizedResult, error) {
 	var lastErr error
 	if capacity == nil {
 		capacity = newPromptCapacity(defaultPromptSyncGlobalLimit, defaultPromptSyncNodeLimit, defaultPromptAsyncGlobalLimit, defaultPromptAsyncNodeLimit)
 	}
-	for index, endpoint := range endpoints {
+	selection := PromptAuditStrategyPriority
+	if len(strategy) > 0 {
+		selection = strategy[0]
+	}
+	for index, endpoint := range capacity.OrderEndpoints(selection, endpoints) {
 		release, acquired := capacity.TryAcquireAsync(endpoint.ID)
 		if !acquired {
 			if metrics != nil {

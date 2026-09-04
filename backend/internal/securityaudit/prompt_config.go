@@ -25,6 +25,9 @@ const (
 	MinInputLimit        = 128
 	MaxInputLimit        = 100000
 	DefaultPayloadTTL    = 30 * time.Minute
+
+	PromptAuditStrategyPriority      = "priority"
+	PromptAuditStrategyLeastInflight = "least_inflight"
 )
 
 type SecretEncryptor interface {
@@ -222,7 +225,7 @@ func normalizeStorageConfig(cfg *storageConfig) {
 		cfg.ConfigVersion = 1
 	}
 	if strings.TrimSpace(cfg.Strategy) == "" {
-		cfg.Strategy = "priority"
+		cfg.Strategy = PromptAuditStrategyPriority
 	}
 	if cfg.WorkerCount == 0 {
 		cfg.WorkerCount = DefaultWorkerCount
@@ -263,8 +266,8 @@ func validateStorageConfig(cfg storageConfig) error {
 	if cfg.BlockingEnabled && !cfg.Enabled {
 		return infraerrors.BadRequest(ErrorCodeRequiresEnabled, "开启同步阻止前必须先启用提示词审计")
 	}
-	if cfg.Strategy != "priority" {
-		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority")
+	if !isSupportedPromptAuditStrategy(cfg.Strategy) {
+		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority 或 least_inflight")
 	}
 	if cfg.WorkerCount < 1 || cfg.WorkerCount > MaxWorkerCount {
 		return infraerrors.BadRequest("prompt_audit_invalid_worker_count", "Worker 数量超出允许范围")
@@ -311,8 +314,8 @@ func validateStorageConfig(cfg storageConfig) error {
 }
 
 func validateUpdateConfigRequest(req UpdateConfigRequest) error {
-	if strings.TrimSpace(req.Strategy) != "priority" {
-		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority")
+	if !isSupportedPromptAuditStrategy(req.Strategy) {
+		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority 或 least_inflight")
 	}
 	if req.WorkerCount < 1 || req.WorkerCount > MaxWorkerCount {
 		return infraerrors.BadRequest("prompt_audit_invalid_worker_count", "Worker 数量超出允许范围")
@@ -347,6 +350,15 @@ func validateUpdateConfigRequest(req UpdateConfigRequest) error {
 		}
 	}
 	return nil
+}
+
+func isSupportedPromptAuditStrategy(strategy string) bool {
+	switch strings.TrimSpace(strategy) {
+	case PromptAuditStrategyPriority, PromptAuditStrategyLeastInflight:
+		return true
+	default:
+		return false
+	}
 }
 
 func (cfg ActiveConfig) EffectiveMode() Mode {

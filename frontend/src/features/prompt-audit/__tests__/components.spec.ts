@@ -82,6 +82,9 @@ describe('Prompt Audit components', () => {
     await wrapper.get('[aria-label="admin.promptAudit.policy.workerCount"]').setValue('6')
     const emitted = wrapper.emitted('update:draft')?.at(-1)?.[0] as PromptAuditDraft
     expect(emitted.worker_count).toBe(6)
+    await wrapper.get<HTMLSelectElement>('[aria-label="admin.promptAudit.policy.strategy"]').setValue('least_inflight')
+    const strategyUpdate = wrapper.emitted('update:draft')?.at(-1)?.[0] as PromptAuditDraft
+    expect(strategyUpdate.strategy).toBe('least_inflight')
   })
 
   it('keeps identity fields separate, supports selection, and opens filter deletion from the toolbar', async () => {

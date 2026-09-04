@@ -53,7 +53,7 @@ export default {
     policy: {
       title: '审计策略', description: '配置适用分组、九类输入风险、Worker 与队列边界。', scope: '适用范围', allGroups: '全部分组', selectedGroups: '指定分组',
       searchGroups: '搜索分组', noGroups: '没有匹配分组', missingGroups: '配置中包含已删除的分组 ID', selectedCount: '已选择 {count} 个分组',
-      scanners: 'Qwen3Guard 输入风险分类', workerCount: 'Worker 数量', queueCapacity: '持久队列容量', strategy: '节点策略', strategyHint: '按配置顺序优先尝试，必要时故障切换。',
+      scanners: 'Qwen3Guard 输入风险分类', workerCount: 'Worker 数量', queueCapacity: '持久队列容量', strategy: '节点策略', strategyPriority: '优先级故障切换', strategyLeastInflight: '最少并发优先', strategyHint: '优先使用活动请求最少的节点；失败时继续尝试其他节点。',
     },
     saveBar: { enabled: '启用提示词审计', guardEnabled: '启用 Guard 模型审计', blocking: '同步阻止', blockingLatestTurnOnly: '同步仅审最新客户端回合（完整上下文后台复核）', storePass: '保存安全事件', dirty: '有未保存的更改', synced: '配置已同步' },
     blockingConfirm: {

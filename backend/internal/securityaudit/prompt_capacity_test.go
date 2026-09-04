@@ -83,3 +83,31 @@ func TestPromptCapacityNormalizesEmptyNodeIDForCleanup(t *testing.T) {
 	require.Empty(t, capacity.nodes)
 	capacity.mu.Unlock()
 }
+
+func TestPromptCapacityLeastInflightOrdersNodesByActiveLoad(t *testing.T) {
+	capacity := newPromptCapacity(8, 4, 1, 1)
+	firstRelease, firstOK := capacity.AcquireSync(context.Background(), "first")
+	require.True(t, firstOK)
+	secondRelease, secondOK := capacity.AcquireSync(context.Background(), "first")
+	require.True(t, secondOK)
+	otherRelease, otherOK := capacity.AcquireSync(context.Background(), "other")
+	require.True(t, otherOK)
+
+	ordered := capacity.OrderEndpoints(PromptAuditStrategyLeastInflight, []ActiveEndpoint{
+		{ID: "first"}, {ID: "other"},
+	})
+	require.Equal(t, []string{"other", "first"}, []string{ordered[0].ID, ordered[1].ID})
+	otherRelease()
+	secondRelease()
+	firstRelease()
+}
+
+func TestPromptCapacityPriorityKeepsConfiguredOrder(t *testing.T) {
+	capacity := newPromptCapacity(4, 2, 1, 1)
+	release, acquired := capacity.AcquireSync(context.Background(), "first")
+	require.True(t, acquired)
+	defer release()
+
+	ordered := capacity.OrderEndpoints(PromptAuditStrategyPriority, []ActiveEndpoint{{ID: "first"}, {ID: "other"}})
+	require.Equal(t, []string{"first", "other"}, []string{ordered[0].ID, ordered[1].ID})
+}

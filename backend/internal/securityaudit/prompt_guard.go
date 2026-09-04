@@ -342,7 +342,7 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 	if capacity == nil {
 		capacity = newPromptCapacity(defaultPromptSyncGlobalLimit, defaultPromptSyncNodeLimit, defaultPromptAsyncGlobalLimit, defaultPromptAsyncNodeLimit)
 	}
-	for index, endpoint := range endpoints {
+	for index, endpoint := range capacity.OrderEndpoints(cfg.Strategy, endpoints) {
 		key := guardScanFlightKey(cfg, endpoint, chunk)
 		result, err := g.sharedScan(ctx, key, time.Duration(endpoint.TimeoutMS)*time.Millisecond, func(sharedCtx context.Context) (*NormalizedResult, error) {
 			release, acquired := capacity.AcquireSync(sharedCtx, endpoint.ID)

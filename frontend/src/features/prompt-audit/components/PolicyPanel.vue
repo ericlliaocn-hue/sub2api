@@ -62,10 +62,14 @@
           <span>{{ t('admin.promptAudit.policy.queueCapacity') }}</span>
           <input :value="draft.queue_capacity" type="number" min="1" max="100000" class="input mt-1.5 w-full" :aria-label="t('admin.promptAudit.policy.queueCapacity')" @input="patch({ queue_capacity: Number(($event.target as HTMLInputElement).value) })" />
         </label>
-        <div class="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:bg-dark-900/50 dark:text-dark-300">
-          <p class="font-medium text-gray-800 dark:text-dark-100">{{ t('admin.promptAudit.policy.strategy') }}</p>
-          <p class="mt-1">priority · {{ t('admin.promptAudit.policy.strategyHint') }}</p>
-        </div>
+        <label class="block text-sm text-gray-700 dark:text-dark-200">
+          <span>{{ t('admin.promptAudit.policy.strategy') }}</span>
+          <select :value="draft.strategy" class="input mt-1.5 w-full" :aria-label="t('admin.promptAudit.policy.strategy')" @change="patch({ strategy: ($event.target as HTMLSelectElement).value as PromptAuditDraft['strategy'] })">
+            <option value="priority">{{ t('admin.promptAudit.policy.strategyPriority') }}</option>
+            <option value="least_inflight">{{ t('admin.promptAudit.policy.strategyLeastInflight') }}</option>
+          </select>
+          <span class="mt-1 block text-xs text-gray-500 dark:text-dark-400">{{ t('admin.promptAudit.policy.strategyHint') }}</span>
+        </label>
       </div>
     </div>
   </section>

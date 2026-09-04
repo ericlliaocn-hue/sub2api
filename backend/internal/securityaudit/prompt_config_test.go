@@ -455,6 +455,8 @@ func TestPublicConfigIncludesGuardEnabled(t *testing.T) {
 func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {
 	valid := promptAuditUpdateRequest(1, 1, "")
 	require.NoError(t, validateUpdateConfigRequest(valid))
+	valid.Strategy = PromptAuditStrategyLeastInflight
+	require.NoError(t, validateUpdateConfigRequest(valid))
 
 	tests := []struct {
 		name   string
