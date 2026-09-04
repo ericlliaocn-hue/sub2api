@@ -12,6 +12,7 @@ import {
 
 const config = (): PromptAuditConfig => ({
   enabled: true,
+  guard_enabled: true,
   blocking_enabled: false,
   blocking_latest_turn_only: false,
   store_pass_events: false,
@@ -61,6 +62,12 @@ describe('Prompt Audit view model', () => {
     const draft = configToDraft(config())
     draft.blocking_latest_turn_only = true
     expect(buildUpdateRequest(draft)).toMatchObject({ blocking_latest_turn_only: true })
+  })
+
+  it('round-trips the independent Guard switch', () => {
+    const draft = configToDraft(config())
+    draft.guard_enabled = false
+    expect(buildUpdateRequest(draft)).toMatchObject({ guard_enabled: false })
   })
 
   it('tracks dirty state from the full normalized save payload', () => {

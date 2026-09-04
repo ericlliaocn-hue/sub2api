@@ -268,7 +268,7 @@ func TestEffectiveModeTruthTable(t *testing.T) {
 		{true, true, false, ModeAsync}, {true, true, true, ModeBlocking},
 	}
 	for _, tt := range tests {
-		cfg := ActiveConfig{RiskControlEnabled: tt.risk, Enabled: tt.enabled, BlockingEnabled: tt.blocking}
+		cfg := ActiveConfig{RiskControlEnabled: tt.risk, Enabled: tt.enabled, GuardEnabled: true, BlockingEnabled: tt.blocking}
 		require.Equal(t, tt.want, cfg.EffectiveMode())
 	}
 }
@@ -294,7 +294,7 @@ func TestConfigManagerColdStartOnlyFailsClosedForExplicitBlockingIntent(t *testi
 
 func TestConfigManagerStaleWeakerSnapshotFailsClosedWhenBlockingExpected(t *testing.T) {
 	manager := &ConfigManager{}
-	async := ActiveConfig{RiskControlEnabled: true, Enabled: true, BlockingEnabled: false, ConfigVersion: 1}
+	async := ActiveConfig{RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: false, ConfigVersion: 1}
 	manager.snapshot.Store(&activeConfigSnapshot{active: async, storage: DefaultStorageConfig(), loadedAt: fixedClock{}.Now()})
 	manager.expected.Store(2)
 	manager.expectedBlocking.Store(true)
@@ -414,11 +414,42 @@ func TestParseLegacyConfigDefaultsMissingFieldsWithoutEnablingBlocking(t *testin
 	storage, err := ParseStorageConfig(`{"enabled":false,"config_version":9}`)
 	require.NoError(t, err)
 	require.False(t, storage.BlockingEnabled)
+	require.True(t, storage.GuardEnabled, "legacy configs without guard_enabled keep Guard on")
 	require.Equal(t, "priority", storage.Strategy)
 	require.Equal(t, DefaultWorkerCount, storage.WorkerCount)
 	require.Equal(t, DefaultQueueCapacity, storage.QueueCapacity)
 	require.Equal(t, AllScannerIDs, storage.Scanners)
 	require.True(t, storage.AllGroups)
+}
+
+func TestGuardEnabledSwitchControlsModelAuditWithoutChangingBlockingLocalMode(t *testing.T) {
+	asyncGuardOff := ActiveConfig{RiskControlEnabled: true, Enabled: true, GuardEnabled: false, BlockingEnabled: false}
+	require.Equal(t, ModeOff, asyncGuardOff.EffectiveMode())
+	blockingGuardOff := asyncGuardOff
+	blockingGuardOff.BlockingEnabled = true
+	require.Equal(t, ModeBlocking, blockingGuardOff.EffectiveMode(), "blocking mode remains available for local rules")
+
+	current := DefaultStorageConfig()
+	request := promptAuditUpdateRequest(1, 1, "")
+	request.GuardEnabled = func() *bool { value := false; return &value }()
+	manager := &ConfigManager{}
+	next, err := manager.buildNextStorage(current, request, 1)
+	require.NoError(t, err)
+	require.False(t, next.GuardEnabled)
+
+	request.GuardEnabled = nil
+	next, err = manager.buildNextStorage(next, request, 1)
+	require.NoError(t, err)
+	require.False(t, next.GuardEnabled, "omitted field preserves the saved switch")
+}
+
+func TestPublicConfigIncludesGuardEnabled(t *testing.T) {
+	storage := DefaultStorageConfig()
+	public := PublicFromStorage(storage, true, nil)
+	require.True(t, public.GuardEnabled)
+	storage.GuardEnabled = false
+	public = PublicFromStorage(storage, true, nil)
+	require.False(t, public.GuardEnabled)
 }
 
 func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {

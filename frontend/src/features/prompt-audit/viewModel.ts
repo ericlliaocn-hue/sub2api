@@ -61,6 +61,7 @@ export function buildUpdateRequest(draft: PromptAuditDraft): PromptAuditUpdateRe
   return {
     expected_config_version: draft.config_version,
     enabled: draft.enabled,
+    guard_enabled: draft.guard_enabled,
     blocking_enabled: draft.enabled && draft.blocking_enabled,
     blocking_latest_turn_only: draft.blocking_latest_turn_only,
     store_pass_events: draft.store_pass_events,

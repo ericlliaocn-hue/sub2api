@@ -76,7 +76,7 @@ func TestPromptServiceBlockingLatestTurnOnlyUsesLatestClientTurn(t *testing.T) {
 	}), nil, NewAtomicMetrics(), 2, 2)
 	service := &PromptService{
 		config: &fakeConfigStore{active: true, cfg: ActiveConfig{
-			RiskControlEnabled: true, Enabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
+			RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
 			Scanners: AllScannerIDs, Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
 		}},
 		evaluator: evaluator,
@@ -95,7 +95,7 @@ func TestPromptServiceQueuesFullReviewOnlyAfterBlockingAllowOrFlag(t *testing.T)
 		Body:     []byte(`{"messages":[{"role":"system","content":"system instruction"},{"role":"user","content":"older user input"},{"role":"assistant","content":"previous output"},{"role":"user","content":"latest user input"}]}`),
 	}
 	config := &fakeConfigStore{active: true, cfg: ActiveConfig{
-		RiskControlEnabled: true, Enabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
+		RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
 		WorkerCount: 1, QueueCapacity: 8, Scanners: AllScannerIDs, ConfigVersion: 7,
 		Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
 	}}
@@ -159,9 +159,38 @@ func TestPromptServiceQueuesFullReviewOnlyAfterBlockingAllowOrFlag(t *testing.T)
 	})
 }
 
+func TestPromptServiceGuardDisabledKeepsLocalOnlyPathAndDoesNotQueueReview(t *testing.T) {
+	repo := &fakeJobRepository{createJob: &Job{ID: 82}}
+	payload := &fakePayloadStore{values: map[int64]string{}}
+	config := &fakeConfigStore{active: true, cfg: ActiveConfig{
+		RiskControlEnabled: true, Enabled: true, GuardEnabled: false, BlockingEnabled: true,
+		BlockingLatestTurnOnly: true, AllGroups: true, WorkerCount: 1, QueueCapacity: 8,
+		Scanners: AllScannerIDs, ConfigVersion: 8,
+		Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
+	}}
+	evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		t.Fatal("disabled Guard must not call the scanner")
+		return nil, nil
+	}), repo, NewAtomicMetrics(), 2, 2)
+	service := &PromptService{
+		config: config, evaluator: evaluator,
+		enqueuer: NewEnqueuer(config, repo, payload), admission: newPromptAdmissionLimiter(2, 4, time.Second),
+		background: context.Background(), enqueueSlots: make(chan struct{}, 4), clock: realClock{},
+	}
+
+	decision, err := service.Evaluate(context.Background(), Request{
+		RequestID: "guard-disabled", Protocol: "openai_chat_completions",
+		Body: []byte(`{"messages":[{"role":"user","content":"ordinary request"}]}`),
+	})
+	require.NoError(t, err)
+	require.Equal(t, DecisionAllow, decision.Kind)
+	service.enqueueWG.Wait()
+	require.Zero(t, repo.createdSnapshot.MessageCount)
+}
+
 func TestPromptServiceAdmissionBusyFailsClosedWithIdentityMetrics(t *testing.T) {
 	config := &fakeConfigStore{active: true, cfg: ActiveConfig{
-		RiskControlEnabled: true, Enabled: true, BlockingEnabled: true, AllGroups: true,
+		RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: true, AllGroups: true,
 		Scanners: AllScannerIDs, Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
 	}}
 	metrics := NewAtomicMetrics()

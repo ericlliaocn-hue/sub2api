@@ -191,6 +191,10 @@ func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		promptAudit.GET("/config", h.Admin.PromptAudit.GetConfig)
 		promptAudit.PUT("/config", h.Admin.PromptAudit.UpdateConfig)
+		promptAudit.GET("/rules", h.Admin.PromptAudit.ListRules)
+		promptAudit.POST("/rules", h.Admin.PromptAudit.CreateRule)
+		promptAudit.PUT("/rules/:id", h.Admin.PromptAudit.UpdateRule)
+		promptAudit.DELETE("/rules/:id", h.Admin.PromptAudit.DeleteRule)
 		promptAudit.POST("/endpoints/probe", h.Admin.PromptAudit.ProbeEndpoint)
 		promptAudit.GET("/runtime", h.Admin.PromptAudit.GetRuntime)
 		promptAudit.GET("/events", h.Admin.PromptAudit.ListEvents)

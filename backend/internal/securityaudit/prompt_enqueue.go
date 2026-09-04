@@ -114,9 +114,9 @@ func (e *Enqueuer) enqueue(ctx context.Context, req Request, purpose enqueuePurp
 func enqueuePurposeEnabled(cfg ActiveConfig, purpose enqueuePurpose) bool {
 	switch purpose {
 	case enqueueBlockingFullReview:
-		return cfg.EffectiveMode() == ModeBlocking && cfg.BlockingLatestTurnOnly
+		return cfg.GuardEnabled && cfg.EffectiveMode() == ModeBlocking && cfg.BlockingLatestTurnOnly
 	default:
-		return cfg.EffectiveMode() == ModeAsync
+		return cfg.GuardEnabled && cfg.EffectiveMode() == ModeAsync
 	}
 }
 
