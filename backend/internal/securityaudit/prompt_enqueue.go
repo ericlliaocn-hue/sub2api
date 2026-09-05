@@ -12,6 +12,13 @@ type Enqueuer struct {
 	metrics Metrics
 }
 
+type enqueuePurpose int
+
+const (
+	enqueueAsyncMode enqueuePurpose = iota
+	enqueueBlockingFullReview
+)
+
 func NewEnqueuer(config ConfigStore, repo JobRepository, payload PayloadStore, metrics ...Metrics) *Enqueuer {
 	var metric Metrics
 	if len(metrics) > 0 {
@@ -21,13 +28,25 @@ func NewEnqueuer(config ConfigStore, repo JobRepository, payload PayloadStore, m
 }
 
 func (e *Enqueuer) Enqueue(ctx context.Context, req Request) error {
+	return e.enqueue(ctx, req, enqueueAsyncMode)
+}
+
+func (e *Enqueuer) EnqueueBlockingReview(ctx context.Context, req Request) error {
+	return e.enqueue(ctx, req, enqueueBlockingFullReview)
+}
+
+func (e *Enqueuer) enqueue(ctx context.Context, req Request, purpose enqueuePurpose) error {
 	if e == nil || e.config == nil || e.repo == nil || e.payload == nil {
 		return errors.New("prompt audit enqueuer unavailable")
 	}
 	cfg, ok := e.config.Active()
 	baseFields := requestLogFields(req)
-	if !ok || cfg.EffectiveMode() != ModeAsync {
-		LogInfo(EventEnqueueSkipped, mergeLogFields(baseFields, map[string]any{"status": "skipped", "error_code": "mode_not_async"}))
+	if !ok || !enqueuePurposeEnabled(cfg, purpose) {
+		code := "mode_not_async"
+		if purpose == enqueueBlockingFullReview {
+			code = "blocking_full_review_disabled"
+		}
+		LogInfo(EventEnqueueSkipped, mergeLogFields(baseFields, map[string]any{"status": "skipped", "error_code": code}))
 		return nil
 	}
 	baseFields["config_version"] = cfg.ConfigVersion
@@ -90,6 +109,15 @@ func (e *Enqueuer) Enqueue(ctx context.Context, req Request) error {
 		e.metrics.IncEnqueued()
 	}
 	return nil
+}
+
+func enqueuePurposeEnabled(cfg ActiveConfig, purpose enqueuePurpose) bool {
+	switch purpose {
+	case enqueueBlockingFullReview:
+		return cfg.GuardEnabled && cfg.EffectiveMode() == ModeBlocking && cfg.BlockingLatestTurnOnly
+	default:
+		return cfg.GuardEnabled && cfg.EffectiveMode() == ModeAsync
+	}
 }
 
 func (e *Enqueuer) recordDropped() {

@@ -49,16 +49,18 @@ func TestCoordinatorModesAndPriority(t *testing.T) {
 		promptErr      error
 		wantKind       DecisionKind
 		wantCode       string
+		wantStatus     int
 		wantEnqueue    int64
 		wantEvaluation int64
 	}{
-		{name: "off", mode: ModeOff, wantKind: DecisionAllow},
-		{name: "async only enqueues", mode: ModeAsync, wantKind: DecisionAllow, wantEnqueue: 1},
-		{name: "prompt block", mode: ModeBlocking, prompt: &PromptDecision{Kind: DecisionBlock}, wantKind: DecisionBlock, wantCode: ErrorCodeBlocked, wantEvaluation: 1},
-		{name: "prompt unavailable", mode: ModeBlocking, promptErr: errors.New("down"), wantKind: DecisionUnavailable, wantCode: ErrorCodeUnavailable, wantEvaluation: 1},
+		{name: "off", mode: ModeOff, wantKind: DecisionAllow, wantStatus: http.StatusOK},
+		{name: "async only enqueues", mode: ModeAsync, wantKind: DecisionAllow, wantStatus: http.StatusOK, wantEnqueue: 1},
+		{name: "prompt block", mode: ModeBlocking, prompt: &PromptDecision{Kind: DecisionBlock}, wantKind: DecisionBlock, wantCode: ErrorCodeBlocked, wantStatus: http.StatusBadRequest, wantEvaluation: 1},
+		{name: "prompt busy", mode: ModeBlocking, promptErr: &GuardError{Code: ErrorCodeBusy}, wantKind: DecisionBusy, wantCode: ErrorCodeBusy, wantStatus: http.StatusTooManyRequests, wantEvaluation: 1},
+		{name: "prompt unavailable", mode: ModeBlocking, promptErr: errors.New("down"), wantKind: DecisionUnavailable, wantCode: ErrorCodeUnavailable, wantStatus: http.StatusServiceUnavailable, wantEvaluation: 1},
 		{name: "legacy wins both block", mode: ModeBlocking,
 			legacy: &LegacyDecision{Blocked: true, StatusCode: http.StatusForbidden, ErrorCode: "content_policy_violation", Message: "legacy"},
-			prompt: &PromptDecision{Kind: DecisionBlock}, wantKind: DecisionBlock, wantCode: "content_policy_violation", wantEvaluation: 1},
+			prompt: &PromptDecision{Kind: DecisionBlock}, wantKind: DecisionBlock, wantCode: "content_policy_violation", wantStatus: http.StatusForbidden, wantEvaluation: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,6 +69,7 @@ func TestCoordinatorModesAndPriority(t *testing.T) {
 			decision := NewCoordinator(legacy, prompt).Check(context.Background(), Request{Body: []byte(`{}`)})
 			require.Equal(t, tt.wantKind, decision.Kind)
 			require.Equal(t, tt.wantCode, decision.ErrorCode)
+			require.Equal(t, tt.wantStatus, decision.HTTPStatus)
 			require.Equal(t, int64(1), legacy.calls.Load())
 			require.Equal(t, tt.wantEnqueue, prompt.enqueues.Load())
 			require.Equal(t, tt.wantEvaluation, prompt.evaluates.Load())
@@ -101,6 +104,7 @@ func TestCoordinatorBlockingPriorityCoversBothEngineDecisionMatrix(t *testing.T)
 		{name: "allow", decision: &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}, wantKind: DecisionAllow},
 		{name: "flag", decision: &PromptDecision{Kind: DecisionFlag, AllowNextStage: true}, wantKind: DecisionFlag},
 		{name: "block", decision: &PromptDecision{Kind: DecisionBlock}, wantKind: DecisionBlock, wantCode: ErrorCodeBlocked},
+		{name: "busy", decision: &PromptDecision{Kind: DecisionBusy, ErrorCode: ErrorCodeBusy}, wantKind: DecisionBusy, wantCode: ErrorCodeBusy},
 		{name: "unavailable", decision: &PromptDecision{Kind: DecisionUnavailable, ErrorCode: ErrorCodeUnavailable}, wantKind: DecisionUnavailable, wantCode: ErrorCodeUnavailable},
 		{name: "invalid", decision: &PromptDecision{Kind: DecisionInvalid, ErrorCode: ErrorCodeInvalidResponse}, wantKind: DecisionInvalid, wantCode: ErrorCodeInvalidResponse},
 	}

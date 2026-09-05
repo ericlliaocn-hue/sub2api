@@ -1,4 +1,5 @@
-docs/claude-relay-service/
+# 本地杂项文档、测试数据和外部项目副本
+/docs-local/
 .codex
 
 # ===================
@@ -105,6 +106,10 @@ backend/internal/web/dist/*
 # 后端运行时缓存数据
 backend/data/
 
+# 本地开发与运行时缓存（不提交）
+.fastRequest/
+data/
+
 # ===================
 # 本地配置文件（包含敏感信息）
 # ===================
@@ -137,13 +142,24 @@ docs/*
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/ASYNC_IMAGE_TASKS.md
 !docs/SEO_OPTIMIZATION_PLAN.md
+!docs/WECHAT_OFFICIAL_ACCOUNT_AUTOMATION_PLAN.md
+!docs/BATCH_IMAGE_MVP.md
+!docs/COMPOSITE_GROUPS.md
+!docs/PLUGIN_DEVELOPMENT.md
+!docs/channel-monitor-v2-safe-defaults.md
 !docs/legal/
 !docs/legal/*.md
+!docs/screenshots/
+docs/screenshots/*
+!docs/screenshots/mobile-account-actions-menu.png
 .serena/
 .codex/
 frontend/coverage/
 aicodex
 output/
+.codegraph/
 
 # Vitest / Vite cache at repo root
 .vite/
+# 本地闭源插件开发目录及构建产物不进入 Sub2API 仓库
+/plugins/

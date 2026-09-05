@@ -68,7 +68,7 @@ func TestPromptServiceStartReportsDependencyFailureWithoutPanic(t *testing.T) {
 	require.NoError(t, service.Shutdown(ctx))
 }
 
-func TestPromptServiceBlockingLatestTurnOnlyUsesNarrowSnapshot(t *testing.T) {
+func TestPromptServiceBlockingLatestTurnOnlyUsesLatestClientTurn(t *testing.T) {
 	seen := make([]string, 0, 2)
 	evaluator := newGuardEvaluator(PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, chunk string, _ []string) (*NormalizedResult, error) {
 		seen = append(seen, chunk)
@@ -76,15 +76,144 @@ func TestPromptServiceBlockingLatestTurnOnlyUsesNarrowSnapshot(t *testing.T) {
 	}), nil, NewAtomicMetrics(), 2, 2)
 	service := &PromptService{
 		config: &fakeConfigStore{active: true, cfg: ActiveConfig{
-			RiskControlEnabled: true, Enabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
+			RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
 			Scanners: AllScannerIDs, Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
 		}},
 		evaluator: evaluator,
+		admission: newPromptAdmissionLimiter(2, 4, time.Second),
 	}
 	decision, err := service.Evaluate(context.Background(), Request{Protocol: "openai_chat_completions", Body: []byte(`{"messages":[{"role":"system","content":"system instruction"},{"role":"user","content":"older user input"},{"role":"assistant","content":"previous output"},{"role":"user","content":"latest user input"}]}`)})
 	require.NoError(t, err)
 	require.Equal(t, DecisionAllow, decision.Kind)
-	require.Equal(t, []string{"latest user input", "previous output"}, seen)
+	require.Equal(t, []string{"latest user input"}, seen)
+}
+
+func TestPromptServiceQueuesFullReviewOnlyAfterBlockingAllowOrFlag(t *testing.T) {
+	request := Request{
+		RequestID: "blocking-review", UserID: 7, APIKeyID: 9,
+		Protocol: "openai_chat_completions",
+		Body:     []byte(`{"messages":[{"role":"system","content":"system instruction"},{"role":"user","content":"older user input"},{"role":"assistant","content":"previous output"},{"role":"user","content":"latest user input"}]}`),
+	}
+	config := &fakeConfigStore{active: true, cfg: ActiveConfig{
+		RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true, AllGroups: true,
+		WorkerCount: 1, QueueCapacity: 8, Scanners: AllScannerIDs, ConfigVersion: 7,
+		Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
+	}}
+
+	t.Run("allow queues the complete transcript", func(t *testing.T) {
+		repo := &fakeJobRepository{createJob: &Job{ID: 81}}
+		payload := &fakePayloadStore{values: map[int64]string{}}
+		metrics := NewAtomicMetrics()
+		seen := make([]string, 0, 1)
+		evaluator := newGuardEvaluator(PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, chunk string, _ []string) (*NormalizedResult, error) {
+			seen = append(seen, chunk)
+			return integrationResult(EventPass), nil
+		}), repo, metrics, 2, 2)
+		background, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		service := &PromptService{
+			config: config, evaluator: evaluator, metrics: metrics,
+			enqueuer: NewEnqueuer(config, repo, payload, metrics), admission: newPromptAdmissionLimiter(2, 4, time.Second),
+			background: background, enqueueSlots: make(chan struct{}, 4), clock: realClock{},
+		}
+
+		decision, err := service.Evaluate(context.Background(), request)
+		require.NoError(t, err)
+		require.Equal(t, DecisionAllow, decision.Kind)
+		service.enqueueWG.Wait()
+
+		require.Equal(t, []string{"latest user input"}, seen)
+		repo.mu.Lock()
+		queuedSnapshot := repo.createdSnapshot
+		repo.mu.Unlock()
+		require.Equal(t, 4, queuedSnapshot.MessageCount)
+		require.Empty(t, queuedSnapshot.ScanText)
+		payload.mu.Lock()
+		fullScanText := payload.values[81]
+		payload.mu.Unlock()
+		for _, text := range []string{"system instruction", "older user input", "previous output", "latest user input"} {
+			require.Contains(t, fullScanText, text)
+		}
+	})
+
+	t.Run("block is recorded but not queued again", func(t *testing.T) {
+		repo := &fakeJobRepository{}
+		payload := &fakePayloadStore{values: map[int64]string{}}
+		metrics := NewAtomicMetrics()
+		evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+			return integrationResult(EventCritical), nil
+		}), repo, metrics, 2, 2)
+		service := &PromptService{
+			config: config, evaluator: evaluator, metrics: metrics,
+			enqueuer: NewEnqueuer(config, repo, payload, metrics), admission: newPromptAdmissionLimiter(2, 4, time.Second),
+			background: context.Background(), enqueueSlots: make(chan struct{}, 4), clock: realClock{},
+		}
+
+		decision, err := service.Evaluate(context.Background(), request)
+		require.NoError(t, err)
+		require.Equal(t, DecisionBlock, decision.Kind)
+		service.enqueueWG.Wait()
+		require.Equal(t, 1, repo.recordBlockingCalls)
+		require.Zero(t, repo.createdSnapshot.MessageCount)
+		require.Empty(t, payload.values)
+	})
+}
+
+func TestPromptServiceGuardDisabledKeepsLocalOnlyPathAndDoesNotQueueReview(t *testing.T) {
+	repo := &fakeJobRepository{createJob: &Job{ID: 82}}
+	payload := &fakePayloadStore{values: map[int64]string{}}
+	config := &fakeConfigStore{active: true, cfg: ActiveConfig{
+		RiskControlEnabled: true, Enabled: true, GuardEnabled: false, BlockingEnabled: true,
+		BlockingLatestTurnOnly: true, AllGroups: true, WorkerCount: 1, QueueCapacity: 8,
+		Scanners: AllScannerIDs, ConfigVersion: 8,
+		Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
+	}}
+	evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		t.Fatal("disabled Guard must not call the scanner")
+		return nil, nil
+	}), repo, NewAtomicMetrics(), 2, 2)
+	service := &PromptService{
+		config: config, evaluator: evaluator,
+		enqueuer: NewEnqueuer(config, repo, payload), admission: newPromptAdmissionLimiter(2, 4, time.Second),
+		background: context.Background(), enqueueSlots: make(chan struct{}, 4), clock: realClock{},
+	}
+
+	decision, err := service.Evaluate(context.Background(), Request{
+		RequestID: "guard-disabled", Protocol: "openai_chat_completions",
+		Body: []byte(`{"messages":[{"role":"user","content":"ordinary request"}]}`),
+	})
+	require.NoError(t, err)
+	require.Equal(t, DecisionAllow, decision.Kind)
+	service.enqueueWG.Wait()
+	require.Zero(t, repo.createdSnapshot.MessageCount)
+}
+
+func TestPromptServiceAdmissionBusyFailsClosedWithIdentityMetrics(t *testing.T) {
+	config := &fakeConfigStore{active: true, cfg: ActiveConfig{
+		RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: true, AllGroups: true,
+		Scanners: AllScannerIDs, Endpoints: []ActiveEndpoint{{ID: "guard-1", Enabled: true, TimeoutMS: 1000, InputLimit: 4096}},
+	}}
+	metrics := NewAtomicMetrics()
+	service := &PromptService{
+		config: config,
+		evaluator: newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+			return integrationResult(EventPass), nil
+		}), nil, metrics, 2, 2),
+		metrics: metrics, admission: newPromptAdmissionLimiter(1, 0, 20*time.Millisecond), clock: realClock{},
+	}
+	heldRelease, acquired := service.admission.Acquire(context.Background(), "user:7")
+	require.True(t, acquired)
+	defer heldRelease()
+
+	decision, err := service.Evaluate(context.Background(), Request{
+		RequestID: "busy-request", UserID: 7, APIKeyID: 9,
+		Protocol: "openai_chat_completions", Body: []byte(`{"messages":[{"role":"user","content":"hello"}]}`),
+	})
+	require.Nil(t, decision)
+	var guardErr *GuardError
+	require.ErrorAs(t, err, &guardErr)
+	require.Equal(t, ErrorCodeBusy, guardErr.Code)
+	require.Equal(t, int64(1), metrics.Snapshot().Busy)
 }
 
 func TestPromptServiceRejectsInvalidDeleteConfirmationClaims(t *testing.T) {

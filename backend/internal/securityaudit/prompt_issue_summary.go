@@ -14,6 +14,21 @@ func BuildIssueSummaries(result NormalizedResult) []IssueSummary {
 	for _, category := range resultCategories {
 		definition, ok := ScannerCatalog[category]
 		if !ok {
+			if result.ScannerBackend == "local_rules" {
+				evidence := RedactPreview(result.ScannerEvidence[category], 160)
+				if evidence == "" {
+					evidence = RedactPreview(result.ScannerEvidence["local_rule"], 160)
+				}
+				digest := sha256.Sum256([]byte(evidence + ":" + category))
+				summaries = append(summaries, IssueSummary{
+					Category: category, ScannerID: "local_rule", Title: "本地规则命中",
+					Description: "请求命中了管理员配置的高置信本地拦截规则", Severity: string(result.RiskLevel),
+					SeverityLabel: riskLabelZH(result.RiskLevel), Action: string(result.Action),
+					ActionLabel: actionLabelZH(result.Action), Code: "prompt_guard_local_rule",
+					Score: result.ScannerScores[category], Evidence: evidence,
+					EvidenceHash: hex.EncodeToString(digest[:]),
+				})
+			}
 			continue
 		}
 		evidence := RedactPreview(result.ScannerEvidence[category], 160)

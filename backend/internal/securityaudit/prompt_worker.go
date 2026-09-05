@@ -20,13 +20,14 @@ type WorkerRuntime struct {
 }
 
 type Runner struct {
-	config  ConfigStore
-	repo    JobRepository
-	payload PayloadStore
-	scanner PromptScanner
-	metrics Metrics
-	clock   Clock
-	runtime WorkerRuntime
+	config   ConfigStore
+	repo     JobRepository
+	payload  PayloadStore
+	scanner  PromptScanner
+	metrics  Metrics
+	clock    Clock
+	capacity *promptCapacity
+	runtime  WorkerRuntime
 
 	mu     sync.Mutex
 	cancel context.CancelFunc
@@ -34,7 +35,16 @@ type Runner struct {
 }
 
 func NewRunner(config ConfigStore, repo JobRepository, payload PayloadStore, scanner PromptScanner, metrics Metrics) *Runner {
-	return &Runner{config: config, repo: repo, payload: payload, scanner: scanner, metrics: metrics, clock: realClock{}}
+	return newRunnerWithCapacity(config, repo, payload, scanner, metrics, newPromptCapacity(
+		defaultPromptSyncGlobalLimit,
+		defaultPromptSyncNodeLimit,
+		defaultPromptAsyncGlobalLimit,
+		defaultPromptAsyncNodeLimit,
+	))
+}
+
+func newRunnerWithCapacity(config ConfigStore, repo JobRepository, payload PayloadStore, scanner PromptScanner, metrics Metrics, capacity *promptCapacity) *Runner {
+	return &Runner{config: config, repo: repo, payload: payload, scanner: scanner, metrics: metrics, clock: realClock{}, capacity: capacity}
 }
 
 func (r *Runner) Start(ctx context.Context) error {
@@ -94,7 +104,7 @@ func (r *Runner) worker(ctx context.Context, workerID int) {
 		case <-ticker.C:
 			r.runtime.heartbeatNS.Store(r.clock.Now().UnixNano())
 			cfg, ok := r.config.Active()
-			if !ok || !cfg.RiskControlEnabled || !cfg.Enabled || workerID >= cfg.WorkerCount {
+			if !ok || !cfg.RiskControlEnabled || !cfg.Enabled || !cfg.GuardEnabled || workerID >= cfg.WorkerCount {
 				continue
 			}
 			for {
@@ -156,7 +166,7 @@ func (r *Runner) processJob(ctx context.Context, workerID int, cfg ActiveConfig,
 		}
 		chunkStarted := r.clock.Now()
 		LogInfo(EventChunkStarted, mergeLogFields(baseFields, map[string]any{"worker_id": workerID, "chunk_index": index + 1, "chunk_total": len(chunks), "chunk_chars": len([]rune(chunk)), "input_chars": job.Snapshot.PromptLength, "input_limit": minimumInputLimit(endpoints), "status": "started"}))
-		result, scanErr := scanWithFailover(ctx, r.scanner, cfg.Scanners, endpoints, chunk, r.metrics)
+		result, scanErr := scanWithFailover(ctx, r.scanner, cfg.Scanners, endpoints, chunk, r.metrics, r.capacity, cfg.Strategy)
 		if scanErr != nil {
 			LogWarn(EventChunkFailed, mergeLogFields(baseFields, map[string]any{
 				"worker_id": workerID, "chunk_index": index + 1, "chunk_total": len(chunks),
@@ -306,10 +316,29 @@ func (r *Runner) setLastError(code, _ string) {
 	r.runtime.lastErrorMu.Unlock()
 }
 
-func scanWithFailover(ctx context.Context, scanner PromptScanner, scanners []string, endpoints []ActiveEndpoint, chunk string, metrics Metrics) (*NormalizedResult, error) {
+func scanWithFailover(ctx context.Context, scanner PromptScanner, scanners []string, endpoints []ActiveEndpoint, chunk string, metrics Metrics, capacity *promptCapacity, strategy ...string) (*NormalizedResult, error) {
 	var lastErr error
-	for index, endpoint := range endpoints {
+	if capacity == nil {
+		capacity = newPromptCapacity(defaultPromptSyncGlobalLimit, defaultPromptSyncNodeLimit, defaultPromptAsyncGlobalLimit, defaultPromptAsyncNodeLimit)
+	}
+	selection := PromptAuditStrategyPriority
+	if len(strategy) > 0 {
+		selection = strategy[0]
+	}
+	for index, endpoint := range capacity.OrderEndpoints(selection, endpoints) {
+		release, acquired := capacity.TryAcquireAsync(endpoint.ID)
+		if !acquired {
+			if metrics != nil {
+				metrics.IncBulkheadFull()
+			}
+			lastErr = &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
+			if index < len(endpoints)-1 && metrics != nil {
+				metrics.IncFailover()
+			}
+			continue
+		}
 		result, err := scanner.Scan(ctx, endpoint, chunk, scanners)
+		release()
 		if err == nil && result != nil {
 			return result, nil
 		}

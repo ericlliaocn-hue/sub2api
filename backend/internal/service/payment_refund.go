@@ -619,6 +619,9 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 	if err := finalizeRechargeRefundAccounting(txCtx, tx.Client(), p); err != nil {
 		return nil, fmt.Errorf("record refund accounting: %w", err)
 	}
+	if err := reversePromotionCommission(txCtx, tx.Client(), p); err != nil {
+		return nil, err
+	}
 	now := time.Now()
 	_, err = tx.PaymentOrder.UpdateOneID(p.OrderID).SetStatus(fs).SetRefundAmount(p.RefundAmount).SetRefundReason(p.Reason).SetRefundAt(now).SetForceRefund(p.Force).Save(txCtx)
 	if err != nil {
@@ -645,6 +648,9 @@ func (s *PaymentService) markRefundOkTx(ctx context.Context, client *dbent.Clien
 	now := time.Now()
 	if err := finalizeRechargeRefundAccounting(ctx, client, p); err != nil {
 		return nil, fmt.Errorf("record refund accounting: %w", err)
+	}
+	if err := reversePromotionCommission(ctx, client, p); err != nil {
+		return nil, err
 	}
 	_, err := client.PaymentOrder.UpdateOneID(p.OrderID).SetStatus(fs).SetRefundAmount(p.RefundAmount).SetRefundReason(p.Reason).SetRefundAt(now).SetForceRefund(p.Force).Save(ctx)
 	if err != nil {

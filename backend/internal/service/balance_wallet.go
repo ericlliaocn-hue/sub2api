@@ -123,7 +123,7 @@ func ExpireRechargeBonusLots(ctx context.Context, exec BalanceSQLExecutor, userI
 		BalanceBefore: balanceBefore, BalanceAfter: balanceAfter,
 		BonusBefore: bonusAfter + expired, BonusAfter: bonusAfter,
 		SourceType: "bonus_expiry", SourceID: fmt.Sprintf("%d:%d", userID, time.Now().UnixNano()),
-		Description: "充值赠送额度到期收回",
+		Description: "赠送余额到期收回",
 	}); err != nil {
 		return 0, err
 	}

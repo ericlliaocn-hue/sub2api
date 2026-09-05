@@ -252,6 +252,16 @@
               {{ t('admin.users.bulkLimits.action', { count: selectedCount }) }}
             </button>
 
+            <button
+              v-if="selectedCount > 0"
+              class="btn btn-primary flex-1 md:flex-initial"
+              data-test="bulk-grant-bonus"
+              @click="handleGrantBonus()"
+            >
+              <Icon name="dollar" size="md" class="mr-2" />
+              {{ t('admin.users.bonusGrant.action', { count: selectedCount }) }}
+            </button>
+
             <!-- Create User Button (full width on mobile, auto width on desktop) -->
             <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
               <Icon name="plus" size="md" class="mr-2" />
@@ -271,7 +281,7 @@
           selectable
           :selected-keys="selectedIds"
           :selection-label="getUserSelectionLabel"
-          :actions-count="7"
+          :actions-count="8"
           :server-side-sort="true"
           default-sort-key="created_at"
           default-sort-order="desc"
@@ -701,6 +711,14 @@
                 {{ t('admin.users.deposit') }}
               </button>
 
+              <button
+                @click="handleGrantBonus(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="gift" size="sm" class="text-primary-500" :stroke-width="2" />
+                {{ t('admin.users.bonusGrant.singleAction') }}
+              </button>
+
               <!-- Withdraw -->
               <button
                 @click="handleWithdraw(user); closeActionMenu()"
@@ -765,6 +783,13 @@
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
+    <UserBonusGrantModal
+      :show="showBonusGrantModal"
+      :selected-ids="bonusGrantUserIds"
+      :single-user-email="bonusGrantUser?.email"
+      @close="closeBonusGrantModal"
+      @success="handleBonusGrantSuccess"
+    />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
@@ -808,6 +833,7 @@ import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaMod
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
+import UserBonusGrantModal from '@/components/admin/user/UserBonusGrantModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
@@ -1442,7 +1468,7 @@ const openActionMenu = (user: AdminUser, e: MouseEvent) => {
 
     const rect = target.getBoundingClientRect()
     const menuWidth = 200
-    const menuHeight = 240
+    const menuHeight = 280
     const padding = 8
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
@@ -1531,6 +1557,29 @@ const groupReplaceOldGroup = ref<{ id: number; name: string } | null>(null)
 const showBalanceModal = ref(false)
 const balanceUser = ref<AdminUser | null>(null)
 const balanceOperation = ref<'add' | 'subtract'>('add')
+
+const showBonusGrantModal = ref(false)
+const bonusGrantUser = ref<AdminUser | null>(null)
+const bonusGrantUserIds = ref<number[]>([])
+
+const handleGrantBonus = (user?: AdminUser) => {
+  bonusGrantUser.value = user || null
+  bonusGrantUserIds.value = user ? [user.id] : [...selectedIds.value]
+  if (bonusGrantUserIds.value.length > 0) {
+    showBonusGrantModal.value = true
+  }
+}
+
+const closeBonusGrantModal = () => {
+  showBonusGrantModal.value = false
+  bonusGrantUser.value = null
+  bonusGrantUserIds.value = []
+}
+
+const handleBonusGrantSuccess = async () => {
+  if (!bonusGrantUser.value) clearSelection()
+  await loadUsers()
+}
 
 // Balance History modal state
 const showBalanceHistoryModal = ref(false)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,12 +16,14 @@ import (
 type PromptService struct {
 	config    ConfigStore
 	repo      *PostgreSQLRepository
+	ruleRepo  PromptGuardRuleRepository
 	payload   *RedisPayloadStore
 	enqueuer  *Enqueuer
 	runner    *Runner
 	evaluator *GuardEvaluator
 	scanner   *OpenAICompatibleScanner
 	metrics   *AtomicMetrics
+	admission *promptAdmissionLimiter
 	clock     Clock
 
 	lifecycleMu  sync.Mutex
@@ -39,12 +42,31 @@ func NewPromptService(
 	scanner *OpenAICompatibleScanner,
 	metrics *AtomicMetrics,
 ) *PromptService {
+	return NewPromptServiceWithRules(config, repo, payload, scanner, metrics, nil)
+}
+
+func NewPromptServiceWithRules(
+	config ConfigStore,
+	repo *PostgreSQLRepository,
+	payload *RedisPayloadStore,
+	scanner *OpenAICompatibleScanner,
+	metrics *AtomicMetrics,
+	ruleRepo PromptGuardRuleRepository,
+) *PromptService {
 	enqueuer := NewEnqueuer(config, repo, payload, metrics)
-	evaluator := NewGuardEvaluator(scanner, repo, metrics)
-	runner := NewRunner(config, repo, payload, scanner, metrics)
+	capacity := newPromptCapacity(
+		defaultPromptSyncGlobalLimit,
+		defaultPromptSyncNodeLimit,
+		defaultPromptAsyncGlobalLimit,
+		defaultPromptAsyncNodeLimit,
+	)
+	ruleStore := NewPromptGuardRuleStore(ruleRepo)
+	evaluator := newGuardEvaluatorWithDependencies(scanner, repo, metrics, capacity, ruleStore, newPromptDecisionCache(payload))
+	runner := newRunnerWithCapacity(config, repo, payload, scanner, metrics, capacity)
 	return &PromptService{
-		config: config, repo: repo, payload: payload, scanner: scanner, metrics: metrics,
+		config: config, repo: repo, ruleRepo: ruleRepo, payload: payload, scanner: scanner, metrics: metrics,
 		enqueuer: enqueuer, evaluator: evaluator, runner: runner, clock: realClock{},
+		admission:    newPromptAdmissionLimiter(defaultPromptAdmissionLimit, defaultPromptAdmissionMaxWaiting, defaultPromptAdmissionWait),
 		enqueueSlots: make(chan struct{}, 128), probes: map[string]ProbeResult{},
 	}
 }
@@ -63,6 +85,13 @@ func (s *PromptService) Start(ctx context.Context) error {
 	s.lifecycleMu.Unlock()
 	configErr := s.config.Start(background)
 	workerErr := s.runner.Start(background)
+	if s.evaluator != nil && s.evaluator.rules != nil {
+		ruleCtx, ruleCancel := context.WithTimeout(background, time.Second)
+		if err := s.evaluator.rules.Reload(ruleCtx); err != nil {
+			LogWarn(EventLocalRuleLoadFailed, map[string]any{"error_code": "local_rule_startup_load_failed", "status": "degraded"})
+		}
+		ruleCancel()
+	}
 	return errors.Join(configErr, workerErr)
 }
 
@@ -111,6 +140,10 @@ func (s *PromptService) Enqueue(_ context.Context, req Request) error {
 	if s == nil || s.enqueuer == nil || s.EffectiveMode() != ModeAsync {
 		return nil
 	}
+	return s.enqueueInBackground(req, enqueueAsyncMode)
+}
+
+func (s *PromptService) enqueueInBackground(req Request, purpose enqueuePurpose) error {
 	select {
 	case s.enqueueSlots <- struct{}{}:
 	default:
@@ -134,6 +167,10 @@ func (s *PromptService) Enqueue(_ context.Context, req Request) error {
 		defer func() { <-s.enqueueSlots }()
 		ctx, cancel := context.WithTimeout(background, 2*time.Second)
 		defer cancel()
+		if purpose == enqueueBlockingFullReview {
+			_ = s.enqueuer.EnqueueBlockingReview(ctx, requestCopy)
+			return
+		}
 		_ = s.enqueuer.Enqueue(ctx, requestCopy)
 	}()
 	return nil
@@ -163,13 +200,111 @@ func (s *PromptService) Evaluate(ctx context.Context, req Request) (*PromptDecis
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeInvalidResponse, Cause: err}
 	}
-	return s.evaluator.Evaluate(ctx, cfg, snapshot)
+	started := time.Now()
+	admission := s.admissionLimiter()
+	release, acquired := admission.Acquire(ctx, promptAdmissionKey(req))
+	if !acquired {
+		latency := time.Since(started)
+		if s.metrics != nil {
+			s.metrics.Observe(DecisionBusy, latency)
+		}
+		LogWarn(EventGuardBusy, mergeLogFields(requestLogFields(req), map[string]any{
+			"decision": DecisionBusy, "latency_ms": latency.Milliseconds(),
+			"status": "busy", "error_code": ErrorCodeBusy,
+			"upstream_dispatched": false, "billing_preconsumed": false,
+		}))
+		return nil, &GuardError{Code: ErrorCodeBusy, Retryable: true}
+	}
+	defer release()
+
+	decision, err := s.evaluator.Evaluate(ctx, cfg, snapshot)
+	if err != nil || decision == nil {
+		return decision, err
+	}
+	if s.enqueuer != nil && cfg.GuardEnabled && cfg.BlockingLatestTurnOnly && (decision.Kind == DecisionAllow || decision.Kind == DecisionFlag) {
+		// Full-transcript review is best-effort and must never change the already
+		// determined synchronous gateway result.
+		_ = s.enqueueInBackground(req.Clone(), enqueueBlockingFullReview)
+	}
+	return decision, nil
+}
+
+func (s *PromptService) admissionLimiter() *promptAdmissionLimiter {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	if s.admission == nil {
+		s.admission = newPromptAdmissionLimiter(defaultPromptAdmissionLimit, defaultPromptAdmissionMaxWaiting, defaultPromptAdmissionWait)
+	}
+	return s.admission
 }
 
 func (s *PromptService) GetConfig() (PublicConfig, error) { return s.config.Public() }
 
 func (s *PromptService) SaveConfig(ctx context.Context, req UpdateConfigRequest, actorID int64) (PublicConfig, error) {
 	return s.config.Save(ctx, req, actorID)
+}
+
+func (s *PromptService) ListRules(ctx context.Context) ([]PromptGuardRule, error) {
+	if s == nil || s.ruleRepo == nil {
+		return []PromptGuardRule{}, nil
+	}
+	return s.ruleRepo.List(ctx, true)
+}
+
+func (s *PromptService) CreateRule(ctx context.Context, request UpsertPromptGuardRuleRequest, actorID int64) (*PromptGuardRule, error) {
+	if s == nil || s.ruleRepo == nil {
+		return nil, errors.New("prompt guard rule repository unavailable")
+	}
+	if err := ValidatePromptGuardRule(request); err != nil {
+		return nil, err
+	}
+	rule, err := s.ruleRepo.Create(ctx, request, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if s.evaluator != nil && s.evaluator.rules != nil {
+		if reloadErr := s.evaluator.rules.Reload(ctx); reloadErr != nil {
+			LogWarn(EventLocalRuleLoadFailed, map[string]any{"error_code": "local_rule_reload_failed", "status": "degraded"})
+		}
+	}
+	return rule, nil
+}
+
+func (s *PromptService) UpdateRule(ctx context.Context, request UpsertPromptGuardRuleRequest, actorID int64) (*PromptGuardRule, error) {
+	if s == nil || s.ruleRepo == nil {
+		return nil, errors.New("prompt guard rule repository unavailable")
+	}
+	if request.ID <= 0 {
+		return nil, fmt.Errorf("%w: id", ErrPromptGuardRuleInvalid)
+	}
+	if err := ValidatePromptGuardRule(request); err != nil {
+		return nil, err
+	}
+	rule, err := s.ruleRepo.Update(ctx, request, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if s.evaluator != nil && s.evaluator.rules != nil {
+		if reloadErr := s.evaluator.rules.Reload(ctx); reloadErr != nil {
+			LogWarn(EventLocalRuleLoadFailed, map[string]any{"error_code": "local_rule_reload_failed", "status": "degraded"})
+		}
+	}
+	return rule, nil
+}
+
+func (s *PromptService) DeleteRule(ctx context.Context, id int64) error {
+	if s == nil || s.ruleRepo == nil {
+		return errors.New("prompt guard rule repository unavailable")
+	}
+	if err := s.ruleRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+	if s.evaluator != nil && s.evaluator.rules != nil {
+		if reloadErr := s.evaluator.rules.Reload(ctx); reloadErr != nil {
+			LogWarn(EventLocalRuleLoadFailed, map[string]any{"error_code": "local_rule_reload_failed", "status": "degraded"})
+		}
+	}
+	return nil
 }
 
 func (s *PromptService) Runtime(ctx context.Context) RuntimeSnapshot {

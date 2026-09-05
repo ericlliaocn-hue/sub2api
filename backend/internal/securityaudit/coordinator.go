@@ -67,9 +67,15 @@ func (c *Coordinator) checkBlocking(ctx context.Context, req Request) Decision {
 		result, err := c.prompt.Evaluate(ctx, req.Clone())
 		if err != nil {
 			var guardErr *GuardError
-			if errors.As(err, &guardErr) && guardErr.Code == ErrorCodeInvalidResponse {
-				prompt = unavailablePromptDecision(ErrorCodeInvalidResponse)
-				return
+			if errors.As(err, &guardErr) {
+				switch guardErr.Code {
+				case ErrorCodeBusy:
+					prompt = unavailablePromptDecision(ErrorCodeBusy)
+					return
+				case ErrorCodeInvalidResponse:
+					prompt = unavailablePromptDecision(ErrorCodeInvalidResponse)
+					return
+				}
 			}
 			prompt = unavailablePromptDecision(ErrorCodeUnavailable)
 			return
@@ -111,8 +117,11 @@ func prioritize(legacy *LegacyDecision, prompt *PromptDecision) Decision {
 	}
 	switch prompt.Kind {
 	case DecisionBlock:
-		return Decision{Kind: DecisionBlock, HTTPStatus: http.StatusForbidden, ErrorCode: ErrorCodeBlocked,
+		return Decision{Kind: DecisionBlock, HTTPStatus: http.StatusBadRequest, ErrorCode: ErrorCodeBlocked,
 			ClientMessage: "提示词安全审计拒绝了该请求，请调整输入后重试", Legacy: legacy, Prompt: prompt}
+	case DecisionBusy:
+		return Decision{Kind: DecisionBusy, HTTPStatus: http.StatusTooManyRequests, ErrorCode: ErrorCodeBusy,
+			ClientMessage: "提示词安全审计繁忙，请稍后重试", Legacy: legacy, Prompt: prompt}
 	case DecisionInvalid:
 		return Decision{Kind: DecisionInvalid, HTTPStatus: http.StatusServiceUnavailable, ErrorCode: ErrorCodeInvalidResponse,
 			ClientMessage: "提示词安全审计暂时不可用，请稍后重试", Legacy: legacy, Prompt: prompt}
@@ -132,7 +141,10 @@ func allowDecision(legacy *LegacyDecision, prompt *PromptDecision) Decision {
 
 func unavailablePromptDecision(code string) *PromptDecision {
 	kind := DecisionUnavailable
-	if code == ErrorCodeInvalidResponse {
+	switch code {
+	case ErrorCodeBusy:
+		kind = DecisionBusy
+	case ErrorCodeInvalidResponse:
 		kind = DecisionInvalid
 	}
 	return &PromptDecision{Kind: kind, ErrorCode: code, AllowNextStage: false}

@@ -55,6 +55,24 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export interface GrantExpiringBonusRequest {
+  user_ids: number[]
+  amount: number
+  expires_at: string
+  campaign_id: string
+  notes?: string
+}
+
+export interface GrantExpiringBonusResponse {
+  affected: number
+  amount: number
+  total_granted: number
+  expires_at: string
+  campaign_id: string
+  operation_id: string
+  recovered: boolean
+}
+
 /**
  * List all users with pagination
  * @param page - Page number (default: 1)
@@ -182,6 +200,19 @@ export async function updateBalance(
     operation,
     notes: notes || ''
   })
+  return data
+}
+
+/** Grant the same expiring promotional balance lot to one or more users. */
+export async function grantExpiringBonus(
+  request: GrantExpiringBonusRequest,
+  idempotencyKey: string
+): Promise<GrantExpiringBonusResponse> {
+  const { data } = await apiClient.post<GrantExpiringBonusResponse>(
+    '/admin/users/bonus-grants',
+    request,
+    { headers: { 'Idempotency-Key': idempotencyKey } }
+  )
   return data
 }
 
@@ -406,6 +437,7 @@ export const usersAPI = {
   update,
   delete: deleteUser,
   updateBalance,
+  grantExpiringBonus,
   updateConcurrency,
   batchUpdateLimits,
   toggleStatus,

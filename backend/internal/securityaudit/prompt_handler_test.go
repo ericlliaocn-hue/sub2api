@@ -19,6 +19,10 @@ import (
 type fakePromptAdminService struct {
 	config       PublicConfig
 	save         func(context.Context, UpdateConfigRequest, int64) (PublicConfig, error)
+	rules        []PromptGuardRule
+	createRule   func(context.Context, UpsertPromptGuardRuleRequest, int64) (*PromptGuardRule, error)
+	updateRule   func(context.Context, UpsertPromptGuardRuleRequest, int64) (*PromptGuardRule, error)
+	deleteRule   func(context.Context, int64) error
 	probe        func(context.Context, ProbeRequest) ProbeResult
 	runtime      RuntimeSnapshot
 	list         func(context.Context, EventFilter, int, int) (*EventPage, error)
@@ -37,6 +41,27 @@ func (s *fakePromptAdminService) SaveConfig(ctx context.Context, req UpdateConfi
 		return PublicConfig{}, errors.New("unexpected SaveConfig call")
 	}
 	return s.save(ctx, req, actorID)
+}
+func (s *fakePromptAdminService) ListRules(context.Context) ([]PromptGuardRule, error) {
+	return s.rules, nil
+}
+func (s *fakePromptAdminService) CreateRule(ctx context.Context, req UpsertPromptGuardRuleRequest, actorID int64) (*PromptGuardRule, error) {
+	if s.createRule == nil {
+		return nil, errors.New("unexpected CreateRule call")
+	}
+	return s.createRule(ctx, req, actorID)
+}
+func (s *fakePromptAdminService) UpdateRule(ctx context.Context, req UpsertPromptGuardRuleRequest, actorID int64) (*PromptGuardRule, error) {
+	if s.updateRule == nil {
+		return nil, errors.New("unexpected UpdateRule call")
+	}
+	return s.updateRule(ctx, req, actorID)
+}
+func (s *fakePromptAdminService) DeleteRule(ctx context.Context, id int64) error {
+	if s.deleteRule == nil {
+		return nil
+	}
+	return s.deleteRule(ctx, id)
 }
 func (s *fakePromptAdminService) Probe(ctx context.Context, req ProbeRequest) ProbeResult {
 	if s.probe == nil {
@@ -94,6 +119,10 @@ func promptAdminRouter(service PromptAdminService) *gin.Engine {
 	group := router.Group("/admin/prompt-audit")
 	group.GET("/config", handler.GetConfig)
 	group.PUT("/config", handler.UpdateConfig)
+	group.GET("/rules", handler.ListRules)
+	group.POST("/rules", handler.CreateRule)
+	group.PUT("/rules/:id", handler.UpdateRule)
+	group.DELETE("/rules/:id", handler.DeleteRule)
 	group.POST("/endpoints/probe", handler.ProbeEndpoint)
 	group.GET("/runtime", handler.GetRuntime)
 	group.GET("/events", handler.ListEvents)
@@ -171,6 +200,48 @@ func TestPromptAdminGetConfigReturnsSecretFreeUnavailableError(t *testing.T) {
 	require.NotContains(t, response.Body.String(), canary)
 	require.NotContains(t, response.Body.String(), `"config_version"`)
 	require.NotContains(t, response.Body.String(), `"token"`)
+}
+
+func TestPromptAdminRuleCRUDValidatesAndPassesAdminIdentity(t *testing.T) {
+	request := UpsertPromptGuardRuleRequest{
+		RuleKey: "local-test", Name: "Local test", Category: "jailbreak", Severity: RiskHigh,
+		PatternType: PromptGuardRulePatternLiteral, Pattern: "unsafe", Action: PromptGuardRuleActionBlock, Priority: 10, Enabled: true,
+	}
+	service := &fakePromptAdminService{
+		createRule: func(_ context.Context, got UpsertPromptGuardRuleRequest, actorID int64) (*PromptGuardRule, error) {
+			require.Equal(t, int64(42), actorID)
+			require.Equal(t, request, got)
+			return &PromptGuardRule{ID: 9, RuleKey: got.RuleKey, Enabled: true}, nil
+		},
+		updateRule: func(_ context.Context, got UpsertPromptGuardRuleRequest, actorID int64) (*PromptGuardRule, error) {
+			require.Equal(t, int64(42), actorID)
+			require.Equal(t, int64(9), got.ID)
+			return &PromptGuardRule{ID: got.ID, RuleKey: got.RuleKey, Enabled: got.Enabled}, nil
+		},
+		deleteRule: func(_ context.Context, id int64) error {
+			require.Equal(t, int64(9), id)
+			return nil
+		},
+	}
+	router := promptAdminRouter(service)
+	created := promptAdminRequest(t, router, http.MethodPost, "/admin/prompt-audit/rules", request)
+	require.Equal(t, http.StatusOK, created.Code)
+	updated := request
+	updated.Enabled = false
+	updated.ID = 9
+	updatedResponse := promptAdminRequest(t, router, http.MethodPut, "/admin/prompt-audit/rules/9", updated)
+	require.Equal(t, http.StatusOK, updatedResponse.Code)
+	deleted := promptAdminRequest(t, router, http.MethodDelete, "/admin/prompt-audit/rules/9", nil)
+	require.Equal(t, http.StatusOK, deleted.Code)
+
+	invalid := request
+	invalid.PatternType = "not-supported"
+	response := promptAdminRequest(t, promptAdminRouter(&fakePromptAdminService{
+		createRule: func(context.Context, UpsertPromptGuardRuleRequest, int64) (*PromptGuardRule, error) {
+			return nil, ErrPromptGuardRuleInvalid
+		},
+	}), http.MethodPost, "/admin/prompt-audit/rules", invalid)
+	require.Equal(t, http.StatusBadRequest, response.Code)
 }
 
 func TestPromptAdminProbeSupportsTemporaryOrSavedTokenWithoutEcho(t *testing.T) {

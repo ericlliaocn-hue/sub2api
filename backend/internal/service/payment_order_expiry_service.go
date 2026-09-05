@@ -29,9 +29,19 @@ type PaymentOrderExpiryService struct {
 	stopOnce   sync.Once
 	wg         sync.WaitGroup
 
-	lockCache  LeaderLockCache
-	db         *sql.DB
-	instanceID string
+	lockCache    LeaderLockCache
+	db           *sql.DB
+	instanceID   string
+	billingCache *BillingCacheService
+	authCache    APIKeyAuthCacheInvalidator
+}
+
+func (s *PaymentOrderExpiryService) SetBonusExpiryInvalidators(billingCache *BillingCacheService, authCache APIKeyAuthCacheInvalidator) {
+	if s == nil {
+		return
+	}
+	s.billingCache = billingCache
+	s.authCache = authCache
 }
 
 func NewPaymentOrderExpiryService(paymentSvc *PaymentService, interval time.Duration) *PaymentOrderExpiryService {
@@ -111,9 +121,30 @@ func (s *PaymentOrderExpiryService) runOnce() {
 	expired, err := s.paymentSvc.ExpireTimedOutOrders(expireCtx)
 	if err != nil {
 		slog.Error("[PaymentOrderExpiry] failed to expire orders", "error", err)
-		return
-	}
-	if expired > 0 {
+	} else if expired > 0 {
 		slog.Info("[PaymentOrderExpiry] expired timed-out orders", "count", expired)
+	}
+
+	bonusCtx, bonusCancel := context.WithTimeout(context.Background(), expiryCheckTimeout)
+	expiredUsers, expiredAmount, bonusErr := s.paymentSvc.ExpireDueRechargeBonuses(bonusCtx, 500)
+	bonusCancel()
+	if len(expiredUsers) > 0 {
+		cacheCtx, cacheCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		for _, userID := range expiredUsers {
+			if s.authCache != nil {
+				s.authCache.InvalidateAuthCacheByUserID(cacheCtx, userID)
+			}
+			if s.billingCache != nil {
+				if cacheErr := s.billingCache.InvalidateUserBalance(cacheCtx, userID); cacheErr != nil {
+					slog.Warn("[PaymentOrderExpiry] failed to invalidate expired bonus balance cache", "user_id", userID, "error", cacheErr)
+				}
+			}
+		}
+		cacheCancel()
+	}
+	if bonusErr != nil {
+		slog.Error("[PaymentOrderExpiry] failed to expire bonus balances", "error", bonusErr)
+	} else if len(expiredUsers) > 0 {
+		slog.Info("[PaymentOrderExpiry] expired bonus balances", "users", len(expiredUsers), "amount", expiredAmount)
 	}
 }

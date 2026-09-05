@@ -142,7 +142,7 @@ function render(page) {
         </aside>
       </main>
     </div>
-    ${pageOverlays.replace('<script src="/app.js" defer></script>', '<script src="/search-index.js" defer></script>\n    <script src="/app.js" defer></script>')}
+    ${pageOverlays.replace('<script src="/app.js" defer></script>', '<script src="/search-index.js" defer></script>\n    <script src="/app.js" defer></script>\n    <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js" defer></script>\n    <script src="/analytics.js" defer></script>')}
   </body>
 </html>
 `
@@ -187,9 +187,11 @@ if (!checkOnly) {
   await cp(path.join(root, 'assets'), path.join(output, 'assets'), { recursive: true })
   await cp(path.join(root, 'styles.css'), path.join(output, 'styles.css'))
   await cp(path.join(root, 'app.js'), path.join(output, 'app.js'))
+  await cp(path.join(root, 'analytics.js'), path.join(output, 'analytics.js'))
 } else {
   await emit(path.join(output, 'styles.css'), await readFile(path.join(root, 'styles.css'), 'utf8'))
   await emit(path.join(output, 'app.js'), await readFile(path.join(root, 'app.js'), 'utf8'))
+  await emit(path.join(output, 'analytics.js'), await readFile(path.join(root, 'analytics.js'), 'utf8'))
 }
 
 for (const page of pages) {

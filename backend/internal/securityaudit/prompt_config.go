@@ -25,6 +25,9 @@ const (
 	MinInputLimit        = 128
 	MaxInputLimit        = 100000
 	DefaultPayloadTTL    = 30 * time.Minute
+
+	PromptAuditStrategyPriority      = "priority"
+	PromptAuditStrategyLeastInflight = "least_inflight"
 )
 
 type SecretEncryptor interface {
@@ -65,6 +68,7 @@ type StorageEndpoint struct {
 
 type storageConfig struct {
 	Enabled                bool              `json:"enabled"`
+	GuardEnabled           bool              `json:"guard_enabled"`
 	BlockingEnabled        bool              `json:"blocking_enabled"`
 	BlockingLatestTurnOnly bool              `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool              `json:"store_pass_events"`
@@ -101,6 +105,7 @@ type ActiveEndpoint struct {
 type ActiveConfig struct {
 	RiskControlEnabled     bool
 	Enabled                bool
+	GuardEnabled           bool
 	BlockingEnabled        bool
 	BlockingLatestTurnOnly bool
 	StorePassEvents        bool
@@ -132,6 +137,7 @@ type PublicEndpoint struct {
 
 type PublicConfig struct {
 	Enabled                bool             `json:"enabled"`
+	GuardEnabled           bool             `json:"guard_enabled"`
 	BlockingEnabled        bool             `json:"blocking_enabled"`
 	BlockingLatestTurnOnly bool             `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool             `json:"store_pass_events"`
@@ -165,6 +171,7 @@ type UpdateEndpoint struct {
 type UpdateConfigRequest struct {
 	ExpectedConfigVersion  int64            `json:"expected_config_version" binding:"required"`
 	Enabled                bool             `json:"enabled"`
+	GuardEnabled           *bool            `json:"guard_enabled"`
 	BlockingEnabled        bool             `json:"blocking_enabled"`
 	BlockingLatestTurnOnly bool             `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool             `json:"store_pass_events"`
@@ -180,6 +187,7 @@ type UpdateConfigRequest struct {
 func DefaultStorageConfig() storageConfig {
 	return storageConfig{
 		Enabled:                false,
+		GuardEnabled:           true,
 		BlockingEnabled:        false,
 		BlockingLatestTurnOnly: false,
 		StorePassEvents:        false,
@@ -217,7 +225,7 @@ func normalizeStorageConfig(cfg *storageConfig) {
 		cfg.ConfigVersion = 1
 	}
 	if strings.TrimSpace(cfg.Strategy) == "" {
-		cfg.Strategy = "priority"
+		cfg.Strategy = PromptAuditStrategyPriority
 	}
 	if cfg.WorkerCount == 0 {
 		cfg.WorkerCount = DefaultWorkerCount
@@ -258,8 +266,8 @@ func validateStorageConfig(cfg storageConfig) error {
 	if cfg.BlockingEnabled && !cfg.Enabled {
 		return infraerrors.BadRequest(ErrorCodeRequiresEnabled, "开启同步阻止前必须先启用提示词审计")
 	}
-	if cfg.Strategy != "priority" {
-		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority")
+	if !isSupportedPromptAuditStrategy(cfg.Strategy) {
+		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority 或 least_inflight")
 	}
 	if cfg.WorkerCount < 1 || cfg.WorkerCount > MaxWorkerCount {
 		return infraerrors.BadRequest("prompt_audit_invalid_worker_count", "Worker 数量超出允许范围")
@@ -306,8 +314,8 @@ func validateStorageConfig(cfg storageConfig) error {
 }
 
 func validateUpdateConfigRequest(req UpdateConfigRequest) error {
-	if strings.TrimSpace(req.Strategy) != "priority" {
-		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority")
+	if !isSupportedPromptAuditStrategy(req.Strategy) {
+		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority 或 least_inflight")
 	}
 	if req.WorkerCount < 1 || req.WorkerCount > MaxWorkerCount {
 		return infraerrors.BadRequest("prompt_audit_invalid_worker_count", "Worker 数量超出允许范围")
@@ -344,12 +352,24 @@ func validateUpdateConfigRequest(req UpdateConfigRequest) error {
 	return nil
 }
 
+func isSupportedPromptAuditStrategy(strategy string) bool {
+	switch strings.TrimSpace(strategy) {
+	case PromptAuditStrategyPriority, PromptAuditStrategyLeastInflight:
+		return true
+	default:
+		return false
+	}
+}
+
 func (cfg ActiveConfig) EffectiveMode() Mode {
 	if !cfg.RiskControlEnabled || !cfg.Enabled {
 		return ModeOff
 	}
 	if cfg.BlockingEnabled {
 		return ModeBlocking
+	}
+	if !cfg.GuardEnabled {
+		return ModeOff
 	}
 	return ModeAsync
 }
@@ -410,9 +430,9 @@ func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenE
 			Enabled: ep.Enabled, HasToken: hasToken, TokenStatus: status,
 		})
 	}
-	active := ActiveConfig{RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled}
+	active := ActiveConfig{RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, GuardEnabled: cfg.GuardEnabled, BlockingEnabled: cfg.BlockingEnabled}
 	return PublicConfig{
-		Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled, BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly, StorePassEvents: cfg.StorePassEvents,
+		Enabled: cfg.Enabled, GuardEnabled: cfg.GuardEnabled, BlockingEnabled: cfg.BlockingEnabled, BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly, StorePassEvents: cfg.StorePassEvents,
 		EffectiveMode: active.EffectiveMode(), Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
 		QueueCapacity: cfg.QueueCapacity, Scanners: scanners, AllGroups: cfg.AllGroups,
 		GroupIDs: groupIDs, Endpoints: endpoints, ConfigVersion: cfg.ConfigVersion,
@@ -422,7 +442,7 @@ func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenE
 
 func ActiveFromStorage(cfg storageConfig, riskControlEnabled bool, encryptor SecretEncryptor) (ActiveConfig, error) {
 	active := ActiveConfig{
-		RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled,
+		RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, GuardEnabled: cfg.GuardEnabled, BlockingEnabled: cfg.BlockingEnabled,
 		BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly,
 		StorePassEvents:        cfg.StorePassEvents, Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
 		QueueCapacity: cfg.QueueCapacity, Scanners: append([]string(nil), cfg.Scanners...), AllGroups: cfg.AllGroups,
@@ -461,6 +481,7 @@ func ActiveFromStorage(cfg storageConfig, riskControlEnabled bool, encryptor Sec
 func changeSummary(cfg storageConfig) string {
 	summary := struct {
 		Enabled                bool   `json:"enabled"`
+		GuardEnabled           bool   `json:"guard_enabled"`
 		BlockingEnabled        bool   `json:"blocking_enabled"`
 		BlockingLatestTurnOnly bool   `json:"blocking_latest_turn_only"`
 		StorePassEvents        bool   `json:"store_pass_events"`
@@ -469,7 +490,7 @@ func changeSummary(cfg storageConfig) string {
 		AllGroups              bool   `json:"all_groups"`
 		GroupCount             int    `json:"group_count"`
 		GroupHash              string `json:"group_hash"`
-	}{cfg.Enabled, cfg.BlockingEnabled, cfg.BlockingLatestTurnOnly, cfg.StorePassEvents, len(cfg.Endpoints), len(cfg.Scanners), cfg.AllGroups, len(cfg.GroupIDs), ""}
+	}{cfg.Enabled, cfg.GuardEnabled, cfg.BlockingEnabled, cfg.BlockingLatestTurnOnly, cfg.StorePassEvents, len(cfg.Endpoints), len(cfg.Scanners), cfg.AllGroups, len(cfg.GroupIDs), ""}
 	rawGroups, _ := json.Marshal(cfg.GroupIDs)
 	digest := sha256.Sum256(rawGroups)
 	summary.GroupHash = hex.EncodeToString(digest[:])

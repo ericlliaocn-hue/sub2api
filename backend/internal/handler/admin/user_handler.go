@@ -59,30 +59,32 @@ func NewUserHandler(
 
 // CreateUserRequest represents admin create user request
 type CreateUserRequest struct {
-	Email         string   `json:"email" binding:"required,email"`
-	Password      string   `json:"password" binding:"required,min=6"`
-	Username      string   `json:"username"`
-	Notes         string   `json:"notes"`
-	Role          string   `json:"role" binding:"omitempty,oneof=admin user"`
-	Balance       *float64 `json:"balance"`
-	Concurrency   int      `json:"concurrency"`
-	RPMLimit      int      `json:"rpm_limit"`
-	AllowedGroups []int64  `json:"allowed_groups"`
+	Email                string   `json:"email" binding:"required,email"`
+	Password             string   `json:"password" binding:"required,min=6"`
+	Username             string   `json:"username"`
+	Notes                string   `json:"notes"`
+	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
+	Balance              *float64 `json:"balance"`
+	Concurrency          int      `json:"concurrency"`
+	RPMLimit             int      `json:"rpm_limit"`
+	AllowedGroups        []int64  `json:"allowed_groups"`
+	RestrictPublicGroups bool     `json:"restrict_public_groups"`
 }
 
 // UpdateUserRequest represents admin update user request
 // 使用指针类型来区分"未提供"和"设置为0"
 type UpdateUserRequest struct {
-	Email         string   `json:"email" binding:"omitempty,email"`
-	Password      string   `json:"password" binding:"omitempty,min=6"`
-	Username      *string  `json:"username"`
-	Notes         *string  `json:"notes"`
-	Role          string   `json:"role" binding:"omitempty,oneof=admin user"`
-	Balance       *float64 `json:"balance"`
-	Concurrency   *int     `json:"concurrency"`
-	RPMLimit      *int     `json:"rpm_limit"`
-	Status        string   `json:"status" binding:"omitempty,oneof=active disabled"`
-	AllowedGroups *[]int64 `json:"allowed_groups"`
+	Email                string   `json:"email" binding:"omitempty,email"`
+	Password             string   `json:"password" binding:"omitempty,min=6"`
+	Username             *string  `json:"username"`
+	Notes                *string  `json:"notes"`
+	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
+	Balance              *float64 `json:"balance"`
+	Concurrency          *int     `json:"concurrency"`
+	RPMLimit             *int     `json:"rpm_limit"`
+	Status               string   `json:"status" binding:"omitempty,oneof=active disabled"`
+	AllowedGroups        *[]int64 `json:"allowed_groups"`
+	RestrictPublicGroups *bool    `json:"restrict_public_groups"`
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64 `json:"group_rates"`
@@ -93,6 +95,14 @@ type UpdateBalanceRequest struct {
 	Balance   float64 `json:"balance" binding:"required,gt=0"`
 	Operation string  `json:"operation" binding:"required,oneof=set add subtract"`
 	Notes     string  `json:"notes"`
+}
+
+type GrantExpiringBonusRequest struct {
+	UserIDs    []int64 `json:"user_ids" binding:"required,min=1,max=500,dive,gt=0"`
+	Amount     float64 `json:"amount" binding:"required,gt=0"`
+	ExpiresAt  string  `json:"expires_at" binding:"required"`
+	CampaignID string  `json:"campaign_id" binding:"required,max=100"`
+	Notes      string  `json:"notes" binding:"max=255"`
 }
 
 type BindUserAuthIdentityRequest struct {
@@ -284,16 +294,17 @@ func (h *UserHandler) Create(c *gin.Context) {
 	}
 
 	user, err := h.adminService.CreateUser(c.Request.Context(), &service.CreateUserInput{
-		Email:         req.Email,
-		Password:      req.Password,
-		Username:      req.Username,
-		Notes:         req.Notes,
-		Role:          req.Role,
-		Balance:       req.Balance,
-		Concurrency:   req.Concurrency,
-		RPMLimit:      req.RPMLimit,
-		AllowedGroups: req.AllowedGroups,
-		ActorAdminID:  getAdminIDFromContext(c),
+		Email:                req.Email,
+		Password:             req.Password,
+		Username:             req.Username,
+		Notes:                req.Notes,
+		Role:                 req.Role,
+		Balance:              req.Balance,
+		Concurrency:          req.Concurrency,
+		RPMLimit:             req.RPMLimit,
+		AllowedGroups:        req.AllowedGroups,
+		RestrictPublicGroups: req.RestrictPublicGroups,
+		ActorAdminID:         getAdminIDFromContext(c),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -342,18 +353,19 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	// 使用指针类型直接传递，nil 表示未提供该字段
 	user, err := h.adminService.UpdateUser(c.Request.Context(), userID, &service.UpdateUserInput{
-		Email:         req.Email,
-		Password:      req.Password,
-		Username:      req.Username,
-		Notes:         req.Notes,
-		Role:          req.Role,
-		Balance:       req.Balance,
-		Concurrency:   req.Concurrency,
-		RPMLimit:      req.RPMLimit,
-		Status:        req.Status,
-		AllowedGroups: req.AllowedGroups,
-		GroupRates:    req.GroupRates,
-		ActorAdminID:  getAdminIDFromContext(c),
+		Email:                req.Email,
+		Password:             req.Password,
+		Username:             req.Username,
+		Notes:                req.Notes,
+		Role:                 req.Role,
+		Balance:              req.Balance,
+		Concurrency:          req.Concurrency,
+		RPMLimit:             req.RPMLimit,
+		Status:               req.Status,
+		AllowedGroups:        req.AllowedGroups,
+		RestrictPublicGroups: req.RestrictPublicGroups,
+		GroupRates:           req.GroupRates,
+		ActorAdminID:         getAdminIDFromContext(c),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -409,6 +421,38 @@ func (h *UserHandler) UpdateBalance(c *gin.Context) {
 			return nil, execErr
 		}
 		return dto.UserFromServiceAdmin(user), nil
+	})
+}
+
+// GrantExpiringBonus grants one expiring promotional balance lot to each selected user.
+// POST /api/v1/admin/users/bonus-grants
+func (h *UserHandler) GrantExpiringBonus(c *gin.Context) {
+	var req GrantExpiringBonusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	expiresAt, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
+	if err != nil {
+		response.BadRequest(c, "expires_at must be an RFC3339 timestamp")
+		return
+	}
+	operationID := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+	if operationID == "" {
+		response.BadRequest(c, "Idempotency-Key header is required")
+		return
+	}
+	adminID := getAdminIDFromContext(c)
+	idempotencyPayload := struct {
+		AdminID int64                     `json:"admin_id"`
+		Body    GrantExpiringBonusRequest `json:"body"`
+	}{AdminID: adminID, Body: req}
+	executeAdminIdempotentJSON(c, "admin.users.bonus_grants.create", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.adminService.GrantExpiringBonus(ctx, service.AdminBonusGrantInput{
+			UserIDs: req.UserIDs, Amount: req.Amount, ExpiresAt: expiresAt,
+			CampaignID: req.CampaignID, Notes: req.Notes,
+			OperationID: operationID, GrantedBy: adminID,
+		})
 	})
 }
 

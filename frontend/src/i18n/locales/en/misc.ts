@@ -405,7 +405,7 @@ export default {
     nextBonusExpiry: 'Next expiry {time}',
     noBalanceLedger: 'No balance changes yet',
     balanceAfter: 'Balance after',
-    rechargeRatePreview: 'Exchange rate: 1 CNY = {usd} USD Token',
+    rechargeRatePreview: 'Current rate: 1 {currency} = {usd} USD',
     refundReason: 'Refund Reason',
     refundReasonPlaceholder: 'Please describe your refund reason',
     stripeLoadFailed: 'Failed to load payment component. Please refresh and try again.',

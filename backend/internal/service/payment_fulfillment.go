@@ -356,6 +356,9 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
 		return err
 	}
+	if err := s.applyPromotionCommissionForOrder(ctx, o); err != nil {
+		return err
+	}
 	return s.markCompleted(ctx, o, lease, "RECHARGE_SUCCESS")
 }
 
@@ -509,6 +512,9 @@ func (s *PaymentService) doSub(ctx context.Context, o *dbent.PaymentOrder, lease
 		return err
 	}
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
+		return err
+	}
+	if err := s.applyPromotionCommissionForOrder(ctx, o); err != nil {
 		return err
 	}
 	return s.markCompleted(ctx, o, lease, "SUBSCRIPTION_SUCCESS")

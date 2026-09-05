@@ -19,6 +19,9 @@ func TestAtomicMetricsExposeCountsLatencyDistributionAndAsyncDelivery(t *testing
 	metrics.IncFailover()
 	metrics.IncBulkheadFull()
 	metrics.IncRecordFailed()
+	metrics.IncCacheHit()
+	metrics.IncCacheMiss()
+	metrics.IncLocalRuleBlock()
 	metrics.IncEnqueued()
 	metrics.IncDropped()
 
@@ -30,7 +33,13 @@ func TestAtomicMetricsExposeCountsLatencyDistributionAndAsyncDelivery(t *testing
 	require.Equal(t, int64(40), snapshot.LatencyP95MS)
 	require.Equal(t, int64(40), snapshot.LatencyP99MS)
 	require.Equal(t, int64(100), snapshot.LatencyMaxMS)
+	require.Equal(t, int64(1), snapshot.CacheHits)
+	require.Equal(t, int64(1), snapshot.CacheMisses)
+	require.Equal(t, int64(1), snapshot.LocalRuleBlocks)
 	require.Equal(t, AuditMetricsSnapshot{Enqueued: 1, Dropped: 1}, metrics.AuditSnapshot())
+
+	metrics.Observe(DecisionBusy, 5*time.Millisecond)
+	require.Equal(t, int64(1), metrics.Snapshot().Busy)
 }
 
 func TestAtomicMetricsConcurrentObservationIsBoundedAndRaceSafe(t *testing.T) {

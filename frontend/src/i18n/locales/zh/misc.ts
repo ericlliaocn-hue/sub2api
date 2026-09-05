@@ -429,7 +429,7 @@ export default {
     nextBonusExpiry: '最近到期 {time}',
     noBalanceLedger: '暂无余额变动记录',
     balanceAfter: '变动后余额',
-    rechargeRatePreview: '兑换比例：1 CNY = {usd} USD Token',
+    rechargeRatePreview: '当前倍率：1 {currency} = {usd} USD',
     refundReason: '退款原因',
     refundReasonPlaceholder: '请描述您的退款原因',
     stripeLoadFailed: '支付组件加载失败，请刷新页面重试',

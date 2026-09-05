@@ -10,23 +10,27 @@ import (
 const latencySampleCapacity = 2048
 
 type AtomicMetrics struct {
-	total        atomic.Int64
-	allowed      atomic.Int64
-	flagged      atomic.Int64
-	blocked      atomic.Int64
-	unavailable  atomic.Int64
-	invalid      atomic.Int64
-	timeouts     atomic.Int64
-	failovers    atomic.Int64
-	bulkheadFull atomic.Int64
-	recordFailed atomic.Int64
-	latencyTotal atomic.Int64
-	latencyMax   atomic.Int64
-	enqueued     atomic.Int64
-	dropped      atomic.Int64
-	latencyMu    sync.RWMutex
-	latencies    []int64
-	latencyNext  int
+	total           atomic.Int64
+	allowed         atomic.Int64
+	flagged         atomic.Int64
+	blocked         atomic.Int64
+	busy            atomic.Int64
+	unavailable     atomic.Int64
+	invalid         atomic.Int64
+	timeouts        atomic.Int64
+	failovers       atomic.Int64
+	bulkheadFull    atomic.Int64
+	recordFailed    atomic.Int64
+	cacheHits       atomic.Int64
+	cacheMisses     atomic.Int64
+	localRuleBlocks atomic.Int64
+	latencyTotal    atomic.Int64
+	latencyMax      atomic.Int64
+	enqueued        atomic.Int64
+	dropped         atomic.Int64
+	latencyMu       sync.RWMutex
+	latencies       []int64
+	latencyNext     int
 }
 
 func NewAtomicMetrics() *AtomicMetrics { return &AtomicMetrics{} }
@@ -37,9 +41,9 @@ func (m *AtomicMetrics) Snapshot() GuardMetricsSnapshot {
 	}
 	snapshot := GuardMetricsSnapshot{
 		Total: m.total.Load(), Allowed: m.allowed.Load(), Flagged: m.flagged.Load(),
-		Blocked: m.blocked.Load(), Unavailable: m.unavailable.Load(), Invalid: m.invalid.Load(),
+		Blocked: m.blocked.Load(), Busy: m.busy.Load(), Unavailable: m.unavailable.Load(), Invalid: m.invalid.Load(),
 		Timeouts: m.timeouts.Load(), Failovers: m.failovers.Load(), BulkheadFull: m.bulkheadFull.Load(),
-		RecordFailed: m.recordFailed.Load(), LatencyCount: m.total.Load(), LatencyMaxMS: m.latencyMax.Load(),
+		RecordFailed: m.recordFailed.Load(), CacheHits: m.cacheHits.Load(), CacheMisses: m.cacheMisses.Load(), LocalRuleBlocks: m.localRuleBlocks.Load(), LatencyCount: m.total.Load(), LatencyMaxMS: m.latencyMax.Load(),
 	}
 	if snapshot.LatencyCount > 0 {
 		snapshot.LatencyAvgMS = m.latencyTotal.Load() / snapshot.LatencyCount
@@ -88,6 +92,8 @@ func (m *AtomicMetrics) Observe(kind DecisionKind, latency time.Duration) {
 		m.flagged.Add(1)
 	case DecisionBlock:
 		m.blocked.Add(1)
+	case DecisionBusy:
+		m.busy.Add(1)
 	case DecisionUnavailable:
 		m.unavailable.Add(1)
 	case DecisionInvalid:
@@ -141,5 +147,23 @@ func (m *AtomicMetrics) IncBulkheadFull() {
 func (m *AtomicMetrics) IncRecordFailed() {
 	if m != nil {
 		m.recordFailed.Add(1)
+	}
+}
+
+func (m *AtomicMetrics) IncCacheHit() {
+	if m != nil {
+		m.cacheHits.Add(1)
+	}
+}
+
+func (m *AtomicMetrics) IncCacheMiss() {
+	if m != nil {
+		m.cacheMisses.Add(1)
+	}
+}
+
+func (m *AtomicMetrics) IncLocalRuleBlock() {
+	if m != nil {
+		m.localRuleBlocks.Add(1)
 	}
 }

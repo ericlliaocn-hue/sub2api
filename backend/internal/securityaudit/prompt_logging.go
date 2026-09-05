@@ -29,7 +29,14 @@ const (
 	EventEvaluationStarted    = "prompt_guard.evaluation_started"
 	EventGuardAllowed         = "prompt_guard.allowed"
 	EventGuardBlocked         = "prompt_guard.blocked"
+	EventGuardBusy            = "prompt_guard.busy"
 	EventGuardFailed          = "prompt_guard.failed"
+	EventGuardDisabled        = "prompt_guard.disabled"
+	EventLocalRuleBlocked     = "prompt_guard.local_rule_blocked"
+	EventLocalRuleFlagged     = "prompt_guard.local_rule_flagged"
+	EventLocalRuleLoadFailed  = "prompt_guard.local_rule_load_failed"
+	EventDecisionCacheHit     = "prompt_guard.decision_cache_hit"
+	EventDecisionCacheFailed  = "prompt_guard.decision_cache_failed"
 	EventResultRecordFailed   = "prompt_guard.result_record_failed"
 	EventEventDeleted         = "prompt_audit.event_deleted"
 	EventEventsDeleted        = "prompt_audit.events_deleted"
@@ -43,7 +50,7 @@ var knownLogEvents = map[string]struct{}{
 	EventJobEnqueued: {}, EventEnqueueSkipped: {}, EventEnqueueDropped: {},
 	EventAuditStarted: {}, EventProcessingReclaimed: {}, EventProcessed: {}, EventProcessFailed: {}, EventFindingRecorded: {},
 	EventChunkStarted: {}, EventChunkCompleted: {}, EventChunkFailed: {}, EventChunksAggregated: {},
-	EventEvaluationStarted: {}, EventGuardAllowed: {}, EventGuardBlocked: {}, EventGuardFailed: {}, EventResultRecordFailed: {},
+	EventEvaluationStarted: {}, EventGuardAllowed: {}, EventGuardBlocked: {}, EventGuardBusy: {}, EventGuardFailed: {}, EventGuardDisabled: {}, EventLocalRuleBlocked: {}, EventLocalRuleFlagged: {}, EventLocalRuleLoadFailed: {}, EventDecisionCacheHit: {}, EventDecisionCacheFailed: {}, EventResultRecordFailed: {},
 	EventEventDeleted: {}, EventEventsDeleted: {}, EventDeletePreviewed: {}, EventEventsFilterDeleted: {},
 }
 
@@ -56,6 +63,7 @@ var allowedLogFields = map[string]struct{}{
 	"queue_length": {}, "queue_capacity": {}, "stage": {}, "upstream_dispatched": {},
 	"billing_preconsumed": {}, "worker_id": {}, "reclaimed_total": {}, "attempts": {},
 	"max_attempts": {}, "claim_version": {}, "http_status": {}, "retryable": {},
+	"rule_id": {}, "rule_key": {}, "local_rule": {}, "cache_hit": {},
 }
 
 func LogInfo(event string, fields map[string]any) {
@@ -152,6 +160,8 @@ func stableErrorMessage(code string) string {
 	switch stableErrorCode(code) {
 	case ErrorCodeBlocked:
 		return "Prompt Guard blocked the request"
+	case ErrorCodeBusy:
+		return "Prompt Guard admission is busy"
 	case ErrorCodeUnavailable, "payload_store_unavailable", "payload_missing":
 		return "Prompt Audit dependency is unavailable"
 	case ErrorCodeInvalidResponse:

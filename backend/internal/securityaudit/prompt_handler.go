@@ -15,6 +15,10 @@ import (
 type PromptAdminService interface {
 	GetConfig() (PublicConfig, error)
 	SaveConfig(context.Context, UpdateConfigRequest, int64) (PublicConfig, error)
+	ListRules(context.Context) ([]PromptGuardRule, error)
+	CreateRule(context.Context, UpsertPromptGuardRuleRequest, int64) (*PromptGuardRule, error)
+	UpdateRule(context.Context, UpsertPromptGuardRuleRequest, int64) (*PromptGuardRule, error)
+	DeleteRule(context.Context, int64) error
 	Probe(context.Context, ProbeRequest) ProbeResult
 	Runtime(context.Context) RuntimeSnapshot
 	ListEvents(context.Context, EventFilter, int, int) (*EventPage, error)
@@ -55,6 +59,89 @@ func (h *PromptAdminHandler) UpdateConfig(c *gin.Context) {
 	}
 	setPromptAdminAudit(c, "success", "", configAuditFields(request, &config))
 	response.Success(c, config)
+}
+
+func (h *PromptAdminHandler) ListRules(c *gin.Context) {
+	rules, err := h.service.ListRules(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rules)
+}
+
+func (h *PromptAdminHandler) CreateRule(c *gin.Context) {
+	var request UpsertPromptGuardRuleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_guard_rule_invalid_request", "本地规则配置请求无效"))
+		return
+	}
+	rule, err := h.service.CreateRule(c.Request.Context(), request, adminID(c))
+	if errors.Is(err, ErrPromptGuardRuleInvalid) {
+		setPromptAdminAudit(c, "failed", "prompt_guard_rule_invalid", map[string]any{"rule_key": request.RuleKey})
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_guard_rule_invalid", "本地规则配置无效"))
+		return
+	}
+	if err != nil {
+		setPromptAdminAudit(c, "failed", infraerrors.Reason(err), map[string]any{"rule_key": request.RuleKey})
+		response.ErrorFrom(c, err)
+		return
+	}
+	setPromptAdminAudit(c, "success", "", map[string]any{"rule_id": rule.ID, "rule_key": rule.RuleKey})
+	response.Success(c, rule)
+}
+
+func (h *PromptAdminHandler) UpdateRule(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_guard_rule_invalid_id", "本地规则 ID 无效"))
+		return
+	}
+	var request UpsertPromptGuardRuleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_guard_rule_invalid_request", "本地规则配置请求无效"))
+		return
+	}
+	request.ID = id
+	rule, err := h.service.UpdateRule(c.Request.Context(), request, adminID(c))
+	if errors.Is(err, ErrPromptGuardRuleNotFound) {
+		setPromptAdminAudit(c, "failed", "prompt_guard_rule_not_found", map[string]any{"rule_id": id})
+		response.ErrorFrom(c, infraerrors.NotFound("prompt_guard_rule_not_found", "本地规则不存在"))
+		return
+	}
+	if errors.Is(err, ErrPromptGuardRuleInvalid) {
+		setPromptAdminAudit(c, "failed", "prompt_guard_rule_invalid", map[string]any{"rule_id": id})
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_guard_rule_invalid", "本地规则配置无效"))
+		return
+	}
+	if err != nil {
+		setPromptAdminAudit(c, "failed", infraerrors.Reason(err), map[string]any{"rule_id": id})
+		response.ErrorFrom(c, err)
+		return
+	}
+	setPromptAdminAudit(c, "success", "", map[string]any{"rule_id": rule.ID, "rule_key": rule.RuleKey})
+	response.Success(c, rule)
+}
+
+func (h *PromptAdminHandler) DeleteRule(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_guard_rule_invalid_id", "本地规则 ID 无效"))
+		return
+	}
+	err = h.service.DeleteRule(c.Request.Context(), id)
+	if errors.Is(err, ErrPromptGuardRuleNotFound) {
+		setPromptAdminAudit(c, "failed", "prompt_guard_rule_not_found", map[string]any{"rule_id": id})
+		response.ErrorFrom(c, infraerrors.NotFound("prompt_guard_rule_not_found", "本地规则不存在"))
+		return
+	}
+	if err != nil {
+		setPromptAdminAudit(c, "failed", infraerrors.Reason(err), map[string]any{"rule_id": id})
+		response.ErrorFrom(c, err)
+		return
+	}
+	setPromptAdminAudit(c, "success", "", map[string]any{"rule_id": id})
+	response.Success(c, gin.H{"deleted": true, "id": id})
 }
 
 func (h *PromptAdminHandler) ProbeEndpoint(c *gin.Context) {
@@ -223,11 +310,17 @@ func setPromptAdminAudit(c *gin.Context, result, errorCode string, fields map[st
 
 func configAuditFields(request UpdateConfigRequest, saved *PublicConfig) map[string]any {
 	version := request.ExpectedConfigVersion
+	guardEnabled := true
+	if request.GuardEnabled != nil {
+		guardEnabled = *request.GuardEnabled
+	}
 	if saved != nil {
 		version = saved.ConfigVersion
+		guardEnabled = saved.GuardEnabled
 	}
 	return map[string]any{
 		"enabled": request.Enabled, "blocking_enabled": request.BlockingEnabled,
+		"guard_enabled":             guardEnabled,
 		"blocking_latest_turn_only": request.BlockingLatestTurnOnly,
 		"config_version":            version, "endpoint_count": len(request.Endpoints),
 		"scanner_count": len(request.Scanners), "all_groups": request.AllGroups,

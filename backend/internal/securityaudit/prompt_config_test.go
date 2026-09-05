@@ -1,9 +1,11 @@
 package securityaudit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -266,7 +268,7 @@ func TestEffectiveModeTruthTable(t *testing.T) {
 		{true, true, false, ModeAsync}, {true, true, true, ModeBlocking},
 	}
 	for _, tt := range tests {
-		cfg := ActiveConfig{RiskControlEnabled: tt.risk, Enabled: tt.enabled, BlockingEnabled: tt.blocking}
+		cfg := ActiveConfig{RiskControlEnabled: tt.risk, Enabled: tt.enabled, GuardEnabled: true, BlockingEnabled: tt.blocking}
 		require.Equal(t, tt.want, cfg.EffectiveMode())
 	}
 }
@@ -292,7 +294,7 @@ func TestConfigManagerColdStartOnlyFailsClosedForExplicitBlockingIntent(t *testi
 
 func TestConfigManagerStaleWeakerSnapshotFailsClosedWhenBlockingExpected(t *testing.T) {
 	manager := &ConfigManager{}
-	async := ActiveConfig{RiskControlEnabled: true, Enabled: true, BlockingEnabled: false, ConfigVersion: 1}
+	async := ActiveConfig{RiskControlEnabled: true, Enabled: true, GuardEnabled: true, BlockingEnabled: false, ConfigVersion: 1}
 	manager.snapshot.Store(&activeConfigSnapshot{active: async, storage: DefaultStorageConfig(), loadedAt: fixedClock{}.Now()})
 	manager.expected.Store(2)
 	manager.expectedBlocking.Store(true)
@@ -412,6 +414,7 @@ func TestParseLegacyConfigDefaultsMissingFieldsWithoutEnablingBlocking(t *testin
 	storage, err := ParseStorageConfig(`{"enabled":false,"config_version":9}`)
 	require.NoError(t, err)
 	require.False(t, storage.BlockingEnabled)
+	require.True(t, storage.GuardEnabled, "legacy configs without guard_enabled keep Guard on")
 	require.Equal(t, "priority", storage.Strategy)
 	require.Equal(t, DefaultWorkerCount, storage.WorkerCount)
 	require.Equal(t, DefaultQueueCapacity, storage.QueueCapacity)
@@ -419,8 +422,40 @@ func TestParseLegacyConfigDefaultsMissingFieldsWithoutEnablingBlocking(t *testin
 	require.True(t, storage.AllGroups)
 }
 
+func TestGuardEnabledSwitchControlsModelAuditWithoutChangingBlockingLocalMode(t *testing.T) {
+	asyncGuardOff := ActiveConfig{RiskControlEnabled: true, Enabled: true, GuardEnabled: false, BlockingEnabled: false}
+	require.Equal(t, ModeOff, asyncGuardOff.EffectiveMode())
+	blockingGuardOff := asyncGuardOff
+	blockingGuardOff.BlockingEnabled = true
+	require.Equal(t, ModeBlocking, blockingGuardOff.EffectiveMode(), "blocking mode remains available for local rules")
+
+	current := DefaultStorageConfig()
+	request := promptAuditUpdateRequest(1, 1, "")
+	request.GuardEnabled = func() *bool { value := false; return &value }()
+	manager := &ConfigManager{}
+	next, err := manager.buildNextStorage(current, request, 1)
+	require.NoError(t, err)
+	require.False(t, next.GuardEnabled)
+
+	request.GuardEnabled = nil
+	next, err = manager.buildNextStorage(next, request, 1)
+	require.NoError(t, err)
+	require.False(t, next.GuardEnabled, "omitted field preserves the saved switch")
+}
+
+func TestPublicConfigIncludesGuardEnabled(t *testing.T) {
+	storage := DefaultStorageConfig()
+	public := PublicFromStorage(storage, true, nil)
+	require.True(t, public.GuardEnabled)
+	storage.GuardEnabled = false
+	public = PublicFromStorage(storage, true, nil)
+	require.False(t, public.GuardEnabled)
+}
+
 func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {
 	valid := promptAuditUpdateRequest(1, 1, "")
+	require.NoError(t, validateUpdateConfigRequest(valid))
+	valid.Strategy = PromptAuditStrategyLeastInflight
 	require.NoError(t, validateUpdateConfigRequest(valid))
 
 	tests := []struct {
@@ -453,4 +488,52 @@ func TestUpdateConfigStrictBoundsAndKnownValues(t *testing.T) {
 			require.Equal(t, tt.reason, infraerrors.Reason(err))
 		})
 	}
+}
+
+// Regression coverage for issue #5732: refreshLoop reloads every 5s, so
+// config_loaded must stay a change signal instead of ~17k identical lines a
+// day, while still reporting the first load, real config changes and a
+// recovery from a failed reload.
+func TestConfigLoadedIsLoggedOnlyWhenSomethingChanged(t *testing.T) {
+	storage := DefaultStorageConfig()
+	storage.ConfigVersion = 4
+	raw, err := json.Marshal(storage)
+	require.NoError(t, err)
+	repository := &switchableSettingRepository{staticSettingRepository: staticSettingRepository{values: map[string]string{
+		SettingKeyPromptAuditConfig: string(raw),
+		SettingKeyRiskControl:       "false",
+	}}}
+	manager := NewConfigManager(nil, repository, nil, prefixEncryptor{}, testTotpKeyConfig())
+
+	var output bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	loadedCount := func() int { return strings.Count(output.String(), EventConfigLoaded) }
+
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 1, loadedCount(), "the first successful load must be logged")
+
+	require.NoError(t, manager.Reload(context.Background()))
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 1, loadedCount(), "TTL refreshes of an unchanged config must stay silent")
+
+	repository.values[SettingKeyRiskControl] = "true"
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 2, loadedCount(), "flipping the global risk control gate must be logged")
+
+	storage.ConfigVersion = 5
+	raw, err = json.Marshal(storage)
+	require.NoError(t, err)
+	repository.values[SettingKeyPromptAuditConfig] = string(raw)
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 3, loadedCount(), "a new config version must be logged")
+
+	repository.loadErr = errors.New("settings unavailable")
+	require.Error(t, manager.Reload(context.Background()))
+	require.Equal(t, 3, loadedCount(), "a failed reload must not claim a load")
+
+	repository.loadErr = nil
+	require.NoError(t, manager.Reload(context.Background()))
+	require.Equal(t, 4, loadedCount(), "recovering from a failed reload must be visible")
 }

@@ -22,11 +22,12 @@ export interface PromptAuditEndpointDraft extends PromptAuditEndpoint {
 
 export interface PromptAuditConfig {
   enabled: boolean
+  guard_enabled: boolean
   blocking_enabled: boolean
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
   effective_mode: PromptAuditMode
-  strategy: 'priority'
+  strategy: 'priority' | 'least_inflight'
   worker_count: number
   queue_capacity: number
   scanners: string[]
@@ -46,10 +47,11 @@ export interface PromptAuditDraft extends Omit<PromptAuditConfig, 'endpoints'> {
 export interface PromptAuditUpdateRequest {
   expected_config_version: number
   enabled: boolean
+  guard_enabled: boolean
   blocking_enabled: boolean
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
-  strategy: 'priority'
+  strategy: 'priority' | 'least_inflight'
   worker_count: number
   queue_capacity: number
   scanners: string[]
@@ -96,12 +98,16 @@ export interface PromptGuardMetrics {
   allowed: number
   flagged: number
   blocked: number
+  busy?: number
   unavailable: number
   invalid: number
   timeouts: number
   failovers: number
   bulkhead_full: number
   record_failed: number
+  cache_hits?: number
+  cache_misses?: number
+  local_rule_blocks?: number
   latency_avg_ms?: number
   latency_p50_ms?: number
   latency_p95_ms?: number

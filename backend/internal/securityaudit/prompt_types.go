@@ -13,6 +13,7 @@ const (
 	PayloadKeyPrefix          = "sub2api:prompt_audit:payload:"
 
 	ErrorCodeBlocked               = "prompt_guard_blocked"
+	ErrorCodeBusy                  = "prompt_guard_busy"
 	ErrorCodeUnavailable           = "prompt_guard_unavailable"
 	ErrorCodeInvalidResponse       = "prompt_guard_invalid_response"
 	ErrorCodeConfigConflict        = "prompt_audit_config_conflict"
@@ -37,6 +38,7 @@ const (
 	DecisionAllow       DecisionKind = "allow"
 	DecisionFlag        DecisionKind = "flag"
 	DecisionBlock       DecisionKind = "block"
+	DecisionBusy        DecisionKind = "busy"
 	DecisionUnavailable DecisionKind = "unavailable"
 	DecisionInvalid     DecisionKind = "invalid"
 )
@@ -196,22 +198,26 @@ type ProbeResult struct {
 }
 
 type GuardMetricsSnapshot struct {
-	Total        int64 `json:"total"`
-	Allowed      int64 `json:"allowed"`
-	Flagged      int64 `json:"flagged"`
-	Blocked      int64 `json:"blocked"`
-	Unavailable  int64 `json:"unavailable"`
-	Invalid      int64 `json:"invalid"`
-	Timeouts     int64 `json:"timeouts"`
-	Failovers    int64 `json:"failovers"`
-	BulkheadFull int64 `json:"bulkhead_full"`
-	RecordFailed int64 `json:"record_failed"`
-	LatencyCount int64 `json:"latency_count"`
-	LatencyAvgMS int64 `json:"latency_avg_ms"`
-	LatencyP50MS int64 `json:"latency_p50_ms"`
-	LatencyP95MS int64 `json:"latency_p95_ms"`
-	LatencyP99MS int64 `json:"latency_p99_ms"`
-	LatencyMaxMS int64 `json:"latency_max_ms"`
+	Total           int64 `json:"total"`
+	Allowed         int64 `json:"allowed"`
+	Flagged         int64 `json:"flagged"`
+	Blocked         int64 `json:"blocked"`
+	Busy            int64 `json:"busy"`
+	Unavailable     int64 `json:"unavailable"`
+	Invalid         int64 `json:"invalid"`
+	Timeouts        int64 `json:"timeouts"`
+	Failovers       int64 `json:"failovers"`
+	BulkheadFull    int64 `json:"bulkhead_full"`
+	RecordFailed    int64 `json:"record_failed"`
+	CacheHits       int64 `json:"cache_hits"`
+	CacheMisses     int64 `json:"cache_misses"`
+	LocalRuleBlocks int64 `json:"local_rule_blocks"`
+	LatencyCount    int64 `json:"latency_count"`
+	LatencyAvgMS    int64 `json:"latency_avg_ms"`
+	LatencyP50MS    int64 `json:"latency_p50_ms"`
+	LatencyP95MS    int64 `json:"latency_p95_ms"`
+	LatencyP99MS    int64 `json:"latency_p99_ms"`
+	LatencyMaxMS    int64 `json:"latency_max_ms"`
 }
 
 type AuditMetricsSnapshot struct {
@@ -272,6 +278,9 @@ type Metrics interface {
 	IncFailover()
 	IncBulkheadFull()
 	IncRecordFailed()
+	IncCacheHit()
+	IncCacheMiss()
+	IncLocalRuleBlock()
 }
 
 type PromptScanner interface {

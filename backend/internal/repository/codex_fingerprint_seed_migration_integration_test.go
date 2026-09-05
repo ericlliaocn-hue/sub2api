@@ -87,6 +87,51 @@ RETURNING id
 	}
 }
 
+func TestMigration230BackfillsDefaultSessionSeedsWithoutOverridingExplicitOff(t *testing.T) {
+	tx := testTx(t)
+	ctx := context.Background()
+	migrationSQL, err := dbmigrations.FS.ReadFile("230_backfill_default_codex_fingerprint_seed.sql")
+	require.NoError(t, err)
+
+	fixtures := []struct {
+		name        string
+		accountType string
+		extra       string
+		wantSeed    bool
+	}{
+		{name: "missing-mode", accountType: service.AccountTypeOAuth, extra: `{}`, wantSeed: true},
+		{name: "blank-mode", accountType: service.AccountTypeOAuth, extra: `{"codex_fingerprint_mode":""}`, wantSeed: true},
+		{name: "invalid-mode", accountType: service.AccountTypeOAuth, extra: `{"codex_fingerprint_mode":"invalid"}`, wantSeed: true},
+		{name: "session-mode", accountType: service.AccountTypeOAuth, extra: `{"codex_fingerprint_mode":"session"}`, wantSeed: true},
+		{name: "explicit-off", accountType: service.AccountTypeOAuth, extra: `{"codex_fingerprint_mode":"off"}`, wantSeed: false},
+		{name: "apikey", accountType: service.AccountTypeAPIKey, extra: `{}`, wantSeed: false},
+	}
+
+	ids := make([]int64, 0, len(fixtures))
+	for _, fixture := range fixtures {
+		var id int64
+		require.NoError(t, tx.QueryRowContext(ctx, `
+INSERT INTO accounts (name, platform, type, extra)
+VALUES ($1, 'openai', $2, $3::jsonb)
+RETURNING id
+`, "migration-230-"+fixture.name, fixture.accountType, fixture.extra).Scan(&id))
+		ids = append(ids, id)
+	}
+
+	_, err = tx.ExecContext(ctx, string(migrationSQL))
+	require.NoError(t, err)
+
+	for i, fixture := range fixtures {
+		var seed string
+		require.NoError(t, tx.QueryRowContext(ctx, `SELECT COALESCE(extra->>'codex_fingerprint_seed', '') FROM accounts WHERE id = $1`, ids[i]).Scan(&seed))
+		if fixture.wantSeed {
+			requireCanonicalUUIDString(t, seed)
+		} else {
+			require.Empty(t, seed)
+		}
+	}
+}
+
 func TestBulkUpdateGeneratesDistinctStableCodexFingerprintSeedsPerEligibleRow(t *testing.T) {
 	ctx := context.Background()
 	testName := "bulk-codex-seed-" + uuid.NewString()
