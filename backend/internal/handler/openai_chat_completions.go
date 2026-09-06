@@ -220,6 +220,23 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		_ = scheduleDecision
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
+		forwardBody := body
+		if channelMapping.Mapped {
+			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
+		}
+		if contextCheck, checkErr := service.CheckOpenAIChatCompletionsContext(account, forwardBody, ""); checkErr != nil {
+			reqLog.Debug("openai_chat_completions.context_preflight_skipped", zap.Error(checkErr))
+		} else if contextCheck != nil && contextCheck.Exceeds() {
+			reqLog.Warn("openai_chat_completions.context_preflight_rejected",
+				zap.String("upstream_model", contextCheck.Model),
+				zap.Int("estimated_input_tokens", contextCheck.EstimatedInputTokens),
+				zap.Int("requested_output_tokens", contextCheck.RequestedOutputTokens),
+				zap.Int64("context_window", contextCheck.ContextWindow),
+			)
+			service.WriteOpenAIContextWindowError(c)
+			return
+		}
+
 		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 		if slotResult == openAISlotAcquireProfitVetoed {
 			// 利润终检否决：排除该账号重新选号；否决次数达上限则按无可用账号终止。
@@ -236,10 +253,6 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 		forwardStart := time.Now()
 
-		forwardBody := body
-		if channelMapping.Mapped {
-			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
-		}
 		writerSizeBeforeForward := c.Writer.Size()
 		result, err := func() (*service.OpenAIForwardResult, error) {
 			defer func() {

@@ -338,6 +338,7 @@ func TestNewConfiguredCodexModelDescriptorUsesProviderMetadataAndSafeFallback(t 
 	require.True(t, gpt56.SupportsParallelToolCalls)
 	require.True(t, gpt56.SupportVerbosity)
 	require.Equal(t, []string{"text"}, gpt56.InputModalities)
+	require.Equal(t, int64(872_000), gpt56.ContextWindow)
 	require.Equal(t, int64(872_000), gpt56.MaxContextWindow)
 	require.Equal(t, configuredCodexTruncationPolicy{Mode: "tokens", Limit: 10_000}, gpt56.TruncationPolicy)
 	require.NotNil(t, gpt56.DefaultVerbosity)
