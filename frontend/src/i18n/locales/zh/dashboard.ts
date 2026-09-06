@@ -532,6 +532,7 @@ export default {
     detailTitle: '渠道详情',
     closeDetail: '关闭',
     windowTab: {
+      '1d': '今日',
       '7d': '7 天',
       '15d': '15 天',
       '30d': '30 天'
@@ -553,6 +554,7 @@ export default {
       model: '模型',
       latestStatus: '最新状态',
       latestLatency: '最新延迟 (ms)',
+      availability1d: '今日可用率',
       availability7d: '7 天可用率',
       availability15d: '15 天可用率',
       availability30d: '30 天可用率',

@@ -56,7 +56,7 @@ import MonitorCard from './MonitorCard.vue'
 
 const props = defineProps<{
   items: UserMonitorView[]
-  window: '7d' | '15d' | '30d'
+  window: '1d' | '7d' | '15d' | '30d'
   countdownSeconds: number
   loading: boolean
   detailCache: Record<number, UserMonitorDetail>
@@ -69,6 +69,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 function resolveAvailability(item: UserMonitorView): number | null {
+  if (props.window === '1d') {
+    return item.availability_1d ?? null
+  }
   if (props.window === '7d') {
     return item.availability_7d ?? null
   }
