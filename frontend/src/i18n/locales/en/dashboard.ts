@@ -535,6 +535,7 @@ export default {
     detailTitle: 'Channel Detail',
     closeDetail: 'Close',
     windowTab: {
+      '1d': 'Today',
       '7d': '7 days',
       '15d': '15 days',
       '30d': '30 days'
@@ -556,6 +557,7 @@ export default {
       model: 'Model',
       latestStatus: 'Latest Status',
       latestLatency: 'Latest Latency (ms)',
+      availability1d: 'Today Availability',
       availability7d: '7d Availability',
       availability15d: '15d Availability',
       availability30d: '30d Availability',

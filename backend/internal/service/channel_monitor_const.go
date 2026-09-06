@@ -105,7 +105,8 @@ const (
 	MonitorStatusFailed      = "failed"
 	MonitorStatusError       = "error"
 
-	// monitorAvailability7Days / 15 / 30 用于聚合查询窗口。
+	// monitorAvailability1/7Days / 15 / 30 用于聚合查询窗口。
+	monitorAvailability1Day   = 1
 	monitorAvailability7Days  = 7
 	monitorAvailability15Days = 15
 	monitorAvailability30Days = 30

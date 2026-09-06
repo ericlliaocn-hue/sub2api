@@ -14,7 +14,7 @@ import (
 //
 // 参数：
 //   - ids: 要聚合的 monitor ID 列表
-//   - primaryByID: monitor ID -> primary model（用于读 7d 可用率与 latest 状态）
+//   - primaryByID: monitor ID -> primary model（用于读今日/7d 可用率与 latest 状态）
 //   - extrasByID: monitor ID -> extra models 列表（用于读 latest 状态填充 ExtraModels）
 func (s *ChannelMonitorService) BatchMonitorStatusSummary(
 	ctx context.Context,
@@ -31,16 +31,22 @@ func (s *ChannelMonitorService) BatchMonitorStatusSummary(
 		slog.Warn("channel_monitor: batch load latest failed", "error", err)
 		latestMap = map[int64][]*ChannelMonitorLatest{}
 	}
-	availMap, err := s.repo.ComputeAvailabilityForMonitors(ctx, ids, monitorAvailability7Days)
+	avail1dMap, err := s.repo.ComputeAvailabilityForMonitors(ctx, ids, monitorAvailability1Day)
 	if err != nil {
-		slog.Warn("channel_monitor: batch compute availability failed", "error", err)
-		availMap = map[int64][]*ChannelMonitorAvailability{}
+		slog.Warn("channel_monitor: batch compute 1d availability failed", "error", err)
+		avail1dMap = map[int64][]*ChannelMonitorAvailability{}
+	}
+	avail7dMap, err := s.repo.ComputeAvailabilityForMonitors(ctx, ids, monitorAvailability7Days)
+	if err != nil {
+		slog.Warn("channel_monitor: batch compute 7d availability failed", "error", err)
+		avail7dMap = map[int64][]*ChannelMonitorAvailability{}
 	}
 
 	for _, id := range ids {
 		out[id] = buildStatusSummary(
 			indexLatestByModel(latestMap[id]),
-			indexAvailabilityByModel(availMap[id]),
+			indexAvailabilityByModel(avail1dMap[id]),
+			indexAvailabilityByModel(avail7dMap[id]),
 			primaryByID[id],
 			extrasByID[id],
 		)
@@ -157,10 +163,10 @@ func (s *ChannelMonitorService) GetUserDetail(ctx context.Context, id int64) (*U
 	}, nil
 }
 
-// collectAvailabilityWindows 一次性查询 7/15/30 天三个窗口，按模型组织。
+// collectAvailabilityWindows 一次性查询今日/7/15/30 天四个窗口，按模型组织。
 func (s *ChannelMonitorService) collectAvailabilityWindows(ctx context.Context, monitorID int64) (map[int]map[string]*ChannelMonitorAvailability, error) {
-	out := make(map[int]map[string]*ChannelMonitorAvailability, 3)
-	windows := []int{monitorAvailability7Days, monitorAvailability15Days, monitorAvailability30Days}
+	out := make(map[int]map[string]*ChannelMonitorAvailability, 4)
+	windows := []int{monitorAvailability1Day, monitorAvailability7Days, monitorAvailability15Days, monitorAvailability30Days}
 	for _, w := range windows {
 		rows, err := s.repo.ComputeAvailability(ctx, monitorID, w)
 		if err != nil {
@@ -195,7 +201,8 @@ func indexAvailabilityByModel(rows []*ChannelMonitorAvailability) map[string]*Ch
 // 不做任何 IO，纯组装，便于在 batch 与单 monitor 路径复用。
 func buildStatusSummary(
 	latestByModel map[string]*ChannelMonitorLatest,
-	availByModel map[string]*ChannelMonitorAvailability,
+	avail1dByModel map[string]*ChannelMonitorAvailability,
+	avail7dByModel map[string]*ChannelMonitorAvailability,
 	primary string,
 	extras []string,
 ) MonitorStatusSummary {
@@ -207,7 +214,10 @@ func buildStatusSummary(
 			// 配额快照只挂主模型行（quota 模式唯一行 / quota_probe 的主行）。
 			summary.LatestQuota = l.Quota
 		}
-		if a, ok := availByModel[primary]; ok {
+		if a, ok := avail1dByModel[primary]; ok {
+			summary.Availability1d = a.AvailabilityPct
+		}
+		if a, ok := avail7dByModel[primary]; ok {
 			summary.Availability7d = a.AvailabilityPct
 		}
 	}
@@ -238,6 +248,7 @@ func buildUserViewFromSummary(
 		PrimaryModel:     m.PrimaryModel,
 		PrimaryStatus:    summary.PrimaryStatus,
 		PrimaryLatencyMs: summary.PrimaryLatencyMs,
+		Availability1d:   summary.Availability1d,
 		Availability7d:   summary.Availability7d,
 		ExtraModels:      summary.ExtraModels,
 		Timeline:         buildTimelinePoints(timelineEntries),
@@ -278,6 +289,9 @@ func mergeModelDetails(
 		if l, ok := latestByModel[model]; ok {
 			d.LatestStatus = l.Status
 			d.LatestLatencyMs = l.LatencyMs
+		}
+		if a, ok := availMap[monitorAvailability1Day][model]; ok {
+			d.Availability1d = a.AvailabilityPct
 		}
 		if a, ok := availMap[monitorAvailability7Days][model]; ok {
 			d.Availability7d = a.AvailabilityPct
