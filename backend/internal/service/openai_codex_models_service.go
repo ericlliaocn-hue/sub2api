@@ -488,6 +488,7 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 			descriptor.DefaultReasoningSummary = "none"
 			descriptor.TruncationPolicy = configuredCodexTruncationPolicy{Mode: "tokens", Limit: configuredCodexToolOutputMaxTokens}
 			if isOpenAIGPT56Model(modelID) {
+				descriptor.ContextWindow = configuredCodexGPT56MaxContext
 				descriptor.MaxContextWindow = configuredCodexGPT56MaxContext
 			}
 		}
