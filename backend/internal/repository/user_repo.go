@@ -165,6 +165,20 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	if err := ensureEmailAuthIdentityWithClient(txCtx, txClient, created.ID, created.Email, "user_repo_create"); err != nil {
 		return err
 	}
+	if created.Balance != 0 {
+		event := userIn.CreationBalanceEvent
+		if event == "" {
+			event = "registration_bonus"
+		}
+		if err := service.RecordBalanceLedger(txCtx, txClient, service.BalanceLedgerEntry{
+			UserID: created.ID, EventType: event, Amount: created.Balance,
+			BalanceBefore: 0, BalanceAfter: created.Balance,
+			SourceType: "user_creation", SourceID: fmt.Sprint(created.ID),
+			Metadata: map[string]any{"actor_user_id": userIn.CreationActorID, "signup_source": created.SignupSource},
+		}); err != nil {
+			return err
+		}
+	}
 
 	if ownedTx != nil {
 		if err := ownedTx.Commit(); err != nil {
