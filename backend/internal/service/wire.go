@@ -307,6 +307,20 @@ func ProvideSubPoolService(
 	return svc
 }
 
+// ProvideAPIKeyReputationService starts the scoring sweep that turns moderation
+// history into key sanctions. The job is inert until key_reputation_enabled is
+// set.
+func ProvideAPIKeyReputationService(
+	repo APIKeyReputationRepository,
+	settingService *SettingService,
+	subPools *SubPoolService,
+	lockCache LeaderLockCache,
+) *APIKeyReputationService {
+	svc := NewAPIKeyReputationService(repo, settingService, subPools, lockCache)
+	svc.Start()
+	return svc
+}
+
 // ProvideSubPoolCoolingService starts the incident sweep that cools burned pools
 // and drains their bystander keys.
 func ProvideSubPoolCoolingService(
@@ -911,6 +925,7 @@ var ProviderSet = wire.NewSet(
 	ProvideSubPoolService,
 	ProvideSubPoolGraduationService,
 	ProvideSubPoolCoolingService,
+	ProvideAPIKeyReputationService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
 	ProvideBatchImageModelPricingResolver,

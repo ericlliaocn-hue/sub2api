@@ -198,7 +198,7 @@ func (r *subPoolUsageRepository) CountViolationsSince(ctx context.Context, apiKe
 		    WHERE api_key_id = $1 AND created_at >= $2 AND flagged) +
 		  (SELECT COUNT(*) FROM prompt_audit_events
 		    WHERE api_key_id = $1 AND created_at >= $2
-		      AND (decision = 'block' OR risk_level IN ('high', 'critical')))`
+		      AND (decision = 'critical' OR risk_level IN ('high', 'critical')))`
 
 	count, err := r.scanSingleCount(ctx, query, apiKeyID, since)
 	if err != nil {

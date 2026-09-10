@@ -71,6 +71,7 @@ var ProviderSet = wire.NewSet(
 	NewAdminGroupRepository,
 	NewSubPoolRepository,
 	NewSubPoolUsageRepository,
+	NewAPIKeyReputationRepository,
 	NewCompositeModelRouteRepository,
 	NewAccountRepository,
 	NewAdminAccountRepository,

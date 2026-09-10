@@ -19,18 +19,21 @@ type SubPoolHandler struct {
 	graduation     *service.SubPoolGraduationService
 	cooling        *service.SubPoolCoolingService
 	settingService *service.SettingService
+	reputation     *service.APIKeyReputationService
 }
 
 func NewSubPoolHandler(
 	subPoolService *service.SubPoolService,
 	graduation *service.SubPoolGraduationService,
 	cooling *service.SubPoolCoolingService,
+	reputation *service.APIKeyReputationService,
 	settingService *service.SettingService,
 ) *SubPoolHandler {
 	return &SubPoolHandler{
 		subPoolService: subPoolService,
 		graduation:     graduation,
 		cooling:        cooling,
+		reputation:     reputation,
 		settingService: settingService,
 	}
 }
@@ -484,4 +487,98 @@ func (h *SubPoolHandler) DisableKey(c *gin.Context) {
 // RunCooling triggers one cooling sweep on demand.
 func (h *SubPoolHandler) RunCooling(c *gin.Context) {
 	response.Success(c, h.cooling.RunOnce(c.Request.Context()))
+}
+
+// --- Key reputation (Phase D) ---
+
+type reputationPolicyRequest struct {
+	Enabled     bool `json:"enabled"`
+	WindowDays  int  `json:"window_days" binding:"min=0,max=365"`
+	DemoteBelow int  `json:"demote_below" binding:"min=0,max=100"`
+	BanBelow    int  `json:"ban_below" binding:"min=0,max=100"`
+}
+
+// GetReputationPolicy returns the scoring thresholds.
+func (h *SubPoolHandler) GetReputationPolicy(c *gin.Context) {
+	response.Success(c, h.settingService.GetReputationPolicy(c.Request.Context()))
+}
+
+// UpdateReputationPolicy persists the scoring thresholds.
+func (h *SubPoolHandler) UpdateReputationPolicy(c *gin.Context) {
+	var req reputationPolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	policy := service.ReputationPolicy{
+		Enabled:     req.Enabled,
+		WindowDays:  req.WindowDays,
+		DemoteBelow: req.DemoteBelow,
+		BanBelow:    req.BanBelow,
+	}
+	if err := h.settingService.SetReputationPolicy(c.Request.Context(), policy); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, h.settingService.GetReputationPolicy(c.Request.Context()))
+}
+
+// RunReputation triggers one scoring sweep on demand.
+func (h *SubPoolHandler) RunReputation(c *gin.Context) {
+	response.Success(c, h.reputation.RunOnce(c.Request.Context()))
+}
+
+// ListWorstReputations returns the lowest-scoring keys across all groups.
+func (h *SubPoolHandler) ListWorstReputations(c *gin.Context) {
+	limit := 50
+	if raw := c.Query("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 || parsed > 500 {
+			response.BadRequest(c, "limit must be between 1 and 500")
+			return
+		}
+		limit = parsed
+	}
+	items, err := h.reputation.ListWorst(c.Request.Context(), limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"items": items})
+}
+
+// GetKeyReputation returns one key's standing. A key that has never been scored
+// has no row, which is reported as a clean score rather than as a 404.
+func (h *SubPoolHandler) GetKeyReputation(c *gin.Context) {
+	keyID, ok := parseIDParam(c, "key_id")
+	if !ok {
+		return
+	}
+	rep, err := h.reputation.Get(c.Request.Context(), keyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if rep == nil {
+		rep = &service.APIKeyReputation{
+			APIKeyID: keyID,
+			Score:    100,
+			Sanction: service.ReputationSanctionNone,
+		}
+	}
+	response.Success(c, rep)
+}
+
+// ClearKeyReputationSanction overturns an automatic sanction. It does not
+// re-enable the key by itself; the admin still decides where the key goes.
+func (h *SubPoolHandler) ClearKeyReputationSanction(c *gin.Context) {
+	keyID, ok := parseIDParam(c, "key_id")
+	if !ok {
+		return
+	}
+	if err := h.reputation.ClearSanction(c.Request.Context(), keyID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"cleared": true})
 }

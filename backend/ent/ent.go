@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeyreputation"
 	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
@@ -115,6 +116,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apikey.Table:                        apikey.ValidColumn,
+			apikeyreputation.Table:              apikeyreputation.ValidColumn,
 			apikeysubpoolbinding.Table:          apikeysubpoolbinding.ValidColumn,
 			account.Table:                       account.ValidColumn,
 			accountgroup.Table:                  accountgroup.ValidColumn,

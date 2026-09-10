@@ -10,6 +10,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeyreputation"
 	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
@@ -148,6 +149,40 @@ func init() {
 	apikeyDescUsage7d := apikeyFields[17].Descriptor()
 	// apikey.DefaultUsage7d holds the default value on creation for the usage_7d field.
 	apikey.DefaultUsage7d = apikeyDescUsage7d.Default.(float64)
+	apikeyreputationFields := schema.APIKeyReputation{}.Fields()
+	_ = apikeyreputationFields
+	// apikeyreputationDescScore is the schema descriptor for score field.
+	apikeyreputationDescScore := apikeyreputationFields[1].Descriptor()
+	// apikeyreputation.DefaultScore holds the default value on creation for the score field.
+	apikeyreputation.DefaultScore = apikeyreputationDescScore.Default.(int)
+	// apikeyreputationDescSevereHits is the schema descriptor for severe_hits field.
+	apikeyreputationDescSevereHits := apikeyreputationFields[2].Descriptor()
+	// apikeyreputation.DefaultSevereHits holds the default value on creation for the severe_hits field.
+	apikeyreputation.DefaultSevereHits = apikeyreputationDescSevereHits.Default.(int)
+	// apikeyreputationDescTotalHits is the schema descriptor for total_hits field.
+	apikeyreputationDescTotalHits := apikeyreputationFields[3].Descriptor()
+	// apikeyreputation.DefaultTotalHits holds the default value on creation for the total_hits field.
+	apikeyreputation.DefaultTotalHits = apikeyreputationDescTotalHits.Default.(int)
+	// apikeyreputationDescScoredAt is the schema descriptor for scored_at field.
+	apikeyreputationDescScoredAt := apikeyreputationFields[5].Descriptor()
+	// apikeyreputation.DefaultScoredAt holds the default value on creation for the scored_at field.
+	apikeyreputation.DefaultScoredAt = apikeyreputationDescScoredAt.Default.(func() time.Time)
+	// apikeyreputationDescSanction is the schema descriptor for sanction field.
+	apikeyreputationDescSanction := apikeyreputationFields[6].Descriptor()
+	// apikeyreputation.DefaultSanction holds the default value on creation for the sanction field.
+	apikeyreputation.DefaultSanction = apikeyreputationDescSanction.Default.(string)
+	// apikeyreputation.SanctionValidator is a validator for the "sanction" field. It is called by the builders before save.
+	apikeyreputation.SanctionValidator = apikeyreputationDescSanction.Validators[0].(func(string) error)
+	// apikeyreputationDescCreatedAt is the schema descriptor for created_at field.
+	apikeyreputationDescCreatedAt := apikeyreputationFields[9].Descriptor()
+	// apikeyreputation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	apikeyreputation.DefaultCreatedAt = apikeyreputationDescCreatedAt.Default.(func() time.Time)
+	// apikeyreputationDescUpdatedAt is the schema descriptor for updated_at field.
+	apikeyreputationDescUpdatedAt := apikeyreputationFields[10].Descriptor()
+	// apikeyreputation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	apikeyreputation.DefaultUpdatedAt = apikeyreputationDescUpdatedAt.Default.(func() time.Time)
+	// apikeyreputation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	apikeyreputation.UpdateDefaultUpdatedAt = apikeyreputationDescUpdatedAt.UpdateDefault.(func() time.Time)
 	apikeysubpoolbindingFields := schema.APIKeySubPoolBinding{}.Fields()
 	_ = apikeysubpoolbindingFields
 	// apikeysubpoolbindingDescBoundAt is the schema descriptor for bound_at field.

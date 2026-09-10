@@ -111,6 +111,140 @@
         </div>
       </div>
 
+      <!-- Key 信誉分（全局，非本分组） -->
+      <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.groups.subPools.reputation.title') }}
+          </h4>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="reputation.enabled"
+            :aria-label="t('admin.groups.subPools.reputation.title')"
+            @click="reputation.enabled = !reputation.enabled"
+            class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+            :class="reputation.enabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'"
+          >
+            <span
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+              :class="reputation.enabled ? 'translate-x-6' : 'translate-x-1'"
+            />
+          </button>
+        </div>
+        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.groups.subPools.reputation.hint') }}
+        </p>
+        <div class="flex flex-wrap items-end gap-2">
+          <label class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.subPools.reputation.windowDays') }}
+            <input
+              v-model.number="reputation.window_days"
+              type="number"
+              min="1"
+              max="365"
+              step="1"
+              class="hide-spinner input mt-1 w-24"
+            />
+          </label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.subPools.reputation.demoteBelow') }}
+            <input
+              v-model.number="reputation.demote_below"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              class="hide-spinner input mt-1 w-24"
+            />
+          </label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.subPools.reputation.banBelow') }}
+            <input
+              v-model.number="reputation.ban_below"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              class="hide-spinner input mt-1 w-24"
+            />
+          </label>
+          <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            :disabled="savingReputation"
+            @click="saveReputation"
+          >
+            {{ t('common.save') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-secondary"
+            :disabled="runningReputation || !reputation.enabled"
+            @click="triggerReputation"
+          >
+            <Icon
+              v-if="runningReputation"
+              name="refresh"
+              size="sm"
+              class="mr-1 inline animate-spin"
+            />
+            {{ t('admin.groups.subPools.reputation.runNow') }}
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" @click="loadWorstReputations">
+            {{ t('admin.groups.subPools.reputation.showWorst') }}
+          </button>
+        </div>
+
+        <div v-if="worstKeys.length > 0" class="mt-3 overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="text-gray-500 dark:text-gray-400">
+              <tr>
+                <th class="py-1 pr-3 text-left font-medium">
+                  {{ t('admin.groups.subPools.attribution.keyId') }}
+                </th>
+                <th class="py-1 pr-3 text-right font-medium">
+                  {{ t('admin.groups.subPools.reputation.score') }}
+                </th>
+                <th class="py-1 pr-3 text-right font-medium">
+                  {{ t('admin.groups.subPools.reputation.hits') }}
+                </th>
+                <th class="py-1 pr-3 text-left font-medium">
+                  {{ t('admin.groups.subPools.reputation.sanction') }}
+                </th>
+                <th class="py-1 text-right font-medium">{{ t('common.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in worstKeys"
+                :key="row.api_key_id"
+                class="border-t border-gray-100 dark:border-dark-700"
+              >
+                <td class="py-1 pr-3 font-mono">#{{ row.api_key_id }}</td>
+                <td class="py-1 pr-3 text-right font-medium" :class="reputationScoreClass(row)">
+                  {{ row.score }}
+                </td>
+                <td class="py-1 pr-3 text-right">{{ row.severe_hits }} / {{ row.total_hits }}</td>
+                <td class="py-1 pr-3">
+                  {{ t(`admin.groups.subPools.reputation.sanctions.${row.sanction}`) }}
+                </td>
+                <td class="py-1 text-right">
+                  <button
+                    v-if="row.sanction !== 'none'"
+                    type="button"
+                    class="btn btn-xs btn-secondary"
+                    @click="clearSanction(row.api_key_id)"
+                  >
+                    {{ t('admin.groups.subPools.reputation.clearSanction') }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 新建子池 -->
       <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
         <h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -476,6 +610,8 @@ import type {
   SubPool,
   SubPoolAttributionReport,
   SubPoolGraduationPolicy,
+  ReputationPolicy,
+  APIKeyReputation,
   SubPoolKind
 } from '@/api/admin/subPools'
 import { formatDateTime } from '@/utils/format'
@@ -528,6 +664,16 @@ const graduation = reactive<SubPoolGraduationPolicy>({
   enabled: false,
   probation_days: 7,
   max_daily_calls: 0
+})
+
+const savingReputation = ref(false)
+const runningReputation = ref(false)
+const worstKeys = ref<APIKeyReputation[]>([])
+const reputation = reactive<ReputationPolicy>({
+  enabled: false,
+  window_days: 30,
+  demote_below: 60,
+  ban_below: 25
 })
 
 const newPool = reactive({
@@ -620,6 +766,74 @@ const triggerCooling = async () => {
     console.error('Error running cooling sweep:', error)
   } finally {
     runningCooling.value = false
+  }
+}
+
+const reputationScoreClass = (row: APIKeyReputation) => {
+  if (row.score < reputation.ban_below) return 'text-red-600 dark:text-red-400'
+  if (row.score < reputation.demote_below) return 'text-amber-600 dark:text-amber-400'
+  return 'text-gray-700 dark:text-gray-300'
+}
+
+const loadReputation = async () => {
+  try {
+    Object.assign(reputation, await adminAPI.subPools.getReputationPolicy())
+  } catch (error) {
+    console.error('Error loading reputation policy:', error)
+  }
+}
+
+const saveReputation = async () => {
+  savingReputation.value = true
+  try {
+    Object.assign(reputation, await adminAPI.subPools.updateReputationPolicy({ ...reputation }))
+    appStore.showSuccess(t('common.saved'))
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.reputation.saveFailed'))
+    console.error('Error saving reputation policy:', error)
+  } finally {
+    savingReputation.value = false
+  }
+}
+
+const loadWorstReputations = async () => {
+  try {
+    const { items } = await adminAPI.subPools.worstReputations()
+    worstKeys.value = items
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.reputation.loadWorstFailed'))
+    console.error('Error loading worst reputations:', error)
+  }
+}
+
+const triggerReputation = async () => {
+  runningReputation.value = true
+  try {
+    const result = await adminAPI.subPools.runReputation()
+    appStore.showSuccess(
+      t('admin.groups.subPools.reputation.runSuccess', {
+        scored: result.scored,
+        demoted: result.demoted,
+        disabled: result.disabled
+      })
+    )
+    await loadWorstReputations()
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.reputation.runFailed'))
+    console.error('Error running reputation sweep:', error)
+  } finally {
+    runningReputation.value = false
+  }
+}
+
+const clearSanction = async (keyId: number) => {
+  try {
+    await adminAPI.subPools.clearReputationSanction(keyId)
+    appStore.showSuccess(t('admin.groups.subPools.reputation.clearSuccess'))
+    await loadWorstReputations()
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.reputation.clearFailed'))
+    console.error('Error clearing reputation sanction:', error)
   }
 }
 
@@ -860,6 +1074,7 @@ watch(
       loadPools()
       loadGroupAccounts()
       loadGraduation()
+      loadReputation()
     }
   }
 )

@@ -97,6 +97,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // openAIAutoReset
 		nil, // subPoolGraduation
 		nil, // subPoolCooling
+		nil, // keyReputation
 		nil, // promptAudit
 		nil, // pluginManager
 	)

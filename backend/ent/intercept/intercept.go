@@ -13,6 +13,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeyreputation"
 	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
@@ -134,6 +135,33 @@ func (f TraverseAPIKey) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyQuery", q)
+}
+
+// The APIKeyReputationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type APIKeyReputationFunc func(context.Context, *ent.APIKeyReputationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f APIKeyReputationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.APIKeyReputationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.APIKeyReputationQuery", q)
+}
+
+// The TraverseAPIKeyReputation type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAPIKeyReputation func(context.Context, *ent.APIKeyReputationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAPIKeyReputation) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAPIKeyReputation) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyReputationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyReputationQuery", q)
 }
 
 // The APIKeySubPoolBindingFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1248,6 +1276,8 @@ func NewQuery(q ent.Query) (Query, error) {
 	switch q := q.(type) {
 	case *ent.APIKeyQuery:
 		return &query[*ent.APIKeyQuery, predicate.APIKey, apikey.OrderOption]{typ: ent.TypeAPIKey, tq: q}, nil
+	case *ent.APIKeyReputationQuery:
+		return &query[*ent.APIKeyReputationQuery, predicate.APIKeyReputation, apikeyreputation.OrderOption]{typ: ent.TypeAPIKeyReputation, tq: q}, nil
 	case *ent.APIKeySubPoolBindingQuery:
 		return &query[*ent.APIKeySubPoolBindingQuery, predicate.APIKeySubPoolBinding, apikeysubpoolbinding.OrderOption]{typ: ent.TypeAPIKeySubPoolBinding, tq: q}, nil
 	case *ent.AccountQuery:

@@ -21,6 +21,18 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyMutation", m)
 }
 
+// The APIKeyReputationFunc type is an adapter to allow the use of ordinary
+// function as APIKeyReputation mutator.
+type APIKeyReputationFunc func(context.Context, *ent.APIKeyReputationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f APIKeyReputationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.APIKeyReputationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyReputationMutation", m)
+}
+
 // The APIKeySubPoolBindingFunc type is an adapter to allow the use of ordinary
 // function as APIKeySubPoolBinding mutator.
 type APIKeySubPoolBindingFunc func(context.Context, *ent.APIKeySubPoolBindingMutation) (ent.Value, error)
