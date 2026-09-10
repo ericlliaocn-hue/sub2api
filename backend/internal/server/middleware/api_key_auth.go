@@ -180,7 +180,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				Concurrency: apiKey.User.Concurrency,
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
-			setGroupContext(c, apiKey.Group)
+			setAuthRequestContext(c, apiKey)
 			if !billingInfoRequest {
 				_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 			}
@@ -278,7 +278,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			Concurrency: apiKey.User.Concurrency,
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
-		setGroupContext(c, apiKey.Group)
+		setAuthRequestContext(c, apiKey)
 		if !billingInfoRequest {
 			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		}
@@ -380,6 +380,17 @@ func GetSubscriptionFromContext(c *gin.Context) (*service.UserSubscription, bool
 	return subscription, ok
 }
 
+// setAuthRequestContext publishes the authenticated group and, when the group
+// runs sub-pool scheduling, the key's sub-pool into the request context so the
+// gateway services can read them without another lookup.
+func setAuthRequestContext(c *gin.Context, apiKey *service.APIKey) {
+	if apiKey == nil {
+		return
+	}
+	setGroupContext(c, apiKey.Group)
+	setSubPoolContext(c, apiKey)
+}
+
 func setGroupContext(c *gin.Context, group *service.Group) {
 	if !service.IsGroupContextValid(group) {
 		return
@@ -388,6 +399,20 @@ func setGroupContext(c *gin.Context, group *service.Group) {
 		return
 	}
 	ctx := context.WithValue(c.Request.Context(), ctxkey.Group, group)
+	c.Request = c.Request.WithContext(ctx)
+}
+
+// setSubPoolContext is deliberately gated on the group switch: a group that no
+// longer runs sub-pools must fall back to whole-group scheduling even if the
+// key still carries a stale binding.
+func setSubPoolContext(c *gin.Context, apiKey *service.APIKey) {
+	if apiKey.SubPoolID == nil || *apiKey.SubPoolID <= 0 {
+		return
+	}
+	if apiKey.Group == nil || !apiKey.Group.SubPoolEnabled {
+		return
+	}
+	ctx := context.WithValue(c.Request.Context(), ctxkey.SubPoolID, *apiKey.SubPoolID)
 	c.Request = c.Request.WithContext(ctx)
 }
 

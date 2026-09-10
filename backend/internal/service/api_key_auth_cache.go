@@ -8,6 +8,10 @@ type APIKeyAuthSnapshot struct {
 	APIKeyID    int64                    `json:"api_key_id"`
 	UserID      int64                    `json:"user_id"`
 	GroupID     *int64                   `json:"group_id,omitempty"`
+	// SubPoolID 是该 Key 绑定的子池。调度层据此把候选账号收敛到子池内，
+	// 因此它必须随快照缓存，否则命中缓存的请求会退回整组调度、隔离失效。
+	// 成员名单本身不进快照（改动不触发认证缓存失效），由 SubPoolMembership 短 TTL 解析。
+	SubPoolID   *int64                   `json:"sub_pool_id,omitempty"`
 	Name        string                   `json:"name"`
 	Status      string                   `json:"status"`
 	IPWhitelist []string                 `json:"ip_whitelist,omitempty"`
@@ -61,6 +65,7 @@ type APIKeyAuthGroupSnapshot struct {
 	Name                            string                        `json:"name"`
 	Platform                        string                        `json:"platform"`
 	IsExclusive                     bool                          `json:"is_exclusive"`
+	SubPoolEnabled                  bool                          `json:"sub_pool_enabled"`
 	Status                          string                        `json:"status"`
 	SubscriptionType                string                        `json:"subscription_type"`
 	RateMultiplier                  float64                       `json:"rate_multiplier"`

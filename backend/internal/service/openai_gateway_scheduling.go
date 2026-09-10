@@ -1473,7 +1473,17 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	return nil, ErrNoAvailableAccounts
 }
 
+// listSchedulableAccounts returns the scheduling candidates for the request,
+// narrowed to the API key's sub-pool when the group runs sub-pool isolation.
 func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64, platform string) ([]Account, error) {
+	accounts, err := s.listGroupSchedulableAccounts(ctx, groupID, platform)
+	if err != nil {
+		return accounts, err
+	}
+	return s.subPoolMembership.FilterAccountsBySubPool(ctx, accounts), nil
+}
+
+func (s *OpenAIGatewayService) listGroupSchedulableAccounts(ctx context.Context, groupID *int64, platform string) ([]Account, error) {
 	platform = NormalizeOpenAICompatiblePlatform(platform)
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, false)

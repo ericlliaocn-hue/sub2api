@@ -1011,7 +1011,17 @@ func (s *GatewayService) resolvePlatform(ctx context.Context, groupID *int64, gr
 	return PlatformAnthropic, false, nil
 }
 
+// listSchedulableAccounts returns the scheduling candidates for the request,
+// narrowed to the API key's sub-pool when the group runs sub-pool isolation.
 func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, bool, error) {
+	accounts, useMixed, err := s.listGroupSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
+	if err != nil {
+		return accounts, useMixed, err
+	}
+	return s.subPoolMembership.FilterAccountsBySubPool(ctx, accounts), useMixed, nil
+}
+
+func (s *GatewayService) listGroupSchedulableAccounts(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, bool, error) {
 	if s.schedulerSnapshot != nil {
 		accounts, useMixed, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
 		if err == nil {

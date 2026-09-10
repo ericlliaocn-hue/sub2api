@@ -45,7 +45,9 @@ const (
 const geminiDummyThoughtSignature = "skip_thought_signature_validator"
 
 type GeminiMessagesCompatService struct {
-	accountRepo               AccountRepository
+	accountRepo AccountRepository
+	// subPoolMembership 为 nil 时不做子池收敛，行为与引入子池前一致。
+	subPoolMembership         *SubPoolMembership
 	groupRepo                 GroupRepository
 	cache                     GatewayCache
 	schedulerSnapshot         *SchedulerSnapshotService
@@ -443,7 +445,18 @@ func (s *GeminiMessagesCompatService) hydrateSelectedAccount(ctx context.Context
 	return hydrated, nil
 }
 
+// listSchedulableAccountsOnce returns the scheduling candidates for the
+// request, narrowed to the API key's sub-pool when the group runs sub-pool
+// isolation.
 func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, error) {
+	accounts, err := s.listGroupSchedulableAccountsOnce(ctx, groupID, platform, hasForcePlatform)
+	if err != nil {
+		return accounts, err
+	}
+	return s.subPoolMembership.FilterAccountsBySubPool(ctx, accounts), nil
+}
+
+func (s *GeminiMessagesCompatService) listGroupSchedulableAccountsOnce(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, error) {
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
 		return accounts, err
