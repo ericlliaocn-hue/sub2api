@@ -274,6 +274,38 @@ func ProvideAccountTestService(
 	return service
 }
 
+// ProvideSubPoolMembership builds the sub-pool resolver and attaches it to the
+// three services that enumerate scheduling candidates. Attaching here rather
+// than through their constructors keeps the resolver optional: nothing else in
+// the graph changes if sub-pools are never enabled.
+func ProvideSubPoolMembership(
+	repo SubPoolRepository,
+	gatewayService *GatewayService,
+	openAIGatewayService *OpenAIGatewayService,
+	geminiCompatService *GeminiMessagesCompatService,
+) *SubPoolMembership {
+	membership := NewSubPoolMembership(repo)
+	gatewayService.SetSubPoolMembership(membership)
+	openAIGatewayService.SetSubPoolMembership(membership)
+	geminiCompatService.SetSubPoolMembership(membership)
+	return membership
+}
+
+// ProvideSubPoolService builds the sub-pool service and registers it as the
+// placement policy for newly created API keys.
+func ProvideSubPoolService(
+	repo SubPoolRepository,
+	groupRepo GroupRepository,
+	apiKeyRepo APIKeyRepository,
+	usageRepo SubPoolUsageRepository,
+	membership *SubPoolMembership,
+	apiKeyService *APIKeyService,
+) *SubPoolService {
+	svc := NewSubPoolService(repo, groupRepo, apiKeyRepo, usageRepo, membership)
+	apiKeyService.SetSubPoolBinder(svc)
+	return svc
+}
+
 func ProvideGrokQuotaService(
 	accountRepo AccountRepository,
 	proxyRepo ProxyRepository,
@@ -843,6 +875,8 @@ var ProviderSet = wire.NewSet(
 	NewAdminService,
 	NewGatewayService,
 	NewOpenAIGatewayService,
+	ProvideSubPoolMembership,
+	ProvideSubPoolService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
 	ProvideBatchImageModelPricingResolver,

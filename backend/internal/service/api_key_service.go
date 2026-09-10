@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"html"
+	"log/slog"
 	"math"
 	"sort"
 	"strconv"
@@ -283,8 +284,10 @@ type RateLimitCacheInvalidator interface {
 }
 
 type APIKeyService struct {
-	apiKeyRepo                APIKeyRepository
-	userRepo                  UserRepository
+	apiKeyRepo APIKeyRepository
+	userRepo   UserRepository
+	// subPoolBinder 为 nil 时不做子池落位，行为与引入子池前一致。
+	subPoolBinder             SubPoolBinder
 	groupRepo                 GroupRepository
 	userSubRepo               UserSubscriptionRepository
 	userGroupRateRepo         UserGroupRateRepository
@@ -556,10 +559,49 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		return nil, fmt.Errorf("create api key: %w", err)
 	}
 
+	// A key in a sub-pool group that failed to land in a pool would silently
+	// fall back to whole-group scheduling, which is precisely the isolation the
+	// group asked for. Fail loudly instead and let the admin add capacity.
+	if err := s.bindNewKeyToSubPool(ctx, apiKey); err != nil {
+		if delErr := s.apiKeyRepo.Delete(ctx, apiKey.ID); delErr != nil {
+			slog.Error("api_key_subpool_bind_rollback_failed",
+				"api_key_id", apiKey.ID, "error", delErr)
+		}
+		return nil, err
+	}
+
 	s.InvalidateAuthCacheByKey(ctx, apiKey.Key)
 	s.compileAPIKeyIPRules(apiKey)
 
 	return apiKey, nil
+}
+
+// SubPoolBinder places a freshly created key into a sub-pool. It is optional:
+// when unset, keys keep the pre-sub-pool behaviour of whole-group scheduling.
+type SubPoolBinder interface {
+	EnsureBinding(ctx context.Context, apiKeyID int64) error
+}
+
+// SetSubPoolBinder attaches the sub-pool placement policy.
+func (s *APIKeyService) SetSubPoolBinder(binder SubPoolBinder) {
+	if s == nil {
+		return
+	}
+	s.subPoolBinder = binder
+}
+
+func (s *APIKeyService) bindNewKeyToSubPool(ctx context.Context, apiKey *APIKey) error {
+	if s.subPoolBinder == nil {
+		return nil
+	}
+	if err := s.subPoolBinder.EnsureBinding(ctx, apiKey.ID); err != nil {
+		return err
+	}
+	bound, err := s.apiKeyRepo.GetByID(ctx, apiKey.ID)
+	if err == nil && bound != nil {
+		apiKey.SubPoolID = bound.SubPoolID
+	}
+	return nil
 }
 
 // List 获取用户的API Key列表

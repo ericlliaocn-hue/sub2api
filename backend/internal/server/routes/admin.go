@@ -47,6 +47,9 @@ func RegisterAdminRoutes(
 		// 分组管理
 		registerGroupRoutes(admin, h)
 
+		// 子池管理（分组内部的账号/Key 隔离池）
+		registerSubPoolRoutes(admin, h)
+
 		// 账号管理
 		registerAccountRoutes(admin, h, stepUpAuth)
 
@@ -409,6 +412,19 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.PUT("/:id/rpm-overrides", h.Admin.Group.BatchSetGroupRPMOverrides)
 		groups.DELETE("/:id/rpm-overrides", h.Admin.Group.ClearGroupRPMOverrides)
 		groups.GET("/:id/api-keys", h.Admin.Group.GetGroupAPIKeys)
+		groups.GET("/:id/sub-pools", h.Admin.SubPool.List)
+		groups.POST("/:id/sub-pools", h.Admin.SubPool.Create)
+	}
+}
+
+func registerSubPoolRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pools := admin.Group("/sub-pools")
+	{
+		pools.PUT("/:pool_id", h.Admin.SubPool.Update)
+		pools.DELETE("/:pool_id", h.Admin.SubPool.Delete)
+		pools.PUT("/:pool_id/accounts", h.Admin.SubPool.SetAccounts)
+		pools.POST("/:pool_id/keys", h.Admin.SubPool.BindKey)
+		pools.POST("/:pool_id/migrate", h.Admin.SubPool.MigrateCleanKeys)
 	}
 }
 
@@ -448,6 +464,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/clear-error", h.Admin.Account.ClearError)
 		accounts.POST("/:id/revert-proxy-fallback", h.Admin.Account.RevertProxyFallback)
 		accounts.GET("/:id/usage", h.Admin.Account.GetUsage)
+		// 事故归因：这个上游账号的流量分别是哪些 Key 打出来的
+		accounts.GET("/:id/top-keys", h.Admin.SubPool.TopKeysByAccount)
 		accounts.GET("/:id/today-stats", h.Admin.Account.GetTodayStats)
 		accounts.POST("/usage/batch", h.Admin.Account.GetBatchUsage)
 		accounts.POST("/today-stats/batch", h.Admin.Account.GetBatchTodayStats)
