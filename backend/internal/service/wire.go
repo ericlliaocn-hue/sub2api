@@ -302,7 +302,23 @@ func ProvideSubPoolService(
 	apiKeyService *APIKeyService,
 ) *SubPoolService {
 	svc := NewSubPoolService(repo, groupRepo, apiKeyRepo, usageRepo, membership)
+	svc.SetAuthCacheInvalidator(apiKeyService)
 	apiKeyService.SetSubPoolBinder(svc)
+	return svc
+}
+
+// ProvideSubPoolGraduationService starts the probation sweep that moves keys out
+// of the probe pool. The job is inert until sub_pool_graduation_enabled is set.
+func ProvideSubPoolGraduationService(
+	repo SubPoolRepository,
+	usageRepo SubPoolUsageRepository,
+	settingService *SettingService,
+	lockCache LeaderLockCache,
+	apiKeyService *APIKeyService,
+) *SubPoolGraduationService {
+	svc := NewSubPoolGraduationService(repo, usageRepo, settingService, lockCache)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	svc.Start()
 	return svc
 }
 
@@ -877,6 +893,7 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayService,
 	ProvideSubPoolMembership,
 	ProvideSubPoolService,
+	ProvideSubPoolGraduationService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
 	ProvideBatchImageModelPricingResolver,

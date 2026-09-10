@@ -720,3 +720,19 @@ const AdminAPIKeyPrefix = "admin-"
 // SettingKeyAllowUserViewErrorRequests controls whether end users can view
 // their own failed requests on the usage page. Default false (opt-in).
 const SettingKeyAllowUserViewErrorRequests = "allow_user_view_error_requests"
+
+// Sub-pool probation: a freshly created key starts in a probe pool backed by
+// disposable accounts and only reaches the formal pools after it has behaved
+// for a while. All three keys default to "off" so enabling sub-pools does not
+// silently start moving keys around.
+const (
+	// SettingKeySubPoolGraduationEnabled turns the periodic graduation job on.
+	SettingKeySubPoolGraduationEnabled = "sub_pool_graduation_enabled"
+	// SettingKeySubPoolProbationDays is the minimum time a key must spend in a
+	// probe pool before it may graduate.
+	SettingKeySubPoolProbationDays = "sub_pool_probation_days"
+	// SettingKeySubPoolProbationMaxDailyCalls blocks graduation when the key hit
+	// more calls on any single day of its probation than this. 0 disables the
+	// check.
+	SettingKeySubPoolProbationMaxDailyCalls = "sub_pool_probation_max_daily_calls"
+)

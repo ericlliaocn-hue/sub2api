@@ -34,6 +34,73 @@
         {{ t('admin.groups.subPools.disabledHint') }}
       </p>
 
+      <!-- 观察期毕业规则（全局，非本分组） -->
+      <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.groups.subPools.graduation.title') }}
+          </h4>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="graduation.enabled"
+            :aria-label="t('admin.groups.subPools.graduation.title')"
+            @click="graduation.enabled = !graduation.enabled"
+            class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+            :class="graduation.enabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'"
+          >
+            <span
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+              :class="graduation.enabled ? 'translate-x-6' : 'translate-x-1'"
+            />
+          </button>
+        </div>
+        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.groups.subPools.graduation.hint') }}
+        </p>
+        <div class="flex flex-wrap items-end gap-2">
+          <label class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.subPools.graduation.probationDays') }}
+            <input
+              v-model.number="graduation.probation_days"
+              type="number"
+              min="1"
+              max="365"
+              step="1"
+              class="hide-spinner input mt-1 w-24"
+            />
+          </label>
+          <label class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.subPools.graduation.maxDailyCalls') }}
+            <input
+              v-model.number="graduation.max_daily_calls"
+              type="number"
+              min="0"
+              step="1"
+              class="hide-spinner input mt-1 w-32"
+              :title="t('admin.groups.subPools.graduation.maxDailyCallsHint')"
+            />
+          </label>
+          <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            :disabled="savingGraduation"
+            @click="saveGraduation"
+          >
+            {{ t('common.save') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-secondary"
+            :disabled="runningGraduation || !graduation.enabled"
+            @click="triggerGraduation"
+          >
+            <Icon v-if="runningGraduation" name="refresh" size="sm" class="mr-1 inline animate-spin" />
+            {{ t('admin.groups.subPools.graduation.runNow') }}
+          </button>
+        </div>
+      </div>
+
       <!-- 新建子池 -->
       <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
         <h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -257,7 +324,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { SubPool, SubPoolKind } from '@/api/admin/subPools'
+import type { SubPool, SubPoolGraduationPolicy, SubPoolKind } from '@/api/admin/subPools'
 import type { Account, AdminGroup } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -292,6 +359,14 @@ const migrateReason = ref('')
 const migrateSuspects = ref('')
 
 const deleteTarget = ref<SubPool | null>(null)
+
+const savingGraduation = ref(false)
+const runningGraduation = ref(false)
+const graduation = reactive<SubPoolGraduationPolicy>({
+  enabled: false,
+  probation_days: 7,
+  max_daily_calls: 0
+})
 
 const newPool = reactive({
   name: '',
@@ -334,6 +409,43 @@ const loadPools = async () => {
     console.error('Error loading sub-pools:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const loadGraduation = async () => {
+  try {
+    Object.assign(graduation, await adminAPI.subPools.getGraduationPolicy())
+  } catch (error) {
+    console.error('Error loading graduation policy:', error)
+  }
+}
+
+const saveGraduation = async () => {
+  savingGraduation.value = true
+  try {
+    Object.assign(graduation, await adminAPI.subPools.updateGraduationPolicy({ ...graduation }))
+    appStore.showSuccess(t('common.saved'))
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.graduation.saveFailed'))
+    console.error('Error saving graduation policy:', error)
+  } finally {
+    savingGraduation.value = false
+  }
+}
+
+const triggerGraduation = async () => {
+  runningGraduation.value = true
+  try {
+    const result = await adminAPI.subPools.runGraduation()
+    appStore.showSuccess(
+      t('admin.groups.subPools.graduation.runSuccess', { count: result.graduated })
+    )
+    await loadPools()
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.graduation.runFailed'))
+    console.error('Error running graduation:', error)
+  } finally {
+    runningGraduation.value = false
   }
 }
 
@@ -495,6 +607,7 @@ watch(
       newPool.key_soft_limit = 8
       loadPools()
       loadGroupAccounts()
+      loadGraduation()
     }
   }
 )

@@ -52,6 +52,13 @@ type SubPoolAccountKeyUsage struct {
 type SubPoolUsageRepository interface {
 	PeerActivity(ctx context.Context, keys []SubPoolPeerWindow, todayStart, weekStart time.Time) (map[int64]SubPoolPeerActivity, error)
 	TopKeysByAccount(ctx context.Context, accountID int64, start, end time.Time, limit int) ([]SubPoolAccountKeyUsage, error)
+
+	// CountViolationsSince counts moderation and prompt-audit hits severe enough
+	// to disqualify a key from leaving the probe pool.
+	CountViolationsSince(ctx context.Context, apiKeyID int64, since time.Time) (int64, error)
+	// MaxDailyCallsSince returns the busiest single day of the key since `since`,
+	// bucketed by the site timezone.
+	MaxDailyCallsSince(ctx context.Context, apiKeyID int64, since time.Time) (int64, error)
 }
 
 // SubPoolPeer is one anonymised member of the caller's own pool.
@@ -84,6 +91,32 @@ type SubPoolService struct {
 	apiKeyRepo APIKeyRepository
 	usageRepo  SubPoolUsageRepository
 	membership *SubPoolMembership
+	// authCache is optional; without it a pool change only takes effect once the
+	// cached auth snapshot (which carries sub_pool_id) expires.
+	authCache APIKeyAuthCacheInvalidator
+}
+
+// SetAuthCacheInvalidator attaches the auth snapshot invalidator. It is set
+// after construction to avoid a dependency cycle with APIKeyService.
+func (s *SubPoolService) SetAuthCacheInvalidator(invalidator APIKeyAuthCacheInvalidator) {
+	if s == nil {
+		return
+	}
+	s.authCache = invalidator
+}
+
+func (s *SubPoolService) invalidateAuthByKey(ctx context.Context, key string) {
+	if s == nil || s.authCache == nil || key == "" {
+		return
+	}
+	s.authCache.InvalidateAuthCacheByKey(ctx, key)
+}
+
+func (s *SubPoolService) invalidateAuthByGroup(ctx context.Context, groupID int64) {
+	if s == nil || s.authCache == nil || groupID <= 0 {
+		return
+	}
+	s.authCache.InvalidateAuthCacheByGroupID(ctx, groupID)
 }
 
 func NewSubPoolService(
@@ -149,10 +182,15 @@ func (s *SubPoolService) Update(ctx context.Context, pool *SubPool) error {
 }
 
 func (s *SubPoolService) Delete(ctx context.Context, id int64) error {
+	pool, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
 	s.membership.Invalidate(id)
+	s.invalidateAuthByGroup(ctx, pool.GroupID)
 	return nil
 }
 
@@ -212,14 +250,18 @@ func (s *SubPoolService) BindKey(ctx context.Context, apiKeyID, subPoolID int64,
 	if apiKey.GroupID == nil || *apiKey.GroupID != pool.GroupID {
 		return ErrSubPoolGroupMismatch
 	}
-	return s.repo.BindKey(ctx, SubPoolBindInput{
+	if err := s.repo.BindKey(ctx, SubPoolBindInput{
 		APIKeyID:  apiKeyID,
 		SubPoolID: subPoolID,
 		GroupID:   pool.GroupID,
 		Reason:    domain.SubPoolBindReasonAdminManual,
 		Operator:  operator,
 		Note:      note,
-	})
+	}); err != nil {
+		return err
+	}
+	s.invalidateAuthByKey(ctx, apiKey.Key)
+	return nil
 }
 
 // EnsureBinding places a key that has no pool yet. It is called after key
@@ -261,13 +303,17 @@ func (s *SubPoolService) EnsureBinding(ctx context.Context, apiKeyID int64) erro
 	if target == nil {
 		return ErrSubPoolNoCapacity
 	}
-	return s.repo.BindKey(ctx, SubPoolBindInput{
+	if err := s.repo.BindKey(ctx, SubPoolBindInput{
 		APIKeyID:  apiKeyID,
 		SubPoolID: target.ID,
 		GroupID:   group.ID,
 		Reason:    domain.SubPoolBindReasonInitial,
 		Operator:  domain.SubPoolBindOperatorSystem,
-	})
+	}); err != nil {
+		return err
+	}
+	s.invalidateAuthByKey(ctx, apiKey.Key)
+	return nil
 }
 
 // pickPoolForNewKey prefers a probe pool, then the emptiest healthy pool. Only
@@ -353,6 +399,9 @@ func (s *SubPoolService) MigrateCleanKeys(ctx context.Context, subPoolID int64, 
 		if err := s.repo.Update(ctx, pool); err != nil {
 			return moved, err
 		}
+	}
+	if moved > 0 {
+		s.invalidateAuthByGroup(ctx, pool.GroupID)
 	}
 	slog.Info("sub_pool_clean_keys_migrated",
 		"sub_pool_id", subPoolID, "moved", moved, "suspects", len(suspects), "operator", operator)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -132,4 +133,65 @@ func (r *subPoolUsageRepository) TopKeysByAccount(ctx context.Context, accountID
 		out = append(out, item)
 	}
 	return out, rows.Err()
+}
+
+// CountViolationsSince is the "did this key misbehave during probation" check.
+//
+// It counts only unambiguous hits — a flagged moderation log, or a prompt-audit
+// event that was blocked or scored high/critical. Warnings and medium scores are
+// left out deliberately: probation should filter out abusers, not everyone who
+// ever tripped a fuzzy scanner.
+func (r *subPoolUsageRepository) CountViolationsSince(ctx context.Context, apiKeyID int64, since time.Time) (int64, error) {
+	const query = `
+		SELECT
+		  (SELECT COUNT(*) FROM content_moderation_logs
+		    WHERE api_key_id = $1 AND created_at >= $2 AND flagged) +
+		  (SELECT COUNT(*) FROM prompt_audit_events
+		    WHERE api_key_id = $1 AND created_at >= $2
+		      AND (decision = 'block' OR risk_level IN ('high', 'critical')))`
+
+	count, err := r.scanSingleCount(ctx, query, apiKeyID, since)
+	if err != nil {
+		return 0, fmt.Errorf("count sub-pool probation violations: %w", err)
+	}
+	return count, nil
+}
+
+// MaxDailyCallsSince returns the busiest single day of the key since it entered
+// the pool. Days are bucketed in the site timezone so the number matches what
+// the peer board shows users.
+func (r *subPoolUsageRepository) MaxDailyCallsSince(ctx context.Context, apiKeyID int64, since time.Time) (int64, error) {
+	const query = `
+		SELECT COALESCE(MAX(daily.calls), 0)
+		FROM (
+		    SELECT COUNT(*) AS calls
+		    FROM usage_logs
+		    WHERE api_key_id = $1 AND created_at >= $2
+		    GROUP BY date_trunc('day', created_at AT TIME ZONE $3)
+		) AS daily`
+
+	peak, err := r.scanSingleCount(ctx, query, apiKeyID, since, timezone.Name())
+	if err != nil {
+		return 0, fmt.Errorf("query sub-pool probation peak usage: %w", err)
+	}
+	return peak, nil
+}
+
+// scanSingleCount runs a query that yields exactly one aggregate row.
+// sqlExecutor deliberately exposes only QueryContext, so the row is read here
+// rather than widening an interface that many repositories share.
+func (r *subPoolUsageRepository) scanSingleCount(ctx context.Context, query string, args ...any) (int64, error) {
+	rows, err := r.sql.QueryContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var count int64
+	if rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+	}
+	return count, rows.Err()
 }

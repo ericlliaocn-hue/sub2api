@@ -16,10 +16,20 @@ import (
 // SubPoolHandler manages the internal isolation pools under a group.
 type SubPoolHandler struct {
 	subPoolService *service.SubPoolService
+	graduation     *service.SubPoolGraduationService
+	settingService *service.SettingService
 }
 
-func NewSubPoolHandler(subPoolService *service.SubPoolService) *SubPoolHandler {
-	return &SubPoolHandler{subPoolService: subPoolService}
+func NewSubPoolHandler(
+	subPoolService *service.SubPoolService,
+	graduation *service.SubPoolGraduationService,
+	settingService *service.SettingService,
+) *SubPoolHandler {
+	return &SubPoolHandler{
+		subPoolService: subPoolService,
+		graduation:     graduation,
+		settingService: settingService,
+	}
 }
 
 // --- Request/Response DTOs ---
@@ -354,4 +364,58 @@ func subPoolAdminOperator(c *gin.Context) string {
 		return domain.SubPoolBindOperatorSystem
 	}
 	return service.SubPoolAdminOperator(subject.UserID)
+}
+
+// --- Probation / graduation ---
+
+type subPoolGraduationPolicyRequest struct {
+	Enabled       bool `json:"enabled"`
+	ProbationDays int  `json:"probation_days" binding:"min=0,max=365"`
+	MaxDailyCalls int  `json:"max_daily_calls" binding:"min=0"`
+}
+
+type subPoolGraduationPolicyResponse struct {
+	Enabled       bool `json:"enabled"`
+	ProbationDays int  `json:"probation_days"`
+	MaxDailyCalls int  `json:"max_daily_calls"`
+}
+
+// GetGraduationPolicy returns the probation rules for probe pools.
+func (h *SubPoolHandler) GetGraduationPolicy(c *gin.Context) {
+	policy := h.settingService.GetSubPoolGraduationPolicy(c.Request.Context())
+	response.Success(c, subPoolGraduationPolicyResponse{
+		Enabled:       policy.Enabled,
+		ProbationDays: policy.ProbationDays,
+		MaxDailyCalls: policy.MaxDailyCalls,
+	})
+}
+
+// UpdateGraduationPolicy persists the probation rules.
+func (h *SubPoolHandler) UpdateGraduationPolicy(c *gin.Context) {
+	var req subPoolGraduationPolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	policy := service.SubPoolGraduationPolicy{
+		Enabled:       req.Enabled,
+		ProbationDays: req.ProbationDays,
+		MaxDailyCalls: req.MaxDailyCalls,
+	}
+	if err := h.settingService.SetSubPoolGraduationPolicy(c.Request.Context(), policy); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, subPoolGraduationPolicyResponse{
+		Enabled:       policy.Enabled,
+		ProbationDays: policy.ProbationDays,
+		MaxDailyCalls: policy.MaxDailyCalls,
+	})
+}
+
+// RunGraduation triggers one sweep immediately instead of waiting for the
+// ticker, so an admin can see the effect of a settings change right away.
+func (h *SubPoolHandler) RunGraduation(c *gin.Context) {
+	graduated := h.graduation.RunOnce(c.Request.Context())
+	response.Success(c, gin.H{"graduated": graduated})
 }
