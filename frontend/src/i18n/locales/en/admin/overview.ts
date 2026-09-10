@@ -977,6 +977,33 @@ export default {
       rpmOverrides: 'RPM Overrides',
       subPools: {
         action: 'Sub-pools',
+        attribution: {
+          action: 'Attribution',
+          title: 'Who burned this pool',
+          lastHours: 'Last {hours}h',
+          total: '{calls} calls in window',
+          calls: 'Calls',
+          share: 'Share',
+          violations: 'Violations',
+          lastCall: 'Last call',
+          suspect: 'Suspect',
+          empty: 'No calls in this window',
+          demote: 'Demote to probe',
+          disable: 'Ban',
+          demoteSuccess: 'Key #{id} demoted to the probe pool',
+          demoteFailed: 'Failed to demote key',
+          disableTitle: 'Ban API key',
+          disableMessage: 'Key #{id} will stop authenticating. Its pool binding is kept so the incident history stays readable. Continue?',
+          disableSuccess: 'Key #{id} banned',
+          disableFailed: 'Failed to ban key',
+          loadFailed: 'Failed to load the attribution report'
+        },
+        cooling: {
+          runNow: 'Run cooling sweep',
+          runSuccess: 'Cooled {cooled}, recovered {recovered}, migrated {migrated} keys',
+          runFailed: 'Cooling sweep failed',
+          hint: 'Swept every 2 minutes: a pool whose accounts are all unschedulable goes into cooling and its clean keys are migrated out. It returns to healthy once an account recovers and 15 minutes have passed. Manually cooled pools are never auto-recovered.'
+        },
         graduation: {
           title: 'Probation & Graduation',
           hint: 'Applies globally. New keys start in a probe pool on disposable accounts and move to the emptiest formal pool once probation is over with no violations and usage below the cap. Nothing moves automatically while this is off.',

@@ -127,6 +127,7 @@ func provideCleanup(
 	auditLog *service.AuditLogService,
 	openAIAutoReset *service.OpenAIQuotaAutoResetService,
 	subPoolGraduation *service.SubPoolGraduationService,
+	subPoolCooling *service.SubPoolCoolingService,
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 ) func() {
@@ -156,6 +157,12 @@ func provideCleanup(
 			{"SubPoolGraduationService", func() error {
 				if subPoolGraduation != nil {
 					subPoolGraduation.Stop()
+				}
+				return nil
+			}},
+			{"SubPoolCoolingService", func() error {
+				if subPoolCooling != nil {
+					subPoolCooling.Stop()
 				}
 				return nil
 			}},

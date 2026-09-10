@@ -425,12 +425,22 @@ func registerSubPoolRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		pools.GET("/graduation", h.Admin.SubPool.GetGraduationPolicy)
 		pools.PUT("/graduation", h.Admin.SubPool.UpdateGraduationPolicy)
 		pools.POST("/graduation/run", h.Admin.SubPool.RunGraduation)
+		pools.POST("/cooling/run", h.Admin.SubPool.RunCooling)
 
 		pools.PUT("/:pool_id", h.Admin.SubPool.Update)
 		pools.DELETE("/:pool_id", h.Admin.SubPool.Delete)
 		pools.PUT("/:pool_id/accounts", h.Admin.SubPool.SetAccounts)
 		pools.POST("/:pool_id/keys", h.Admin.SubPool.BindKey)
 		pools.POST("/:pool_id/migrate", h.Admin.SubPool.MigrateCleanKeys)
+		pools.GET("/:pool_id/attribution", h.Admin.SubPool.Attribution)
+	}
+
+	// Sanctions act on a key, not a pool, so they sit on their own path rather
+	// than under /sub-pools/:pool_id where the pool id would be decorative.
+	keys := admin.Group("/sub-pool-keys")
+	{
+		keys.POST("/:key_id/demote", h.Admin.SubPool.DemoteKey)
+		keys.POST("/:key_id/disable", h.Admin.SubPool.DisableKey)
 	}
 }
 

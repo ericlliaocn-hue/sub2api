@@ -119,8 +119,18 @@ const (
 	SubPoolBindReasonCoolingMigration = "cooling_migration"
 	SubPoolBindReasonAdminManual      = "admin_manual"
 	SubPoolBindReasonPoolRemoved      = "pool_removed"
-	SubPoolBindOperatorSystem         = "system"
-	SubPoolBindOperatorAdminPrefix    = "admin:"
+	// SubPoolBindReasonPunishDemotion records a key pushed back into a probe pool
+	// as a sanction, which is distinct from a cooling migration: the key is the
+	// cause here, not a bystander.
+	SubPoolBindReasonPunishDemotion = "punish_demotion"
+	SubPoolBindOperatorSystem       = "system"
+	SubPoolBindOperatorAdminPrefix  = "admin:"
+)
+
+// Sub-pool cooling reasons written to sub_pools.cooling_reason by the automatic
+// state machine. Admin-entered reasons are free text.
+const (
+	SubPoolCoolingReasonAccountsUnavailable = "accounts_unavailable"
 )
 
 // Subscription status constants

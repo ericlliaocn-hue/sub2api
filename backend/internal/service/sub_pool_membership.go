@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	gocache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/singleflight"
@@ -31,36 +32,54 @@ func NewSubPoolMembership(repo SubPoolRepository) *SubPoolMembership {
 	}
 }
 
-// AllowedAccountIDs returns the account set backing the pool. The second return
-// value is false when membership could not be resolved, in which case callers
-// must leave the candidate list untouched rather than guess.
-func (m *SubPoolMembership) AllowedAccountIDs(ctx context.Context, subPoolID int64) (map[int64]struct{}, bool) {
+// resolvedSubPool is the cached scheduling view of a pool.
+type resolvedSubPool struct {
+	status  string
+	allowed map[int64]struct{}
+}
+
+// resolve returns the pool's scheduling state. The second return value is false
+// when it could not be resolved, in which case callers must leave the candidate
+// list untouched rather than guess.
+func (m *SubPoolMembership) resolve(ctx context.Context, subPoolID int64) (*resolvedSubPool, bool) {
 	if m == nil || m.repo == nil || subPoolID <= 0 {
 		return nil, false
 	}
 	key := strconv.FormatInt(subPoolID, 10)
 	if cached, ok := m.cache.Get(key); ok {
-		if allowed, ok := cached.(map[int64]struct{}); ok {
-			return allowed, true
+		if state, ok := cached.(*resolvedSubPool); ok {
+			return state, true
 		}
 	}
 	result, err, _ := m.sf.Do(key, func() (any, error) {
-		ids, err := m.repo.ListAccountIDs(ctx, subPoolID)
+		state, err := m.repo.GetSchedulingState(ctx, subPoolID)
 		if err != nil {
 			return nil, err
 		}
-		allowed := make(map[int64]struct{}, len(ids))
-		for _, id := range ids {
-			allowed[id] = struct{}{}
+		resolved := &resolvedSubPool{
+			status:  state.Status,
+			allowed: make(map[int64]struct{}, len(state.AccountIDs)),
 		}
-		m.cache.Set(key, allowed, subPoolMembershipTTL)
-		return allowed, nil
+		for _, id := range state.AccountIDs {
+			resolved.allowed[id] = struct{}{}
+		}
+		m.cache.Set(key, resolved, subPoolMembershipTTL)
+		return resolved, nil
 	})
 	if err != nil {
 		return nil, false
 	}
-	allowed, ok := result.(map[int64]struct{})
-	return allowed, ok
+	resolved, ok := result.(*resolvedSubPool)
+	return resolved, ok
+}
+
+// AllowedAccountIDs returns the account set backing the pool.
+func (m *SubPoolMembership) AllowedAccountIDs(ctx context.Context, subPoolID int64) (map[int64]struct{}, bool) {
+	state, ok := m.resolve(ctx, subPoolID)
+	if !ok {
+		return nil, false
+	}
+	return state.allowed, true
 }
 
 // Invalidate drops the cached membership of a pool after an admin change.
@@ -86,7 +105,8 @@ func SubPoolIDFromContext(ctx context.Context) int64 {
 // FilterAccountsBySubPool narrows scheduling candidates to the accounts of the
 // key's sub-pool. It is a no-op when the request carries no sub-pool.
 //
-// An empty result is deliberate: if the pool has no schedulable account left,
+// An empty result is deliberate: if the pool is cooling or has no schedulable
+// account left,
 // the request fails with "no available accounts" instead of spilling over to
 // the rest of the group. Spilling over would hand the abusing key a fresh set
 // of accounts to burn, which is exactly what the pool exists to prevent.
@@ -95,15 +115,23 @@ func (m *SubPoolMembership) FilterAccountsBySubPool(ctx context.Context, account
 	if m == nil || subPoolID <= 0 || len(accounts) == 0 {
 		return accounts
 	}
-	allowed, ok := m.AllowedAccountIDs(ctx, subPoolID)
+	state, ok := m.resolve(ctx, subPoolID)
 	if !ok {
 		slog.Warn("sub_pool_membership_unresolved_scheduling_unrestricted",
 			"sub_pool_id", subPoolID, "candidates", len(accounts))
 		return accounts
 	}
+	// A cooling pool is one whose upstream accounts are burned or under
+	// investigation. Draining it is the whole response to an incident, so it
+	// must stop serving traffic and not merely stop accepting new keys.
+	if state.status == domain.SubPoolStatusCooling {
+		slog.Debug("sub_pool_scheduling_blocked_cooling",
+			"sub_pool_id", subPoolID, "candidates", len(accounts))
+		return nil
+	}
 	filtered := make([]Account, 0, len(accounts))
 	for _, acc := range accounts {
-		if _, in := allowed[acc.ID]; in {
+		if _, in := state.allowed[acc.ID]; in {
 			filtered = append(filtered, acc)
 		}
 	}

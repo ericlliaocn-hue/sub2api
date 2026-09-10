@@ -992,6 +992,33 @@ export default {
       rpmOverrides: '专属 RPM',
       subPools: {
         action: '子池',
+        attribution: {
+          action: '归因',
+          title: '谁打的',
+          lastHours: '近 {hours} 小时',
+          total: '窗口内共 {calls} 次',
+          calls: '调用',
+          share: '占比',
+          violations: '违规',
+          lastCall: '最后调用',
+          suspect: '嫌疑',
+          empty: '窗口内没有调用记录',
+          demote: '打回观察池',
+          disable: '封禁',
+          demoteSuccess: 'Key #{id} 已打回观察池',
+          demoteFailed: '打回观察池失败',
+          disableTitle: '封禁 API Key',
+          disableMessage: '封禁后 Key #{id} 将无法通过鉴权，池绑定关系保留以便留痕。确认封禁？',
+          disableSuccess: 'Key #{id} 已封禁',
+          disableFailed: '封禁失败',
+          loadFailed: '加载归因报表失败'
+        },
+        cooling: {
+          runNow: '立即巡检冷却',
+          runSuccess: '冷却 {cooled} 个池，恢复 {recovered} 个，迁走 {migrated} 个 Key',
+          runFailed: '冷却巡检失败',
+          hint: '每 2 分钟自动巡检：池内账号全部不可调度时转入冷却并迁走清白 Key；账号恢复且冷却满 15 分钟后自动转回健康。手工冷却的池不会被自动恢复。'
+        },
         graduation: {
           title: '观察期毕业规则',
           hint: '全局生效。新 Key 先进观察池用日抛号，满足观察期且期间无违规、用量未超阈值后，自动迁入负载最低的正式池。关闭时不会自动迁任何 Key。',

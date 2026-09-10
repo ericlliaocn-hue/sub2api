@@ -25,6 +25,16 @@
         <span class="text-gray-500 dark:text-gray-400">
           {{ t('admin.groups.subPools.groupAccounts', { count: groupAccountCount }) }}
         </span>
+        <button
+          type="button"
+          class="btn btn-sm btn-secondary ml-auto"
+          :disabled="runningCooling"
+          :title="t('admin.groups.subPools.cooling.hint')"
+          @click="triggerCooling"
+        >
+          <Icon v-if="runningCooling" name="refresh" size="sm" class="mr-1 inline animate-spin" />
+          {{ t('admin.groups.subPools.cooling.runNow') }}
+        </button>
       </div>
 
       <p
@@ -187,6 +197,13 @@
               <button
                 type="button"
                 class="btn btn-sm btn-secondary"
+                @click="openAttribution(pool)"
+              >
+                {{ t('admin.groups.subPools.attribution.action') }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-secondary"
                 @click="openMigrate(pool)"
               >
                 {{ t('admin.groups.subPools.migrate') }}
@@ -270,6 +287,126 @@
             </div>
           </div>
 
+          <!-- 归因报表：谁打的 -->
+          <div
+            v-if="attributionPoolId === pool.id"
+            class="mt-3 border-t border-gray-100 pt-3 dark:border-dark-600"
+          >
+            <div class="mb-2 flex flex-wrap items-center gap-2">
+              <h5 class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.groups.subPools.attribution.title') }}
+              </h5>
+              <Select v-model="attributionHours" :options="hoursOptions" class="w-32" />
+              <button
+                type="button"
+                class="btn btn-sm btn-secondary"
+                :disabled="attributionLoading"
+                @click="loadAttribution(pool.id)"
+              >
+                {{ t('common.refresh') }}
+              </button>
+              <span
+                v-if="attribution"
+                class="text-xs text-gray-400"
+              >
+                {{
+                  t('admin.groups.subPools.attribution.total', { calls: attribution.total_calls })
+                }}
+              </span>
+            </div>
+
+            <div v-if="attributionLoading" class="py-3 text-center">
+              <Icon name="refresh" size="sm" class="inline animate-spin text-primary-500" />
+            </div>
+            <div
+              v-else-if="!attribution || attribution.keys.length === 0"
+              class="py-3 text-sm text-gray-400"
+            >
+              {{ t('admin.groups.subPools.attribution.empty') }}
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-200 text-left dark:border-dark-600">
+                    <th class="px-2 py-1.5 font-medium text-gray-500 dark:text-gray-400">Key</th>
+                    <th class="px-2 py-1.5 text-right font-medium text-gray-500 dark:text-gray-400">
+                      {{ t('admin.groups.subPools.attribution.calls') }}
+                    </th>
+                    <th class="px-2 py-1.5 text-right font-medium text-gray-500 dark:text-gray-400">
+                      {{ t('admin.groups.subPools.attribution.share') }}
+                    </th>
+                    <th class="px-2 py-1.5 text-right font-medium text-gray-500 dark:text-gray-400">
+                      {{ t('admin.groups.subPools.attribution.violations') }}
+                    </th>
+                    <th class="px-2 py-1.5 font-medium text-gray-500 dark:text-gray-400">
+                      {{ t('admin.groups.subPools.attribution.lastCall') }}
+                    </th>
+                    <th class="px-2 py-1.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in attribution.keys"
+                    :key="row.api_key_id"
+                    class="border-b border-gray-100 last:border-0 dark:border-dark-700"
+                    :class="{ 'bg-red-50/50 dark:bg-red-900/10': row.suspect }"
+                  >
+                    <td class="px-2 py-1.5">
+                      <span class="text-gray-900 dark:text-white">#{{ row.api_key_id }}</span>
+                      <span class="ml-1 text-xs text-gray-400">u{{ row.user_id }}</span>
+                      <span
+                        v-if="row.suspect"
+                        class="badge badge-danger ml-1"
+                        :title="row.suspect_why"
+                      >
+                        {{ t('admin.groups.subPools.attribution.suspect') }}
+                      </span>
+                    </td>
+                    <td class="px-2 py-1.5 text-right tabular-nums text-gray-900 dark:text-white">
+                      {{ row.calls }}
+                    </td>
+                    <td class="px-2 py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-300">
+                      {{ (row.share * 100).toFixed(1) }}%
+                    </td>
+                    <td
+                      class="px-2 py-1.5 text-right tabular-nums"
+                      :class="
+                        row.violations > 0
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-gray-600 dark:text-gray-300'
+                      "
+                    >
+                      {{ row.violations }}
+                    </td>
+                    <td class="px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ row.last_call_at ? formatDateTime(row.last_call_at) : '-' }}
+                    </td>
+                    <td class="px-2 py-1.5">
+                      <div class="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-secondary"
+                          :disabled="sanctioningKeyId === row.api_key_id"
+                          @click="demoteKey(pool, row.api_key_id)"
+                        >
+                          {{ t('admin.groups.subPools.attribution.demote') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-danger"
+                          :disabled="sanctioningKeyId === row.api_key_id"
+                          @click="confirmDisable(pool, row.api_key_id)"
+                        >
+                          {{ t('admin.groups.subPools.attribution.disable') }}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- 迁移 -->
           <div
             v-if="migratePoolId === pool.id"
@@ -309,6 +446,17 @@
     </div>
 
     <ConfirmDialog
+      :show="disableTarget !== null"
+      :title="t('admin.groups.subPools.attribution.disableTitle')"
+      :message="
+        t('admin.groups.subPools.attribution.disableMessage', { id: disableTarget?.keyId || 0 })
+      "
+      danger
+      @confirm="handleDisable"
+      @cancel="disableTarget = null"
+    />
+
+    <ConfirmDialog
       :show="deleteTarget !== null"
       :title="t('admin.groups.subPools.deleteTitle')"
       :message="t('admin.groups.subPools.deleteMessage', { name: deleteTarget?.name || '' })"
@@ -324,7 +472,13 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { SubPool, SubPoolGraduationPolicy, SubPoolKind } from '@/api/admin/subPools'
+import type {
+  SubPool,
+  SubPoolAttributionReport,
+  SubPoolGraduationPolicy,
+  SubPoolKind
+} from '@/api/admin/subPools'
+import { formatDateTime } from '@/utils/format'
 import type { Account, AdminGroup } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -360,8 +514,16 @@ const migrateSuspects = ref('')
 
 const deleteTarget = ref<SubPool | null>(null)
 
+const attributionPoolId = ref<number | null>(null)
+const attributionLoading = ref(false)
+const attributionHours = ref(24)
+const attribution = ref<SubPoolAttributionReport | null>(null)
+const sanctioningKeyId = ref<number | null>(null)
+const disableTarget = ref<{ pool: SubPool; keyId: number } | null>(null)
+
 const savingGraduation = ref(false)
 const runningGraduation = ref(false)
+const runningCooling = ref(false)
 const graduation = reactive<SubPoolGraduationPolicy>({
   enabled: false,
   probation_days: 7,
@@ -380,6 +542,14 @@ const kindOptions = computed(() => [
 ])
 
 const groupAccountCount = computed(() => groupAccounts.value.length)
+
+const hoursOptions = computed(() => [
+  { value: 1, label: t('admin.groups.subPools.attribution.lastHours', { hours: 1 }) },
+  { value: 6, label: t('admin.groups.subPools.attribution.lastHours', { hours: 6 }) },
+  { value: 24, label: t('admin.groups.subPools.attribution.lastHours', { hours: 24 }) },
+  { value: 72, label: t('admin.groups.subPools.attribution.lastHours', { hours: 72 }) },
+  { value: 168, label: t('admin.groups.subPools.attribution.lastHours', { hours: 168 }) }
+])
 
 const kindBadgeClass = (kind: SubPoolKind) =>
   kind === 'probe' ? 'badge-warning' : 'badge-gray'
@@ -430,6 +600,26 @@ const saveGraduation = async () => {
     console.error('Error saving graduation policy:', error)
   } finally {
     savingGraduation.value = false
+  }
+}
+
+const triggerCooling = async () => {
+  runningCooling.value = true
+  try {
+    const result = await adminAPI.subPools.runCooling()
+    appStore.showSuccess(
+      t('admin.groups.subPools.cooling.runSuccess', {
+        cooled: result.cooled,
+        recovered: result.recovered,
+        migrated: result.migrated
+      })
+    )
+    await loadPools()
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.cooling.runFailed'))
+    console.error('Error running cooling sweep:', error)
+  } finally {
+    runningCooling.value = false
   }
 }
 
@@ -515,8 +705,68 @@ const saveAccounts = async (pool: SubPool) => {
   }
 }
 
+const openAttribution = (pool: SubPool) => {
+  closeAccountEditor()
+  migratePoolId.value = null
+  attributionPoolId.value = pool.id
+  attribution.value = null
+  loadAttribution(pool.id)
+}
+
+const loadAttribution = async (poolId: number) => {
+  attributionLoading.value = true
+  try {
+    attribution.value = await adminAPI.subPools.attribution(poolId, attributionHours.value)
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.attribution.loadFailed'))
+    console.error('Error loading attribution report:', error)
+  } finally {
+    attributionLoading.value = false
+  }
+}
+
+const demoteKey = async (pool: SubPool, keyId: number) => {
+  sanctioningKeyId.value = keyId
+  try {
+    await adminAPI.subPools.demoteKey(keyId)
+    appStore.showSuccess(t('admin.groups.subPools.attribution.demoteSuccess', { id: keyId }))
+    await Promise.all([loadPools(), loadAttribution(pool.id)])
+    emit('success')
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.attribution.demoteFailed'))
+    console.error('Error demoting key:', error)
+  } finally {
+    sanctioningKeyId.value = null
+  }
+}
+
+const confirmDisable = (pool: SubPool, keyId: number) => {
+  disableTarget.value = { pool, keyId }
+}
+
+const handleDisable = async () => {
+  const target = disableTarget.value
+  disableTarget.value = null
+  if (!target) return
+  sanctioningKeyId.value = target.keyId
+  try {
+    await adminAPI.subPools.disableKey(target.keyId)
+    appStore.showSuccess(
+      t('admin.groups.subPools.attribution.disableSuccess', { id: target.keyId })
+    )
+    await loadAttribution(target.pool.id)
+    emit('success')
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.attribution.disableFailed'))
+    console.error('Error disabling key:', error)
+  } finally {
+    sanctioningKeyId.value = null
+  }
+}
+
 const openMigrate = (pool: SubPool) => {
   closeAccountEditor()
+  attributionPoolId.value = null
   migratePoolId.value = pool.id
   migrateReason.value = ''
   migrateSuspects.value = ''
@@ -593,6 +843,8 @@ const handleDelete = async () => {
 const handleClose = () => {
   closeAccountEditor()
   migratePoolId.value = null
+  attributionPoolId.value = null
+  attribution.value = null
   emit('close')
 }
 

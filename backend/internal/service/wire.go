@@ -307,6 +307,22 @@ func ProvideSubPoolService(
 	return svc
 }
 
+// ProvideSubPoolCoolingService starts the incident sweep that cools burned pools
+// and drains their bystander keys.
+func ProvideSubPoolCoolingService(
+	repo SubPoolRepository,
+	accountRepo AccountRepository,
+	subPools *SubPoolService,
+	membership *SubPoolMembership,
+	lockCache LeaderLockCache,
+	apiKeyService *APIKeyService,
+) *SubPoolCoolingService {
+	svc := NewSubPoolCoolingService(repo, accountRepo, subPools, membership, lockCache)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	svc.Start()
+	return svc
+}
+
 // ProvideSubPoolGraduationService starts the probation sweep that moves keys out
 // of the probe pool. The job is inert until sub_pool_graduation_enabled is set.
 func ProvideSubPoolGraduationService(
@@ -894,6 +910,7 @@ var ProviderSet = wire.NewSet(
 	ProvideSubPoolMembership,
 	ProvideSubPoolService,
 	ProvideSubPoolGraduationService,
+	ProvideSubPoolCoolingService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
 	ProvideBatchImageModelPricingResolver,

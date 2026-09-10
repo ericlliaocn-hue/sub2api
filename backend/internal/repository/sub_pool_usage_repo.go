@@ -10,6 +10,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 type subPoolUsageRepository struct {
@@ -131,6 +132,55 @@ func (r *subPoolUsageRepository) TopKeysByAccount(ctx context.Context, accountID
 			item.LastCallAt = &t
 		}
 		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+// KeyUsageInWindow aggregates a fixed set of keys over one window. Keys with no
+// traffic simply do not appear in the result; the caller fills them in as zero
+// so the report still lists every member of the pool.
+func (r *subPoolUsageRepository) KeyUsageInWindow(ctx context.Context, apiKeyIDs []int64, start, end time.Time) (map[int64]service.SubPoolAccountKeyUsage, error) {
+	out := make(map[int64]service.SubPoolAccountKeyUsage, len(apiKeyIDs))
+	if len(apiKeyIDs) == 0 {
+		return out, nil
+	}
+
+	const query = `
+		SELECT u.api_key_id,
+		       MAX(u.user_id) AS user_id,
+		       COUNT(*) AS calls,
+		       MIN(u.created_at) AS first_call_at,
+		       MAX(u.created_at) AS last_call_at
+		FROM usage_logs u
+		WHERE u.api_key_id = ANY($1)
+		  AND u.created_at >= $2
+		  AND u.created_at < $3
+		GROUP BY u.api_key_id`
+
+	rows, err := r.sql.QueryContext(ctx, query, pq.Array(apiKeyIDs), start, end)
+	if err != nil {
+		return nil, fmt.Errorf("query sub-pool key usage window: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			item        service.SubPoolAccountKeyUsage
+			firstCallAt sql.NullTime
+			lastCallAt  sql.NullTime
+		)
+		if err := rows.Scan(&item.APIKeyID, &item.UserID, &item.Calls, &firstCallAt, &lastCallAt); err != nil {
+			return nil, fmt.Errorf("scan sub-pool key usage window: %w", err)
+		}
+		if firstCallAt.Valid {
+			t := firstCallAt.Time
+			item.FirstCallAt = &t
+		}
+		if lastCallAt.Valid {
+			t := lastCallAt.Time
+			item.LastCallAt = &t
+		}
+		out[item.APIKeyID] = item
 	}
 	return out, rows.Err()
 }
