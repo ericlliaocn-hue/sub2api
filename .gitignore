@@ -147,6 +147,7 @@ docs/*
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
+!docs/SUBPOOL_CYBER_ISOLATION_PLAN.md
 !docs/legal/
 !docs/legal/*.md
 !docs/screenshots/
