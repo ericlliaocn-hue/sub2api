@@ -426,6 +426,10 @@ func registerSubPoolRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		pools.PUT("/graduation", h.Admin.SubPool.UpdateGraduationPolicy)
 		pools.POST("/graduation/run", h.Admin.SubPool.RunGraduation)
 		pools.POST("/cooling/run", h.Admin.SubPool.RunCooling)
+		pools.GET("/reputation", h.Admin.SubPool.GetReputationPolicy)
+		pools.PUT("/reputation", h.Admin.SubPool.UpdateReputationPolicy)
+		pools.POST("/reputation/run", h.Admin.SubPool.RunReputation)
+		pools.GET("/reputation/worst", h.Admin.SubPool.ListWorstReputations)
 
 		pools.PUT("/:pool_id", h.Admin.SubPool.Update)
 		pools.DELETE("/:pool_id", h.Admin.SubPool.Delete)
@@ -441,6 +445,8 @@ func registerSubPoolRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		keys.POST("/:key_id/demote", h.Admin.SubPool.DemoteKey)
 		keys.POST("/:key_id/disable", h.Admin.SubPool.DisableKey)
+		keys.GET("/:key_id/reputation", h.Admin.SubPool.GetKeyReputation)
+		keys.POST("/:key_id/reputation/clear", h.Admin.SubPool.ClearKeyReputationSanction)
 	}
 }
 

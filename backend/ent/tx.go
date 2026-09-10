@@ -16,6 +16,8 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// APIKeyReputation is the client for interacting with the APIKeyReputation builders.
+	APIKeyReputation *APIKeyReputationClient
 	// APIKeySubPoolBinding is the client for interacting with the APIKeySubPoolBinding builders.
 	APIKeySubPoolBinding *APIKeySubPoolBindingClient
 	// Account is the client for interacting with the Account builders.
@@ -230,6 +232,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.APIKeyReputation = NewAPIKeyReputationClient(tx.config)
 	tx.APIKeySubPoolBinding = NewAPIKeySubPoolBindingClient(tx.config)
 	tx.Account = NewAccountClient(tx.config)
 	tx.AccountGroup = NewAccountGroupClient(tx.config)

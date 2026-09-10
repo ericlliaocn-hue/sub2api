@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeyreputation"
 	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
@@ -68,6 +69,7 @@ const (
 
 	// Node types.
 	TypeAPIKey                        = "APIKey"
+	TypeAPIKeyReputation              = "APIKeyReputation"
 	TypeAPIKeySubPoolBinding          = "APIKeySubPoolBinding"
 	TypeAccount                       = "Account"
 	TypeAccountGroup                  = "AccountGroup"
@@ -2402,6 +2404,1067 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey edge %s", name)
+}
+
+// APIKeyReputationMutation represents an operation that mutates the APIKeyReputation nodes in the graph.
+type APIKeyReputationMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int64
+	api_key_id      *int64
+	addapi_key_id   *int64
+	score           *int
+	addscore        *int
+	severe_hits     *int
+	addsevere_hits  *int
+	total_hits      *int
+	addtotal_hits   *int
+	last_event_at   *time.Time
+	scored_at       *time.Time
+	sanction        *string
+	sanctioned_at   *time.Time
+	sanction_reason *string
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*APIKeyReputation, error)
+	predicates      []predicate.APIKeyReputation
+}
+
+var _ ent.Mutation = (*APIKeyReputationMutation)(nil)
+
+// apikeyreputationOption allows management of the mutation configuration using functional options.
+type apikeyreputationOption func(*APIKeyReputationMutation)
+
+// newAPIKeyReputationMutation creates new mutation for the APIKeyReputation entity.
+func newAPIKeyReputationMutation(c config, op Op, opts ...apikeyreputationOption) *APIKeyReputationMutation {
+	m := &APIKeyReputationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeyReputation,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAPIKeyReputationID sets the ID field of the mutation.
+func withAPIKeyReputationID(id int64) apikeyreputationOption {
+	return func(m *APIKeyReputationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *APIKeyReputation
+		)
+		m.oldValue = func(ctx context.Context) (*APIKeyReputation, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().APIKeyReputation.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAPIKeyReputation sets the old APIKeyReputation of the mutation.
+func withAPIKeyReputation(node *APIKeyReputation) apikeyreputationOption {
+	return func(m *APIKeyReputationMutation) {
+		m.oldValue = func(context.Context) (*APIKeyReputation, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeyReputationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeyReputationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *APIKeyReputationMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *APIKeyReputationMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().APIKeyReputation.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *APIKeyReputationMutation) SetAPIKeyID(i int64) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *APIKeyReputationMutation) APIKeyID() (r int64, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldAPIKeyID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *APIKeyReputationMutation) AddAPIKeyID(i int64) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *APIKeyReputationMutation) AddedAPIKeyID() (r int64, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *APIKeyReputationMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetScore sets the "score" field.
+func (m *APIKeyReputationMutation) SetScore(i int) {
+	m.score = &i
+	m.addscore = nil
+}
+
+// Score returns the value of the "score" field in the mutation.
+func (m *APIKeyReputationMutation) Score() (r int, exists bool) {
+	v := m.score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScore returns the old "score" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldScore(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScore: %w", err)
+	}
+	return oldValue.Score, nil
+}
+
+// AddScore adds i to the "score" field.
+func (m *APIKeyReputationMutation) AddScore(i int) {
+	if m.addscore != nil {
+		*m.addscore += i
+	} else {
+		m.addscore = &i
+	}
+}
+
+// AddedScore returns the value that was added to the "score" field in this mutation.
+func (m *APIKeyReputationMutation) AddedScore() (r int, exists bool) {
+	v := m.addscore
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetScore resets all changes to the "score" field.
+func (m *APIKeyReputationMutation) ResetScore() {
+	m.score = nil
+	m.addscore = nil
+}
+
+// SetSevereHits sets the "severe_hits" field.
+func (m *APIKeyReputationMutation) SetSevereHits(i int) {
+	m.severe_hits = &i
+	m.addsevere_hits = nil
+}
+
+// SevereHits returns the value of the "severe_hits" field in the mutation.
+func (m *APIKeyReputationMutation) SevereHits() (r int, exists bool) {
+	v := m.severe_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSevereHits returns the old "severe_hits" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSevereHits(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSevereHits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSevereHits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSevereHits: %w", err)
+	}
+	return oldValue.SevereHits, nil
+}
+
+// AddSevereHits adds i to the "severe_hits" field.
+func (m *APIKeyReputationMutation) AddSevereHits(i int) {
+	if m.addsevere_hits != nil {
+		*m.addsevere_hits += i
+	} else {
+		m.addsevere_hits = &i
+	}
+}
+
+// AddedSevereHits returns the value that was added to the "severe_hits" field in this mutation.
+func (m *APIKeyReputationMutation) AddedSevereHits() (r int, exists bool) {
+	v := m.addsevere_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSevereHits resets all changes to the "severe_hits" field.
+func (m *APIKeyReputationMutation) ResetSevereHits() {
+	m.severe_hits = nil
+	m.addsevere_hits = nil
+}
+
+// SetTotalHits sets the "total_hits" field.
+func (m *APIKeyReputationMutation) SetTotalHits(i int) {
+	m.total_hits = &i
+	m.addtotal_hits = nil
+}
+
+// TotalHits returns the value of the "total_hits" field in the mutation.
+func (m *APIKeyReputationMutation) TotalHits() (r int, exists bool) {
+	v := m.total_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalHits returns the old "total_hits" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldTotalHits(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalHits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalHits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalHits: %w", err)
+	}
+	return oldValue.TotalHits, nil
+}
+
+// AddTotalHits adds i to the "total_hits" field.
+func (m *APIKeyReputationMutation) AddTotalHits(i int) {
+	if m.addtotal_hits != nil {
+		*m.addtotal_hits += i
+	} else {
+		m.addtotal_hits = &i
+	}
+}
+
+// AddedTotalHits returns the value that was added to the "total_hits" field in this mutation.
+func (m *APIKeyReputationMutation) AddedTotalHits() (r int, exists bool) {
+	v := m.addtotal_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalHits resets all changes to the "total_hits" field.
+func (m *APIKeyReputationMutation) ResetTotalHits() {
+	m.total_hits = nil
+	m.addtotal_hits = nil
+}
+
+// SetLastEventAt sets the "last_event_at" field.
+func (m *APIKeyReputationMutation) SetLastEventAt(t time.Time) {
+	m.last_event_at = &t
+}
+
+// LastEventAt returns the value of the "last_event_at" field in the mutation.
+func (m *APIKeyReputationMutation) LastEventAt() (r time.Time, exists bool) {
+	v := m.last_event_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastEventAt returns the old "last_event_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldLastEventAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastEventAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastEventAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastEventAt: %w", err)
+	}
+	return oldValue.LastEventAt, nil
+}
+
+// ClearLastEventAt clears the value of the "last_event_at" field.
+func (m *APIKeyReputationMutation) ClearLastEventAt() {
+	m.last_event_at = nil
+	m.clearedFields[apikeyreputation.FieldLastEventAt] = struct{}{}
+}
+
+// LastEventAtCleared returns if the "last_event_at" field was cleared in this mutation.
+func (m *APIKeyReputationMutation) LastEventAtCleared() bool {
+	_, ok := m.clearedFields[apikeyreputation.FieldLastEventAt]
+	return ok
+}
+
+// ResetLastEventAt resets all changes to the "last_event_at" field.
+func (m *APIKeyReputationMutation) ResetLastEventAt() {
+	m.last_event_at = nil
+	delete(m.clearedFields, apikeyreputation.FieldLastEventAt)
+}
+
+// SetScoredAt sets the "scored_at" field.
+func (m *APIKeyReputationMutation) SetScoredAt(t time.Time) {
+	m.scored_at = &t
+}
+
+// ScoredAt returns the value of the "scored_at" field in the mutation.
+func (m *APIKeyReputationMutation) ScoredAt() (r time.Time, exists bool) {
+	v := m.scored_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScoredAt returns the old "scored_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldScoredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScoredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScoredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScoredAt: %w", err)
+	}
+	return oldValue.ScoredAt, nil
+}
+
+// ResetScoredAt resets all changes to the "scored_at" field.
+func (m *APIKeyReputationMutation) ResetScoredAt() {
+	m.scored_at = nil
+}
+
+// SetSanction sets the "sanction" field.
+func (m *APIKeyReputationMutation) SetSanction(s string) {
+	m.sanction = &s
+}
+
+// Sanction returns the value of the "sanction" field in the mutation.
+func (m *APIKeyReputationMutation) Sanction() (r string, exists bool) {
+	v := m.sanction
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSanction returns the old "sanction" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSanction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSanction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSanction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSanction: %w", err)
+	}
+	return oldValue.Sanction, nil
+}
+
+// ResetSanction resets all changes to the "sanction" field.
+func (m *APIKeyReputationMutation) ResetSanction() {
+	m.sanction = nil
+}
+
+// SetSanctionedAt sets the "sanctioned_at" field.
+func (m *APIKeyReputationMutation) SetSanctionedAt(t time.Time) {
+	m.sanctioned_at = &t
+}
+
+// SanctionedAt returns the value of the "sanctioned_at" field in the mutation.
+func (m *APIKeyReputationMutation) SanctionedAt() (r time.Time, exists bool) {
+	v := m.sanctioned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSanctionedAt returns the old "sanctioned_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSanctionedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSanctionedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSanctionedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSanctionedAt: %w", err)
+	}
+	return oldValue.SanctionedAt, nil
+}
+
+// ClearSanctionedAt clears the value of the "sanctioned_at" field.
+func (m *APIKeyReputationMutation) ClearSanctionedAt() {
+	m.sanctioned_at = nil
+	m.clearedFields[apikeyreputation.FieldSanctionedAt] = struct{}{}
+}
+
+// SanctionedAtCleared returns if the "sanctioned_at" field was cleared in this mutation.
+func (m *APIKeyReputationMutation) SanctionedAtCleared() bool {
+	_, ok := m.clearedFields[apikeyreputation.FieldSanctionedAt]
+	return ok
+}
+
+// ResetSanctionedAt resets all changes to the "sanctioned_at" field.
+func (m *APIKeyReputationMutation) ResetSanctionedAt() {
+	m.sanctioned_at = nil
+	delete(m.clearedFields, apikeyreputation.FieldSanctionedAt)
+}
+
+// SetSanctionReason sets the "sanction_reason" field.
+func (m *APIKeyReputationMutation) SetSanctionReason(s string) {
+	m.sanction_reason = &s
+}
+
+// SanctionReason returns the value of the "sanction_reason" field in the mutation.
+func (m *APIKeyReputationMutation) SanctionReason() (r string, exists bool) {
+	v := m.sanction_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSanctionReason returns the old "sanction_reason" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSanctionReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSanctionReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSanctionReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSanctionReason: %w", err)
+	}
+	return oldValue.SanctionReason, nil
+}
+
+// ClearSanctionReason clears the value of the "sanction_reason" field.
+func (m *APIKeyReputationMutation) ClearSanctionReason() {
+	m.sanction_reason = nil
+	m.clearedFields[apikeyreputation.FieldSanctionReason] = struct{}{}
+}
+
+// SanctionReasonCleared returns if the "sanction_reason" field was cleared in this mutation.
+func (m *APIKeyReputationMutation) SanctionReasonCleared() bool {
+	_, ok := m.clearedFields[apikeyreputation.FieldSanctionReason]
+	return ok
+}
+
+// ResetSanctionReason resets all changes to the "sanction_reason" field.
+func (m *APIKeyReputationMutation) ResetSanctionReason() {
+	m.sanction_reason = nil
+	delete(m.clearedFields, apikeyreputation.FieldSanctionReason)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *APIKeyReputationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *APIKeyReputationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *APIKeyReputationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *APIKeyReputationMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *APIKeyReputationMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *APIKeyReputationMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the APIKeyReputationMutation builder.
+func (m *APIKeyReputationMutation) Where(ps ...predicate.APIKeyReputation) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeyReputationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeyReputationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeyReputation, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeyReputationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeyReputationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeyReputation).
+func (m *APIKeyReputationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeyReputationMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.api_key_id != nil {
+		fields = append(fields, apikeyreputation.FieldAPIKeyID)
+	}
+	if m.score != nil {
+		fields = append(fields, apikeyreputation.FieldScore)
+	}
+	if m.severe_hits != nil {
+		fields = append(fields, apikeyreputation.FieldSevereHits)
+	}
+	if m.total_hits != nil {
+		fields = append(fields, apikeyreputation.FieldTotalHits)
+	}
+	if m.last_event_at != nil {
+		fields = append(fields, apikeyreputation.FieldLastEventAt)
+	}
+	if m.scored_at != nil {
+		fields = append(fields, apikeyreputation.FieldScoredAt)
+	}
+	if m.sanction != nil {
+		fields = append(fields, apikeyreputation.FieldSanction)
+	}
+	if m.sanctioned_at != nil {
+		fields = append(fields, apikeyreputation.FieldSanctionedAt)
+	}
+	if m.sanction_reason != nil {
+		fields = append(fields, apikeyreputation.FieldSanctionReason)
+	}
+	if m.created_at != nil {
+		fields = append(fields, apikeyreputation.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, apikeyreputation.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeyReputationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		return m.APIKeyID()
+	case apikeyreputation.FieldScore:
+		return m.Score()
+	case apikeyreputation.FieldSevereHits:
+		return m.SevereHits()
+	case apikeyreputation.FieldTotalHits:
+		return m.TotalHits()
+	case apikeyreputation.FieldLastEventAt:
+		return m.LastEventAt()
+	case apikeyreputation.FieldScoredAt:
+		return m.ScoredAt()
+	case apikeyreputation.FieldSanction:
+		return m.Sanction()
+	case apikeyreputation.FieldSanctionedAt:
+		return m.SanctionedAt()
+	case apikeyreputation.FieldSanctionReason:
+		return m.SanctionReason()
+	case apikeyreputation.FieldCreatedAt:
+		return m.CreatedAt()
+	case apikeyreputation.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeyReputationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case apikeyreputation.FieldScore:
+		return m.OldScore(ctx)
+	case apikeyreputation.FieldSevereHits:
+		return m.OldSevereHits(ctx)
+	case apikeyreputation.FieldTotalHits:
+		return m.OldTotalHits(ctx)
+	case apikeyreputation.FieldLastEventAt:
+		return m.OldLastEventAt(ctx)
+	case apikeyreputation.FieldScoredAt:
+		return m.OldScoredAt(ctx)
+	case apikeyreputation.FieldSanction:
+		return m.OldSanction(ctx)
+	case apikeyreputation.FieldSanctionedAt:
+		return m.OldSanctionedAt(ctx)
+	case apikeyreputation.FieldSanctionReason:
+		return m.OldSanctionReason(ctx)
+	case apikeyreputation.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case apikeyreputation.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown APIKeyReputation field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyReputationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case apikeyreputation.FieldScore:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScore(v)
+		return nil
+	case apikeyreputation.FieldSevereHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSevereHits(v)
+		return nil
+	case apikeyreputation.FieldTotalHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalHits(v)
+		return nil
+	case apikeyreputation.FieldLastEventAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastEventAt(v)
+		return nil
+	case apikeyreputation.FieldScoredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScoredAt(v)
+		return nil
+	case apikeyreputation.FieldSanction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSanction(v)
+		return nil
+	case apikeyreputation.FieldSanctionedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSanctionedAt(v)
+		return nil
+	case apikeyreputation.FieldSanctionReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSanctionReason(v)
+		return nil
+	case apikeyreputation.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case apikeyreputation.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeyReputationMutation) AddedFields() []string {
+	var fields []string
+	if m.addapi_key_id != nil {
+		fields = append(fields, apikeyreputation.FieldAPIKeyID)
+	}
+	if m.addscore != nil {
+		fields = append(fields, apikeyreputation.FieldScore)
+	}
+	if m.addsevere_hits != nil {
+		fields = append(fields, apikeyreputation.FieldSevereHits)
+	}
+	if m.addtotal_hits != nil {
+		fields = append(fields, apikeyreputation.FieldTotalHits)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeyReputationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case apikeyreputation.FieldScore:
+		return m.AddedScore()
+	case apikeyreputation.FieldSevereHits:
+		return m.AddedSevereHits()
+	case apikeyreputation.FieldTotalHits:
+		return m.AddedTotalHits()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyReputationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case apikeyreputation.FieldScore:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddScore(v)
+		return nil
+	case apikeyreputation.FieldSevereHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSevereHits(v)
+		return nil
+	case apikeyreputation.FieldTotalHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalHits(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeyReputationMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(apikeyreputation.FieldLastEventAt) {
+		fields = append(fields, apikeyreputation.FieldLastEventAt)
+	}
+	if m.FieldCleared(apikeyreputation.FieldSanctionedAt) {
+		fields = append(fields, apikeyreputation.FieldSanctionedAt)
+	}
+	if m.FieldCleared(apikeyreputation.FieldSanctionReason) {
+		fields = append(fields, apikeyreputation.FieldSanctionReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeyReputationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeyReputationMutation) ClearField(name string) error {
+	switch name {
+	case apikeyreputation.FieldLastEventAt:
+		m.ClearLastEventAt()
+		return nil
+	case apikeyreputation.FieldSanctionedAt:
+		m.ClearSanctionedAt()
+		return nil
+	case apikeyreputation.FieldSanctionReason:
+		m.ClearSanctionReason()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeyReputationMutation) ResetField(name string) error {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case apikeyreputation.FieldScore:
+		m.ResetScore()
+		return nil
+	case apikeyreputation.FieldSevereHits:
+		m.ResetSevereHits()
+		return nil
+	case apikeyreputation.FieldTotalHits:
+		m.ResetTotalHits()
+		return nil
+	case apikeyreputation.FieldLastEventAt:
+		m.ResetLastEventAt()
+		return nil
+	case apikeyreputation.FieldScoredAt:
+		m.ResetScoredAt()
+		return nil
+	case apikeyreputation.FieldSanction:
+		m.ResetSanction()
+		return nil
+	case apikeyreputation.FieldSanctionedAt:
+		m.ResetSanctionedAt()
+		return nil
+	case apikeyreputation.FieldSanctionReason:
+		m.ResetSanctionReason()
+		return nil
+	case apikeyreputation.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case apikeyreputation.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeyReputationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeyReputationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeyReputationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeyReputationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeyReputationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeyReputationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeyReputationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown APIKeyReputation unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeyReputationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown APIKeyReputation edge %s", name)
 }
 
 // APIKeySubPoolBindingMutation represents an operation that mutates the APIKeySubPoolBinding nodes in the graph.

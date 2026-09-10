@@ -259,7 +259,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userAttributeHandler := admin.NewUserAttributeHandler(userAttributeService)
 	subPoolGraduationService := service.ProvideSubPoolGraduationService(subPoolRepository, subPoolUsageRepository, settingService, leaderLockCache, apiKeyService)
 	subPoolCoolingService := service.ProvideSubPoolCoolingService(subPoolRepository, accountRepository, subPoolService, subPoolMembership, leaderLockCache, apiKeyService)
-	subPoolHandler := admin.NewSubPoolHandler(subPoolService, subPoolGraduationService, subPoolCoolingService, settingService)
+	apiKeyReputationRepository := repository.NewAPIKeyReputationRepository(client, db)
+	apiKeyReputationService := service.ProvideAPIKeyReputationService(apiKeyReputationRepository, settingService, subPoolService, leaderLockCache)
+	subPoolHandler := admin.NewSubPoolHandler(subPoolService, subPoolGraduationService, subPoolCoolingService, apiKeyReputationService, settingService)
 	errorPassthroughRepository := repository.NewErrorPassthroughRepository(client)
 	errorPassthroughCache := repository.NewErrorPassthroughCache(redisClient)
 	errorPassthroughService := service.NewErrorPassthroughService(errorPassthroughRepository, errorPassthroughCache)
@@ -368,7 +370,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService, channelMonitorQuotaFetcher)
 	channelMonitorV2Aggregator := service.ProvideChannelMonitorV2Aggregator(channelMonitorV2Repository, db, settingService)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, openAIQuotaAutoResetService, subPoolGraduationService, subPoolCoolingService, promptService, pluginManager)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, openAIQuotaAutoResetService, subPoolGraduationService, subPoolCoolingService, apiKeyReputationService, promptService, pluginManager)
 	application := &Application{
 		Server:        httpServer,
 		PromptAudit:   promptService,
@@ -452,6 +454,7 @@ func provideCleanup(
 	openAIAutoReset *service.OpenAIQuotaAutoResetService,
 	subPoolGraduation *service.SubPoolGraduationService,
 	subPoolCooling *service.SubPoolCoolingService,
+	keyReputation *service.APIKeyReputationService,
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 ) func() {
@@ -486,6 +489,12 @@ func provideCleanup(
 			{"SubPoolCoolingService", func() error {
 				if subPoolCooling != nil {
 					subPoolCooling.Stop()
+				}
+				return nil
+			}},
+			{"APIKeyReputationService", func() error {
+				if keyReputation != nil {
+					keyReputation.Stop()
 				}
 				return nil
 			}},

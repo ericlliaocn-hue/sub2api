@@ -1006,6 +1006,30 @@ export default {
           runFailed: 'Cooling sweep failed',
           hint: 'Swept every 2 minutes: a pool whose accounts are all unschedulable goes into cooling and its clean keys are migrated out. It returns to healthy once an account recovers and 15 minutes have passed. Manually cooled pools are never auto-recovered.'
         },
+        reputation: {
+          title: 'Key reputation',
+          hint: 'Global. Moderation and prompt-audit hits are scored 0-100 over a rolling window: recent violations cost more and old ones fade out on their own. A key below the demote threshold is pushed back to the probe pool; only if it keeps sliding past the ban threshold is it disabled. This acts on the key alone — it does not change group rates, and it is separate from the existing user-level auto-ban.',
+          windowDays: 'Window (days)',
+          demoteBelow: 'Demote below',
+          banBelow: 'Ban below',
+          score: 'Score',
+          hits: 'Severe / total',
+          sanction: 'Sanction applied',
+          sanctions: {
+            none: 'None',
+            demoted: 'Demoted to probe',
+            disabled: 'Banned'
+          },
+          showWorst: 'Show lowest scores',
+          clearSanction: 'Undo sanction',
+          clearSuccess: 'Sanction undone',
+          clearFailed: 'Failed to undo the sanction',
+          runNow: 'Score now',
+          runSuccess: 'Scored {scored} keys, demoted {demoted}, banned {disabled}',
+          runFailed: 'Scoring failed',
+          loadWorstFailed: 'Failed to load the lowest-scoring keys',
+          saveFailed: 'Failed to save the reputation policy'
+        },
         graduation: {
           title: 'Probation & Graduation',
           hint: 'Applies globally. New keys start in a probe pool on disposable accounts and move to the emptiest formal pool once probation is over with no violations and usage below the cap. Nothing moves automatically while this is off.',

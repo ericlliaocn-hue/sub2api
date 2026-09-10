@@ -1022,6 +1022,30 @@ export default {
           runFailed: '冷却巡检失败',
           hint: '每 2 分钟自动巡检：池内账号全部不可调度时转入冷却并迁走清白 Key；账号恢复且冷却满 15 分钟后自动转回健康。手工冷却的池不会被自动恢复。'
         },
+        reputation: {
+          title: 'Key 信誉分',
+          hint: '全局生效。按滚动窗口把审核与 Prompt 审计的命中折算成 0-100 分，越近的违规扣得越多，旧记录随时间自动淡出。低于「打回观察池」阈值先降级，继续下滑到「封禁」阈值才停用 Key。仅作用于 Key，不改分组倍率，也不影响原有的用户级自动封禁。',
+          windowDays: '统计窗口（天）',
+          demoteBelow: '打回观察池阈值',
+          banBelow: '封禁阈值',
+          score: '信誉分',
+          hits: '严重 / 总命中',
+          sanction: '已执行处置',
+          sanctions: {
+            none: '无',
+            demoted: '已打回观察池',
+            disabled: '已封禁'
+          },
+          showWorst: '查看最低分 Key',
+          clearSanction: '撤销处置',
+          clearSuccess: '已撤销处置',
+          clearFailed: '撤销处置失败',
+          runNow: '立即计分一次',
+          runSuccess: '计分 {scored} 个 Key，打回 {demoted} 个，封禁 {disabled} 个',
+          runFailed: '计分失败',
+          loadWorstFailed: '加载最低分 Key 失败',
+          saveFailed: '保存信誉分规则失败'
+        },
         graduation: {
           title: '观察期毕业规则',
           hint: '全局生效。新 Key 先进观察池用日抛号，满足观察期且期间无违规、用量未超阈值后，自动迁入负载最低的正式池。关闭时不会自动迁任何 Key。',

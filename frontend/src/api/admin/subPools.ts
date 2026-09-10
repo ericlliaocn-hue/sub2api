@@ -233,7 +233,71 @@ export async function runCooling(): Promise<SubPoolCoolingResult> {
   return data
 }
 
+/** Scoring thresholds that drive automatic key sanctions. */
+export interface ReputationPolicy {
+  enabled: boolean
+  window_days: number
+  demote_below: number
+  ban_below: number
+}
+
+export interface APIKeyReputation {
+  api_key_id: number
+  score: number
+  severe_hits: number
+  total_hits: number
+  last_event_at: string | null
+  scored_at: string
+  sanction: 'none' | 'demoted' | 'disabled'
+  sanctioned_at: string | null
+  sanction_reason: string | null
+}
+
+export interface ReputationSweepResult {
+  scored: number
+  demoted: number
+  disabled: number
+}
+
+export async function getReputationPolicy(): Promise<ReputationPolicy> {
+  const { data } = await apiClient.get<ReputationPolicy>('/admin/sub-pools/reputation')
+  return data
+}
+
+export async function updateReputationPolicy(policy: ReputationPolicy): Promise<ReputationPolicy> {
+  const { data } = await apiClient.put<ReputationPolicy>('/admin/sub-pools/reputation', policy)
+  return data
+}
+
+/** Run one scoring sweep now instead of waiting for the 5-minute ticker. */
+export async function runReputation(): Promise<ReputationSweepResult> {
+  const { data } = await apiClient.post<ReputationSweepResult>('/admin/sub-pools/reputation/run')
+  return data
+}
+
+/** The lowest-scoring keys across all groups. */
+export async function worstReputations(limit = 50): Promise<{ items: APIKeyReputation[] }> {
+  const { data } = await apiClient.get<{ items: APIKeyReputation[] }>(
+    '/admin/sub-pools/reputation/worst',
+    { params: { limit } }
+  )
+  return data
+}
+
+/** Overturn an automatic sanction. Does not re-enable the key by itself. */
+export async function clearReputationSanction(keyId: number): Promise<{ cleared: boolean }> {
+  const { data } = await apiClient.post<{ cleared: boolean }>(
+    `/admin/sub-pool-keys/${keyId}/reputation/clear`
+  )
+  return data
+}
+
 export const subPoolsAPI = {
+  getReputationPolicy,
+  updateReputationPolicy,
+  runReputation,
+  worstReputations,
+  clearReputationSanction,
   attribution,
   demoteKey,
   disableKey,

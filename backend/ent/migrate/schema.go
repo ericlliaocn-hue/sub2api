@@ -105,6 +105,34 @@ var (
 			},
 		},
 	}
+	// APIKeyReputationColumns holds the columns for the "api_key_reputation" table.
+	APIKeyReputationColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "api_key_id", Type: field.TypeInt64, Unique: true},
+		{Name: "score", Type: field.TypeInt, Default: 100},
+		{Name: "severe_hits", Type: field.TypeInt, Default: 0},
+		{Name: "total_hits", Type: field.TypeInt, Default: 0},
+		{Name: "last_event_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "scored_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sanction", Type: field.TypeString, Size: 20, Default: "none"},
+		{Name: "sanctioned_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sanction_reason", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// APIKeyReputationTable holds the schema information for the "api_key_reputation" table.
+	APIKeyReputationTable = &schema.Table{
+		Name:       "api_key_reputation",
+		Columns:    APIKeyReputationColumns,
+		PrimaryKey: []*schema.Column{APIKeyReputationColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "apikeyreputation_score",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeyReputationColumns[2]},
+			},
+		},
+	}
 	// APIKeySubPoolBindingsColumns holds the columns for the "api_key_sub_pool_bindings" table.
 	APIKeySubPoolBindingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2210,6 +2238,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		APIKeyReputationTable,
 		APIKeySubPoolBindingsTable,
 		AccountsTable,
 		AccountGroupsTable,
@@ -2260,6 +2289,9 @@ func init() {
 	APIKeysTable.ForeignKeys[2].RefTable = UsersTable
 	APIKeysTable.Annotation = &entsql.Annotation{
 		Table: "api_keys",
+	}
+	APIKeyReputationTable.Annotation = &entsql.Annotation{
+		Table: "api_key_reputation",
 	}
 	APIKeySubPoolBindingsTable.Annotation = &entsql.Annotation{
 		Table: "api_key_sub_pool_bindings",

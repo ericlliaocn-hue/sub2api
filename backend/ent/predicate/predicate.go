@@ -9,6 +9,9 @@ import (
 // APIKey is the predicate function for apikey builders.
 type APIKey func(*sql.Selector)
 
+// APIKeyReputation is the predicate function for apikeyreputation builders.
+type APIKeyReputation func(*sql.Selector)
+
 // APIKeySubPoolBinding is the predicate function for apikeysubpoolbinding builders.
 type APIKeySubPoolBinding func(*sql.Selector)
 

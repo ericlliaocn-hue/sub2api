@@ -128,6 +128,7 @@ func provideCleanup(
 	openAIAutoReset *service.OpenAIQuotaAutoResetService,
 	subPoolGraduation *service.SubPoolGraduationService,
 	subPoolCooling *service.SubPoolCoolingService,
+	keyReputation *service.APIKeyReputationService,
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 ) func() {
@@ -163,6 +164,12 @@ func provideCleanup(
 			{"SubPoolCoolingService", func() error {
 				if subPoolCooling != nil {
 					subPoolCooling.Stop()
+				}
+				return nil
+			}},
+			{"APIKeyReputationService", func() error {
+				if keyReputation != nil {
+					keyReputation.Stop()
 				}
 				return nil
 			}},
