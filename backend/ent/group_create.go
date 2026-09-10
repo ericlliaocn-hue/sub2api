@@ -176,6 +176,20 @@ func (_c *GroupCreate) SetNillableIsExclusive(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetSubPoolEnabled sets the "sub_pool_enabled" field.
+func (_c *GroupCreate) SetSubPoolEnabled(v bool) *GroupCreate {
+	_c.mutation.SetSubPoolEnabled(v)
+	return _c
+}
+
+// SetNillableSubPoolEnabled sets the "sub_pool_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSubPoolEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSubPoolEnabled(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *GroupCreate) SetStatus(v string) *GroupCreate {
 	_c.mutation.SetStatus(v)
@@ -1057,6 +1071,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultIsExclusive
 		_c.mutation.SetIsExclusive(v)
 	}
+	if _, ok := _c.mutation.SubPoolEnabled(); !ok {
+		v := group.DefaultSubPoolEnabled
+		_c.mutation.SetSubPoolEnabled(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := group.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -1239,6 +1257,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsExclusive(); !ok {
 		return &ValidationError{Name: "is_exclusive", err: errors.New(`ent: missing required field "Group.is_exclusive"`)}
+	}
+	if _, ok := _c.mutation.SubPoolEnabled(); !ok {
+		return &ValidationError{Name: "sub_pool_enabled", err: errors.New(`ent: missing required field "Group.sub_pool_enabled"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Group.status"`)}
@@ -1467,6 +1488,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsExclusive(); ok {
 		_spec.SetField(group.FieldIsExclusive, field.TypeBool, value)
 		_node.IsExclusive = value
+	}
+	if value, ok := _c.mutation.SubPoolEnabled(); ok {
+		_spec.SetField(group.FieldSubPoolEnabled, field.TypeBool, value)
+		_node.SubPoolEnabled = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(group.FieldStatus, field.TypeString, value)
@@ -1981,6 +2006,18 @@ func (u *GroupUpsert) SetIsExclusive(v bool) *GroupUpsert {
 // UpdateIsExclusive sets the "is_exclusive" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateIsExclusive() *GroupUpsert {
 	u.SetExcluded(group.FieldIsExclusive)
+	return u
+}
+
+// SetSubPoolEnabled sets the "sub_pool_enabled" field.
+func (u *GroupUpsert) SetSubPoolEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldSubPoolEnabled, v)
+	return u
+}
+
+// UpdateSubPoolEnabled sets the "sub_pool_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSubPoolEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldSubPoolEnabled)
 	return u
 }
 
@@ -3097,6 +3134,20 @@ func (u *GroupUpsertOne) SetIsExclusive(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateIsExclusive() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateIsExclusive()
+	})
+}
+
+// SetSubPoolEnabled sets the "sub_pool_enabled" field.
+func (u *GroupUpsertOne) SetSubPoolEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSubPoolEnabled(v)
+	})
+}
+
+// UpdateSubPoolEnabled sets the "sub_pool_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSubPoolEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSubPoolEnabled()
 	})
 }
 
@@ -4529,6 +4580,20 @@ func (u *GroupUpsertBulk) SetIsExclusive(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateIsExclusive() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateIsExclusive()
+	})
+}
+
+// SetSubPoolEnabled sets the "sub_pool_enabled" field.
+func (u *GroupUpsertBulk) SetSubPoolEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSubPoolEnabled(v)
+	})
+}
+
+// UpdateSubPoolEnabled sets the "sub_pool_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSubPoolEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSubPoolEnabled()
 	})
 }
 

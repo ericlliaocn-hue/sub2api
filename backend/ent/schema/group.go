@@ -65,6 +65,9 @@ func (Group) Fields() []ent.Field {
 			Comment("高峰时段叠加倍率，仅在 peak_rate_enabled 且处于 [peak_start, peak_end) 时乘入文本倍率"),
 		field.Bool("is_exclusive").
 			Default(false),
+		field.Bool("sub_pool_enabled").
+			Default(false).
+			Comment("是否让此分组的 API Key 走子池调度，而不是整组调度"),
 		field.String("status").
 			MaxLen(20).
 			Default(domain.StatusActive),

@@ -1683,6 +1683,29 @@ func HasGroupsWith(preds ...predicate.Group) predicate.Account {
 	})
 }
 
+// HasSubPools applies the HasEdge predicate on the "sub_pools" edge.
+func HasSubPools() predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, SubPoolsTable, SubPoolsPrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSubPoolsWith applies the HasEdge predicate on the "sub_pools" edge with a given conditions (other predicates).
+func HasSubPoolsWith(preds ...predicate.SubPool) predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := newSubPoolsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasProxy applies the HasEdge predicate on the "proxy" edge.
 func HasProxy() predicate.Account {
 	return predicate.Account(func(s *sql.Selector) {
@@ -1790,6 +1813,29 @@ func HasAccountGroups() predicate.Account {
 func HasAccountGroupsWith(preds ...predicate.AccountGroup) predicate.Account {
 	return predicate.Account(func(s *sql.Selector) {
 		step := newAccountGroupsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSubPoolAccounts applies the HasEdge predicate on the "sub_pool_accounts" edge.
+func HasSubPoolAccounts() predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, SubPoolAccountsTable, SubPoolAccountsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSubPoolAccountsWith applies the HasEdge predicate on the "sub_pool_accounts" edge with a given conditions (other predicates).
+func HasSubPoolAccountsWith(preds ...predicate.SubPoolAccount) predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := newSubPoolAccountsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

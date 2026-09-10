@@ -84,6 +84,45 @@ const (
 	SubscriptionTypeSubscription = "subscription" // 订阅模式（按限额控制）
 )
 
+// Sub-pool kind constants.
+// formal pools hold regular accounts; probe pools hold disposable accounts and
+// receive newly created keys until they graduate.
+const (
+	SubPoolKindFormal = "formal"
+	SubPoolKindProbe  = "probe"
+)
+
+// Sub-pool status constants.
+// healthy pools schedule normally and accept new bindings, cooling pools are
+// being drained after an upstream incident, closed pools only serve keys that
+// are already bound.
+const (
+	SubPoolStatusHealthy = "healthy"
+	SubPoolStatusCooling = "cooling"
+	SubPoolStatusClosed  = "closed"
+)
+
+// Sub-pool account role constants.
+const (
+	SubPoolAccountRolePrimary = "primary"
+	SubPoolAccountRoleStandby = "standby"
+)
+
+// SubPoolDefaultKeySoftLimit is the default soft cap on API keys bound to one
+// sub-pool. 0 means unlimited.
+const SubPoolDefaultKeySoftLimit = 8
+
+// Sub-pool binding reason constants, recorded in api_key_sub_pool_bindings.
+const (
+	SubPoolBindReasonInitial          = "initial"
+	SubPoolBindReasonProbeGraduation  = "probe_graduation"
+	SubPoolBindReasonCoolingMigration = "cooling_migration"
+	SubPoolBindReasonAdminManual      = "admin_manual"
+	SubPoolBindReasonPoolRemoved      = "pool_removed"
+	SubPoolBindOperatorSystem         = "system"
+	SubPoolBindOperatorAdminPrefix    = "admin:"
+)
+
 // Subscription status constants
 const (
 	SubscriptionStatusActive    = "active"

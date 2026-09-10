@@ -216,6 +216,10 @@ func (Account) Edges() []ent.Edge {
 		// 一个账户可以属于多个分组，一个分组可以包含多个账户
 		edge.To("groups", Group.Type).
 			Through("account_groups", AccountGroup.Type),
+		// sub_pools: 账号所属的子池（同一分组内最多一个，由唯一索引约束）
+		edge.From("sub_pools", SubPool.Type).
+			Ref("accounts").
+			Through("sub_pool_accounts", SubPoolAccount.Type),
 		// proxy: 账户使用的代理配置（可选的一对一关系）
 		// 使用已有的 proxy_id 外键字段
 		edge.To("proxy", Proxy.Type).
