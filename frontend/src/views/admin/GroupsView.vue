@@ -441,6 +441,13 @@
                 }}</span>
               </button>
               <button
+                @click="handleSubPools(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-teal-600 dark:hover:bg-dark-700 dark:hover:text-teal-400"
+              >
+                <Icon name="server" size="sm" />
+                <span class="text-xs">{{ t("admin.groups.subPools.action") }}</span>
+              </button>
+              <button
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -1823,6 +1830,37 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- 子池隔离（对用户不可见，仅影响组内调度收敛） -->
+        <div class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4">
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t("admin.groups.subPools.enableLabel") }}
+            </label>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="createForm.sub_pool_enabled"
+              :aria-label="t('admin.groups.subPools.enableLabel')"
+              data-testid="create-sub-pool-enabled"
+              @click="createForm.sub_pool_enabled = !createForm.sub_pool_enabled"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              :class="
+                createForm.sub_pool_enabled
+                  ? 'bg-primary-500'
+                  : 'bg-gray-300 dark:bg-dark-600'
+              "
+            >
+              <span
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="createForm.sub_pool_enabled ? 'translate-x-6' : 'translate-x-1'"
+              />
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {{ t("admin.groups.subPools.enableHint") }}
+          </p>
         </div>
 
         <!-- 账号过滤控制 (OpenAI/Antigravity/Anthropic/Gemini) -->
@@ -3474,6 +3512,37 @@
           </div>
         </div>
 
+        <!-- 子池隔离（对用户不可见，仅影响组内调度收敛） -->
+        <div class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4">
+          <div class="flex items-center justify-between gap-4">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t("admin.groups.subPools.enableLabel") }}
+            </label>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="editForm.sub_pool_enabled"
+              :aria-label="t('admin.groups.subPools.enableLabel')"
+              data-testid="edit-sub-pool-enabled"
+              @click="editForm.sub_pool_enabled = !editForm.sub_pool_enabled"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              :class="
+                editForm.sub_pool_enabled
+                  ? 'bg-primary-500'
+                  : 'bg-gray-300 dark:bg-dark-600'
+              "
+            >
+              <span
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="editForm.sub_pool_enabled ? 'translate-x-6' : 'translate-x-1'"
+              />
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {{ t("admin.groups.subPools.enableHint") }}
+          </p>
+        </div>
+
         <!-- 账号过滤控制 (OpenAI/Antigravity/Anthropic/Gemini) -->
         <div
           v-if="
@@ -4257,6 +4326,14 @@
       @close="showRPMOverridesModal = false"
       @success="loadGroups"
     />
+
+    <!-- Group Sub-pools Modal -->
+    <GroupSubPoolsModal
+      :show="showSubPoolsModal"
+      :group="subPoolsGroup"
+      @close="showSubPoolsModal = false"
+      @success="loadGroups"
+    />
   </AppLayout>
 </template>
 
@@ -4296,6 +4373,7 @@ import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
+import GroupSubPoolsModal from "@/components/admin/group/GroupSubPoolsModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import CodexManifestAccountsField from "@/components/admin/group/CodexManifestAccountsField.vue";
@@ -4829,6 +4907,8 @@ const showRateMultipliersModal = ref(false);
 const rateMultipliersGroup = ref<AdminGroup | null>(null);
 const showRPMOverridesModal = ref(false);
 const rpmOverridesGroup = ref<AdminGroup | null>(null);
+const showSubPoolsModal = ref(false);
+const subPoolsGroup = ref<AdminGroup | null>(null);
 const sortableGroups = ref<AdminGroup[]>([]);
 type ConcreteGroupPlatform = Exclude<GroupPlatform, "composite">;
 type CompositeRouteFormState = {
@@ -4937,6 +5017,7 @@ const createForm = reactive({
   long_context_pricing_enabled: true,
   force_openai_fast: false,
   free_openai_fast: false,
+  sub_pool_enabled: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
   allow_image_generation: false,
@@ -5302,6 +5383,7 @@ const editForm = reactive({
   long_context_pricing_enabled: true,
   force_openai_fast: false,
   free_openai_fast: false,
+  sub_pool_enabled: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
   allow_image_generation: false,
@@ -5779,6 +5861,7 @@ const closeCreateModal = () => {
   createForm.long_context_pricing_enabled = true;
   createForm.force_openai_fast = false;
   createForm.free_openai_fast = false;
+  createForm.sub_pool_enabled = false;
   createForm.model_pricing = [];
   createForm.web_search_price_per_call = null;
   createForm.search_price_per_1k = null;
@@ -5896,6 +5979,7 @@ const handleCreateGroup = async () => {
         createForm.platform,
         createForm.free_openai_fast,
       ),
+      sub_pool_enabled: createForm.sub_pool_enabled,
       model_pricing: groupPricingToAPI(
         createForm.model_pricing,
         createForm.platform,
@@ -6035,6 +6119,7 @@ const handleEdit = async (group: AdminGroup) => {
     group.long_context_pricing_enabled ?? true;
   editForm.force_openai_fast = group.force_openai_fast ?? false;
   editForm.free_openai_fast = group.free_openai_fast ?? false;
+  editForm.sub_pool_enabled = group.sub_pool_enabled ?? false;
   editForm.model_pricing = groupPricingFromAPI(group.model_pricing);
   editForm.allow_image_generation = group.allow_image_generation ?? false;
   editForm.allow_batch_image_generation =
@@ -6169,6 +6254,7 @@ const closeEditModal = () => {
   editForm.long_context_pricing_enabled = true;
   editForm.force_openai_fast = false;
   editForm.free_openai_fast = false;
+  editForm.sub_pool_enabled = false;
   editForm.model_pricing = [];
   editForm.web_search_price_per_call = null;
   editForm.search_price_per_1k = null;
@@ -6231,6 +6317,7 @@ const handleUpdateGroup = async () => {
         editForm.platform,
         editForm.free_openai_fast,
       ),
+      sub_pool_enabled: editForm.sub_pool_enabled,
       model_pricing: groupPricingToAPI(
         editForm.model_pricing,
         editForm.platform,
@@ -6395,6 +6482,11 @@ const handleRateMultipliers = (group: AdminGroup) => {
 const handleRPMOverrides = (group: AdminGroup) => {
   rpmOverridesGroup.value = group;
   showRPMOverridesModal.value = true;
+};
+
+const handleSubPools = (group: AdminGroup) => {
+  subPoolsGroup.value = group;
+  showSubPoolsModal.value = true;
 };
 
 const handleDuplicate = async (group: AdminGroup) => {

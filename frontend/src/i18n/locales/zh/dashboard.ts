@@ -127,6 +127,20 @@ export default {
     lastUsedAt: '上次使用时间',
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
+    poolPeers: {
+      action: '同伴',
+      title: '同池同伴',
+      description: '这些用户和你共用同一批上游账号。信息已匿名，只显示调用节奏，方便你判断当前池的拥挤程度。',
+      memberCount: '本组当前人数',
+      member: '成员',
+      you: '你',
+      firstCall: '首次调用',
+      lastCall: '最后调用',
+      todayCalls: '今日调用',
+      weekCalls: '近 7 天',
+      windowHint: '近 7 天为滚动 {hours} 小时窗口，统计自各自加入本池起。',
+      unavailable: '当前密钥所在分组暂未启用同伴视图。'
+    },
     useKeyModal: {
       title: '使用 API 密钥',
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
