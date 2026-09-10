@@ -90,6 +90,11 @@ func GroupID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldGroupID, v))
 }
 
+// SubPoolID applies equality check predicate on the "sub_pool_id" field. It's identical to SubPoolIDEQ.
+func SubPoolID(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldSubPoolID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldStatus, v))
@@ -468,6 +473,36 @@ func GroupIDIsNil() predicate.APIKey {
 // GroupIDNotNil applies the NotNil predicate on the "group_id" field.
 func GroupIDNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldGroupID))
+}
+
+// SubPoolIDEQ applies the EQ predicate on the "sub_pool_id" field.
+func SubPoolIDEQ(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldSubPoolID, v))
+}
+
+// SubPoolIDNEQ applies the NEQ predicate on the "sub_pool_id" field.
+func SubPoolIDNEQ(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldSubPoolID, v))
+}
+
+// SubPoolIDIn applies the In predicate on the "sub_pool_id" field.
+func SubPoolIDIn(vs ...int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldSubPoolID, vs...))
+}
+
+// SubPoolIDNotIn applies the NotIn predicate on the "sub_pool_id" field.
+func SubPoolIDNotIn(vs ...int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldSubPoolID, vs...))
+}
+
+// SubPoolIDIsNil applies the IsNil predicate on the "sub_pool_id" field.
+func SubPoolIDIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldSubPoolID))
+}
+
+// SubPoolIDNotNil applies the NotNil predicate on the "sub_pool_id" field.
+func SubPoolIDNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldSubPoolID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -1163,6 +1198,29 @@ func HasGroup() predicate.APIKey {
 func HasGroupWith(preds ...predicate.Group) predicate.APIKey {
 	return predicate.APIKey(func(s *sql.Selector) {
 		step := newGroupStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSubPool applies the HasEdge predicate on the "sub_pool" edge.
+func HasSubPool() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, SubPoolTable, SubPoolColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSubPoolWith applies the HasEdge predicate on the "sub_pool" edge with a given conditions (other predicates).
+func HasSubPoolWith(preds ...predicate.SubPool) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newSubPoolStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

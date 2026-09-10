@@ -20,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageevent"
@@ -44,6 +45,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
+	"github.com/Wei-Shaw/sub2api/ent/subpoolaccount"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -65,6 +68,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// APIKeySubPoolBinding is the client for interacting with the APIKeySubPoolBinding builders.
+	APIKeySubPoolBinding *APIKeySubPoolBindingClient
 	// Account is the client for interacting with the Account builders.
 	Account *AccountClient
 	// AccountGroup is the client for interacting with the AccountGroup builders.
@@ -121,6 +126,10 @@ type Client struct {
 	SecuritySecret *SecuritySecretClient
 	// Setting is the client for interacting with the Setting builders.
 	Setting *SettingClient
+	// SubPool is the client for interacting with the SubPool builders.
+	SubPool *SubPoolClient
+	// SubPoolAccount is the client for interacting with the SubPoolAccount builders.
+	SubPoolAccount *SubPoolAccountClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
@@ -153,6 +162,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
+	c.APIKeySubPoolBinding = NewAPIKeySubPoolBindingClient(c.config)
 	c.Account = NewAccountClient(c.config)
 	c.AccountGroup = NewAccountGroupClient(c.config)
 	c.Announcement = NewAnnouncementClient(c.config)
@@ -181,6 +191,8 @@ func (c *Client) init() {
 	c.RedeemCode = NewRedeemCodeClient(c.config)
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
+	c.SubPool = NewSubPoolClient(c.config)
+	c.SubPoolAccount = NewSubPoolAccountClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
 	c.TLSFingerprintProfile = NewTLSFingerprintProfileClient(c.config)
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
@@ -284,6 +296,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                           ctx,
 		config:                        cfg,
 		APIKey:                        NewAPIKeyClient(cfg),
+		APIKeySubPoolBinding:          NewAPIKeySubPoolBindingClient(cfg),
 		Account:                       NewAccountClient(cfg),
 		AccountGroup:                  NewAccountGroupClient(cfg),
 		Announcement:                  NewAnnouncementClient(cfg),
@@ -312,6 +325,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		RedeemCode:                    NewRedeemCodeClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
+		SubPool:                       NewSubPoolClient(cfg),
+		SubPoolAccount:                NewSubPoolAccountClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
@@ -342,6 +357,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                           ctx,
 		config:                        cfg,
 		APIKey:                        NewAPIKeyClient(cfg),
+		APIKeySubPoolBinding:          NewAPIKeySubPoolBindingClient(cfg),
 		Account:                       NewAccountClient(cfg),
 		AccountGroup:                  NewAccountGroupClient(cfg),
 		Announcement:                  NewAnnouncementClient(cfg),
@@ -370,6 +386,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		RedeemCode:                    NewRedeemCodeClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
+		SubPool:                       NewSubPoolClient(cfg),
+		SubPoolAccount:                NewSubPoolAccountClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
@@ -409,17 +427,18 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
-		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
-		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.APIKey, c.APIKeySubPoolBinding, c.Account, c.AccountGroup, c.Announcement,
+		c.AnnouncementRead, c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent,
+		c.BatchImageItem, c.BatchImageJob, c.ChannelMonitor,
+		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
+		c.ChannelMonitorRequestTemplate, c.CompositeModelRoute, c.ErrorPassthroughRule,
+		c.Group, c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
+		c.SubPool, c.SubPoolAccount, c.SubscriptionPlan, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -429,17 +448,18 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
-		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
-		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.APIKey, c.APIKeySubPoolBinding, c.Account, c.AccountGroup, c.Announcement,
+		c.AnnouncementRead, c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent,
+		c.BatchImageItem, c.BatchImageJob, c.ChannelMonitor,
+		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
+		c.ChannelMonitorRequestTemplate, c.CompositeModelRoute, c.ErrorPassthroughRule,
+		c.Group, c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
+		c.SubPool, c.SubPoolAccount, c.SubscriptionPlan, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -450,6 +470,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
+	case *APIKeySubPoolBindingMutation:
+		return c.APIKeySubPoolBinding.mutate(ctx, m)
 	case *AccountMutation:
 		return c.Account.mutate(ctx, m)
 	case *AccountGroupMutation:
@@ -506,6 +528,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SecuritySecret.mutate(ctx, m)
 	case *SettingMutation:
 		return c.Setting.mutate(ctx, m)
+	case *SubPoolMutation:
+		return c.SubPool.mutate(ctx, m)
+	case *SubPoolAccountMutation:
+		return c.SubPoolAccount.mutate(ctx, m)
 	case *SubscriptionPlanMutation:
 		return c.SubscriptionPlan.mutate(ctx, m)
 	case *TLSFingerprintProfileMutation:
@@ -671,6 +697,22 @@ func (c *APIKeyClient) QueryGroup(_m *APIKey) *GroupQuery {
 	return query
 }
 
+// QuerySubPool queries the sub_pool edge of a APIKey.
+func (c *APIKeyClient) QuerySubPool(_m *APIKey) *SubPoolQuery {
+	query := (&SubPoolClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, id),
+			sqlgraph.To(subpool.Table, subpool.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikey.SubPoolTable, apikey.SubPoolColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryUsageLogs queries the usage_logs edge of a APIKey.
 func (c *APIKeyClient) QueryUsageLogs(_m *APIKey) *UsageLogQuery {
 	query := (&UsageLogClient{config: c.config}).Query()
@@ -711,6 +753,139 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 		return (&APIKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIKey mutation op: %q", m.Op())
+	}
+}
+
+// APIKeySubPoolBindingClient is a client for the APIKeySubPoolBinding schema.
+type APIKeySubPoolBindingClient struct {
+	config
+}
+
+// NewAPIKeySubPoolBindingClient returns a client for the APIKeySubPoolBinding from the given config.
+func NewAPIKeySubPoolBindingClient(c config) *APIKeySubPoolBindingClient {
+	return &APIKeySubPoolBindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `apikeysubpoolbinding.Hooks(f(g(h())))`.
+func (c *APIKeySubPoolBindingClient) Use(hooks ...Hook) {
+	c.hooks.APIKeySubPoolBinding = append(c.hooks.APIKeySubPoolBinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `apikeysubpoolbinding.Intercept(f(g(h())))`.
+func (c *APIKeySubPoolBindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.APIKeySubPoolBinding = append(c.inters.APIKeySubPoolBinding, interceptors...)
+}
+
+// Create returns a builder for creating a APIKeySubPoolBinding entity.
+func (c *APIKeySubPoolBindingClient) Create() *APIKeySubPoolBindingCreate {
+	mutation := newAPIKeySubPoolBindingMutation(c.config, OpCreate)
+	return &APIKeySubPoolBindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of APIKeySubPoolBinding entities.
+func (c *APIKeySubPoolBindingClient) CreateBulk(builders ...*APIKeySubPoolBindingCreate) *APIKeySubPoolBindingCreateBulk {
+	return &APIKeySubPoolBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *APIKeySubPoolBindingClient) MapCreateBulk(slice any, setFunc func(*APIKeySubPoolBindingCreate, int)) *APIKeySubPoolBindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &APIKeySubPoolBindingCreateBulk{err: fmt.Errorf("calling to APIKeySubPoolBindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*APIKeySubPoolBindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &APIKeySubPoolBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for APIKeySubPoolBinding.
+func (c *APIKeySubPoolBindingClient) Update() *APIKeySubPoolBindingUpdate {
+	mutation := newAPIKeySubPoolBindingMutation(c.config, OpUpdate)
+	return &APIKeySubPoolBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *APIKeySubPoolBindingClient) UpdateOne(_m *APIKeySubPoolBinding) *APIKeySubPoolBindingUpdateOne {
+	mutation := newAPIKeySubPoolBindingMutation(c.config, OpUpdateOne, withAPIKeySubPoolBinding(_m))
+	return &APIKeySubPoolBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *APIKeySubPoolBindingClient) UpdateOneID(id int64) *APIKeySubPoolBindingUpdateOne {
+	mutation := newAPIKeySubPoolBindingMutation(c.config, OpUpdateOne, withAPIKeySubPoolBindingID(id))
+	return &APIKeySubPoolBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for APIKeySubPoolBinding.
+func (c *APIKeySubPoolBindingClient) Delete() *APIKeySubPoolBindingDelete {
+	mutation := newAPIKeySubPoolBindingMutation(c.config, OpDelete)
+	return &APIKeySubPoolBindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *APIKeySubPoolBindingClient) DeleteOne(_m *APIKeySubPoolBinding) *APIKeySubPoolBindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *APIKeySubPoolBindingClient) DeleteOneID(id int64) *APIKeySubPoolBindingDeleteOne {
+	builder := c.Delete().Where(apikeysubpoolbinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &APIKeySubPoolBindingDeleteOne{builder}
+}
+
+// Query returns a query builder for APIKeySubPoolBinding.
+func (c *APIKeySubPoolBindingClient) Query() *APIKeySubPoolBindingQuery {
+	return &APIKeySubPoolBindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAPIKeySubPoolBinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a APIKeySubPoolBinding entity by its id.
+func (c *APIKeySubPoolBindingClient) Get(ctx context.Context, id int64) (*APIKeySubPoolBinding, error) {
+	return c.Query().Where(apikeysubpoolbinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *APIKeySubPoolBindingClient) GetX(ctx context.Context, id int64) *APIKeySubPoolBinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *APIKeySubPoolBindingClient) Hooks() []Hook {
+	return c.hooks.APIKeySubPoolBinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *APIKeySubPoolBindingClient) Interceptors() []Interceptor {
+	return c.inters.APIKeySubPoolBinding
+}
+
+func (c *APIKeySubPoolBindingClient) mutate(ctx context.Context, m *APIKeySubPoolBindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&APIKeySubPoolBindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&APIKeySubPoolBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&APIKeySubPoolBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&APIKeySubPoolBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown APIKeySubPoolBinding mutation op: %q", m.Op())
 	}
 }
 
@@ -838,6 +1013,22 @@ func (c *AccountClient) QueryGroups(_m *Account) *GroupQuery {
 	return query
 }
 
+// QuerySubPools queries the sub_pools edge of a Account.
+func (c *AccountClient) QuerySubPools(_m *Account) *SubPoolQuery {
+	query := (&SubPoolClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(account.Table, account.FieldID, id),
+			sqlgraph.To(subpool.Table, subpool.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, account.SubPoolsTable, account.SubPoolsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryProxy queries the proxy edge of a Account.
 func (c *AccountClient) QueryProxy(_m *Account) *ProxyQuery {
 	query := (&ProxyClient{config: c.config}).Query()
@@ -911,6 +1102,22 @@ func (c *AccountClient) QueryAccountGroups(_m *Account) *AccountGroupQuery {
 			sqlgraph.From(account.Table, account.FieldID, id),
 			sqlgraph.To(accountgroup.Table, accountgroup.AccountColumn),
 			sqlgraph.Edge(sqlgraph.O2M, true, account.AccountGroupsTable, account.AccountGroupsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySubPoolAccounts queries the sub_pool_accounts edge of a Account.
+func (c *AccountClient) QuerySubPoolAccounts(_m *Account) *SubPoolAccountQuery {
+	query := (&SubPoolAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(account.Table, account.FieldID, id),
+			sqlgraph.To(subpoolaccount.Table, subpoolaccount.AccountColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, account.SubPoolAccountsTable, account.SubPoolAccountsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5085,6 +5292,305 @@ func (c *SettingClient) mutate(ctx context.Context, m *SettingMutation) (Value, 
 	}
 }
 
+// SubPoolClient is a client for the SubPool schema.
+type SubPoolClient struct {
+	config
+}
+
+// NewSubPoolClient returns a client for the SubPool from the given config.
+func NewSubPoolClient(c config) *SubPoolClient {
+	return &SubPoolClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subpool.Hooks(f(g(h())))`.
+func (c *SubPoolClient) Use(hooks ...Hook) {
+	c.hooks.SubPool = append(c.hooks.SubPool, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subpool.Intercept(f(g(h())))`.
+func (c *SubPoolClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SubPool = append(c.inters.SubPool, interceptors...)
+}
+
+// Create returns a builder for creating a SubPool entity.
+func (c *SubPoolClient) Create() *SubPoolCreate {
+	mutation := newSubPoolMutation(c.config, OpCreate)
+	return &SubPoolCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SubPool entities.
+func (c *SubPoolClient) CreateBulk(builders ...*SubPoolCreate) *SubPoolCreateBulk {
+	return &SubPoolCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SubPoolClient) MapCreateBulk(slice any, setFunc func(*SubPoolCreate, int)) *SubPoolCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SubPoolCreateBulk{err: fmt.Errorf("calling to SubPoolClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SubPoolCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SubPoolCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SubPool.
+func (c *SubPoolClient) Update() *SubPoolUpdate {
+	mutation := newSubPoolMutation(c.config, OpUpdate)
+	return &SubPoolUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubPoolClient) UpdateOne(_m *SubPool) *SubPoolUpdateOne {
+	mutation := newSubPoolMutation(c.config, OpUpdateOne, withSubPool(_m))
+	return &SubPoolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SubPoolClient) UpdateOneID(id int64) *SubPoolUpdateOne {
+	mutation := newSubPoolMutation(c.config, OpUpdateOne, withSubPoolID(id))
+	return &SubPoolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SubPool.
+func (c *SubPoolClient) Delete() *SubPoolDelete {
+	mutation := newSubPoolMutation(c.config, OpDelete)
+	return &SubPoolDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SubPoolClient) DeleteOne(_m *SubPool) *SubPoolDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SubPoolClient) DeleteOneID(id int64) *SubPoolDeleteOne {
+	builder := c.Delete().Where(subpool.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SubPoolDeleteOne{builder}
+}
+
+// Query returns a query builder for SubPool.
+func (c *SubPoolClient) Query() *SubPoolQuery {
+	return &SubPoolQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubPool},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SubPool entity by its id.
+func (c *SubPoolClient) Get(ctx context.Context, id int64) (*SubPool, error) {
+	return c.Query().Where(subpool.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SubPoolClient) GetX(ctx context.Context, id int64) *SubPool {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAPIKeys queries the api_keys edge of a SubPool.
+func (c *SubPoolClient) QueryAPIKeys(_m *SubPool) *APIKeyQuery {
+	query := (&APIKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subpool.Table, subpool.FieldID, id),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, subpool.APIKeysTable, subpool.APIKeysColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAccounts queries the accounts edge of a SubPool.
+func (c *SubPoolClient) QueryAccounts(_m *SubPool) *AccountQuery {
+	query := (&AccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subpool.Table, subpool.FieldID, id),
+			sqlgraph.To(account.Table, account.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, subpool.AccountsTable, subpool.AccountsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySubPoolAccounts queries the sub_pool_accounts edge of a SubPool.
+func (c *SubPoolClient) QuerySubPoolAccounts(_m *SubPool) *SubPoolAccountQuery {
+	query := (&SubPoolAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subpool.Table, subpool.FieldID, id),
+			sqlgraph.To(subpoolaccount.Table, subpoolaccount.SubPoolColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, subpool.SubPoolAccountsTable, subpool.SubPoolAccountsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SubPoolClient) Hooks() []Hook {
+	hooks := c.hooks.SubPool
+	return append(hooks[:len(hooks):len(hooks)], subpool.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubPoolClient) Interceptors() []Interceptor {
+	inters := c.inters.SubPool
+	return append(inters[:len(inters):len(inters)], subpool.Interceptors[:]...)
+}
+
+func (c *SubPoolClient) mutate(ctx context.Context, m *SubPoolMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubPoolCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubPoolUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubPoolUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubPoolDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SubPool mutation op: %q", m.Op())
+	}
+}
+
+// SubPoolAccountClient is a client for the SubPoolAccount schema.
+type SubPoolAccountClient struct {
+	config
+}
+
+// NewSubPoolAccountClient returns a client for the SubPoolAccount from the given config.
+func NewSubPoolAccountClient(c config) *SubPoolAccountClient {
+	return &SubPoolAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `subpoolaccount.Hooks(f(g(h())))`.
+func (c *SubPoolAccountClient) Use(hooks ...Hook) {
+	c.hooks.SubPoolAccount = append(c.hooks.SubPoolAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `subpoolaccount.Intercept(f(g(h())))`.
+func (c *SubPoolAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SubPoolAccount = append(c.inters.SubPoolAccount, interceptors...)
+}
+
+// Create returns a builder for creating a SubPoolAccount entity.
+func (c *SubPoolAccountClient) Create() *SubPoolAccountCreate {
+	mutation := newSubPoolAccountMutation(c.config, OpCreate)
+	return &SubPoolAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SubPoolAccount entities.
+func (c *SubPoolAccountClient) CreateBulk(builders ...*SubPoolAccountCreate) *SubPoolAccountCreateBulk {
+	return &SubPoolAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SubPoolAccountClient) MapCreateBulk(slice any, setFunc func(*SubPoolAccountCreate, int)) *SubPoolAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SubPoolAccountCreateBulk{err: fmt.Errorf("calling to SubPoolAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SubPoolAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SubPoolAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SubPoolAccount.
+func (c *SubPoolAccountClient) Update() *SubPoolAccountUpdate {
+	mutation := newSubPoolAccountMutation(c.config, OpUpdate)
+	return &SubPoolAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SubPoolAccountClient) UpdateOne(_m *SubPoolAccount) *SubPoolAccountUpdateOne {
+	mutation := newSubPoolAccountMutation(c.config, OpUpdateOne)
+	mutation.sub_pool = &_m.SubPoolID
+	mutation.account = &_m.AccountID
+	return &SubPoolAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SubPoolAccount.
+func (c *SubPoolAccountClient) Delete() *SubPoolAccountDelete {
+	mutation := newSubPoolAccountMutation(c.config, OpDelete)
+	return &SubPoolAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Query returns a query builder for SubPoolAccount.
+func (c *SubPoolAccountClient) Query() *SubPoolAccountQuery {
+	return &SubPoolAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSubPoolAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// QuerySubPool queries the sub_pool edge of a SubPoolAccount.
+func (c *SubPoolAccountClient) QuerySubPool(_m *SubPoolAccount) *SubPoolQuery {
+	return c.Query().
+		Where(subpoolaccount.SubPoolID(_m.SubPoolID), subpoolaccount.AccountID(_m.AccountID)).
+		QuerySubPool()
+}
+
+// QueryAccount queries the account edge of a SubPoolAccount.
+func (c *SubPoolAccountClient) QueryAccount(_m *SubPoolAccount) *AccountQuery {
+	return c.Query().
+		Where(subpoolaccount.SubPoolID(_m.SubPoolID), subpoolaccount.AccountID(_m.AccountID)).
+		QueryAccount()
+}
+
+// Hooks returns the client hooks.
+func (c *SubPoolAccountClient) Hooks() []Hook {
+	return c.hooks.SubPoolAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *SubPoolAccountClient) Interceptors() []Interceptor {
+	return c.inters.SubPoolAccount
+}
+
+func (c *SubPoolAccountClient) mutate(ctx context.Context, m *SubPoolAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SubPoolAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SubPoolAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SubPoolAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SubPoolAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SubPoolAccount mutation op: %q", m.Op())
+	}
+}
+
 // SubscriptionPlanClient is a client for the SubscriptionPlan schema.
 type SubscriptionPlanClient struct {
 	config
@@ -6841,28 +7347,28 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
-		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		APIKey, APIKeySubPoolBinding, Account, AccountGroup, Announcement,
+		AnnouncementRead, AuthIdentity, AuthIdentityChannel, BatchImageEvent,
+		BatchImageItem, BatchImageJob, ChannelMonitor, ChannelMonitorDailyRollup,
+		ChannelMonitorHistory, ChannelMonitorRequestTemplate, CompositeModelRoute,
+		ErrorPassthroughRule, Group, IdempotencyRecord, IdentityAdoptionDecision,
+		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PromoCode, PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubPool,
+		SubPoolAccount, SubscriptionPlan, TLSFingerprintProfile, UsageCleanupTask,
+		UsageLog, User, UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
-		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
-		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Interceptor
+		APIKey, APIKeySubPoolBinding, Account, AccountGroup, Announcement,
+		AnnouncementRead, AuthIdentity, AuthIdentityChannel, BatchImageEvent,
+		BatchImageItem, BatchImageJob, ChannelMonitor, ChannelMonitorDailyRollup,
+		ChannelMonitorHistory, ChannelMonitorRequestTemplate, CompositeModelRoute,
+		ErrorPassthroughRule, Group, IdempotencyRecord, IdentityAdoptionDecision,
+		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PromoCode, PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubPool,
+		SubPoolAccount, SubscriptionPlan, TLSFingerprintProfile, UsageCleanupTask,
+		UsageLog, User, UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )
 

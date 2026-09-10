@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
@@ -95,6 +96,20 @@ func (_c *APIKeyCreate) SetGroupID(v int64) *APIKeyCreate {
 func (_c *APIKeyCreate) SetNillableGroupID(v *int64) *APIKeyCreate {
 	if v != nil {
 		_c.SetGroupID(*v)
+	}
+	return _c
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (_c *APIKeyCreate) SetSubPoolID(v int64) *APIKeyCreate {
+	_c.mutation.SetSubPoolID(v)
+	return _c
+}
+
+// SetNillableSubPoolID sets the "sub_pool_id" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableSubPoolID(v *int64) *APIKeyCreate {
+	if v != nil {
+		_c.SetSubPoolID(*v)
 	}
 	return _c
 }
@@ -315,6 +330,11 @@ func (_c *APIKeyCreate) SetUser(v *User) *APIKeyCreate {
 // SetGroup sets the "group" edge to the Group entity.
 func (_c *APIKeyCreate) SetGroup(v *Group) *APIKeyCreate {
 	return _c.SetGroupID(v.ID)
+}
+
+// SetSubPool sets the "sub_pool" edge to the SubPool entity.
+func (_c *APIKeyCreate) SetSubPool(v *SubPool) *APIKeyCreate {
+	return _c.SetSubPoolID(v.ID)
 }
 
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
@@ -629,6 +649,23 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_node.GroupID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.SubPoolIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.SubPoolTable,
+			Columns: []string{apikey.SubPoolColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SubPoolID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.UsageLogsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -778,6 +815,24 @@ func (u *APIKeyUpsert) UpdateGroupID() *APIKeyUpsert {
 // ClearGroupID clears the value of the "group_id" field.
 func (u *APIKeyUpsert) ClearGroupID() *APIKeyUpsert {
 	u.SetNull(apikey.FieldGroupID)
+	return u
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (u *APIKeyUpsert) SetSubPoolID(v int64) *APIKeyUpsert {
+	u.Set(apikey.FieldSubPoolID, v)
+	return u
+}
+
+// UpdateSubPoolID sets the "sub_pool_id" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateSubPoolID() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldSubPoolID)
+	return u
+}
+
+// ClearSubPoolID clears the value of the "sub_pool_id" field.
+func (u *APIKeyUpsert) ClearSubPoolID() *APIKeyUpsert {
+	u.SetNull(apikey.FieldSubPoolID)
 	return u
 }
 
@@ -1203,6 +1258,27 @@ func (u *APIKeyUpsertOne) UpdateGroupID() *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) ClearGroupID() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearGroupID()
+	})
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (u *APIKeyUpsertOne) SetSubPoolID(v int64) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetSubPoolID(v)
+	})
+}
+
+// UpdateSubPoolID sets the "sub_pool_id" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateSubPoolID() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateSubPoolID()
+	})
+}
+
+// ClearSubPoolID clears the value of the "sub_pool_id" field.
+func (u *APIKeyUpsertOne) ClearSubPoolID() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearSubPoolID()
 	})
 }
 
@@ -1841,6 +1917,27 @@ func (u *APIKeyUpsertBulk) UpdateGroupID() *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) ClearGroupID() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearGroupID()
+	})
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (u *APIKeyUpsertBulk) SetSubPoolID(v int64) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetSubPoolID(v)
+	})
+}
+
+// UpdateSubPoolID sets the "sub_pool_id" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateSubPoolID() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateSubPoolID()
+	})
+}
+
+// ClearSubPoolID clears the value of the "sub_pool_id" field.
+func (u *APIKeyUpsertBulk) ClearSubPoolID() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearSubPoolID()
 	})
 }
 

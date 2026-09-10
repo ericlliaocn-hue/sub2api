@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 )
 
@@ -606,6 +607,21 @@ func (_u *AccountUpdate) AddGroups(v ...*Group) *AccountUpdate {
 	return _u.AddGroupIDs(ids...)
 }
 
+// AddSubPoolIDs adds the "sub_pools" edge to the SubPool entity by IDs.
+func (_u *AccountUpdate) AddSubPoolIDs(ids ...int64) *AccountUpdate {
+	_u.mutation.AddSubPoolIDs(ids...)
+	return _u
+}
+
+// AddSubPools adds the "sub_pools" edges to the SubPool entity.
+func (_u *AccountUpdate) AddSubPools(v ...*SubPool) *AccountUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSubPoolIDs(ids...)
+}
+
 // SetProxy sets the "proxy" edge to the Proxy entity.
 func (_u *AccountUpdate) SetProxy(v *Proxy) *AccountUpdate {
 	return _u.SetProxyID(v.ID)
@@ -684,6 +700,27 @@ func (_u *AccountUpdate) RemoveGroups(v ...*Group) *AccountUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveGroupIDs(ids...)
+}
+
+// ClearSubPools clears all "sub_pools" edges to the SubPool entity.
+func (_u *AccountUpdate) ClearSubPools() *AccountUpdate {
+	_u.mutation.ClearSubPools()
+	return _u
+}
+
+// RemoveSubPoolIDs removes the "sub_pools" edge to SubPool entities by IDs.
+func (_u *AccountUpdate) RemoveSubPoolIDs(ids ...int64) *AccountUpdate {
+	_u.mutation.RemoveSubPoolIDs(ids...)
+	return _u
+}
+
+// RemoveSubPools removes "sub_pools" edges to SubPool entities.
+func (_u *AccountUpdate) RemoveSubPools(v ...*SubPool) *AccountUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSubPoolIDs(ids...)
 }
 
 // ClearProxy clears the "proxy" edge to the Proxy entity.
@@ -1034,6 +1071,63 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &AccountGroupCreate{config: _u.config, mutation: newAccountGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SubPoolsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		createE := &SubPoolAccountCreate{config: _u.config, mutation: newSubPoolAccountMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSubPoolsIDs(); len(nodes) > 0 && !_u.mutation.SubPoolsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &SubPoolAccountCreate{config: _u.config, mutation: newSubPoolAccountMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SubPoolsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &SubPoolAccountCreate{config: _u.config, mutation: newSubPoolAccountMutation(_u.config, OpCreate)}
 		createE.defaults()
 		_, specE := createE.createSpec()
 		edge.Target.Fields = specE.Fields
@@ -1782,6 +1876,21 @@ func (_u *AccountUpdateOne) AddGroups(v ...*Group) *AccountUpdateOne {
 	return _u.AddGroupIDs(ids...)
 }
 
+// AddSubPoolIDs adds the "sub_pools" edge to the SubPool entity by IDs.
+func (_u *AccountUpdateOne) AddSubPoolIDs(ids ...int64) *AccountUpdateOne {
+	_u.mutation.AddSubPoolIDs(ids...)
+	return _u
+}
+
+// AddSubPools adds the "sub_pools" edges to the SubPool entity.
+func (_u *AccountUpdateOne) AddSubPools(v ...*SubPool) *AccountUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSubPoolIDs(ids...)
+}
+
 // SetProxy sets the "proxy" edge to the Proxy entity.
 func (_u *AccountUpdateOne) SetProxy(v *Proxy) *AccountUpdateOne {
 	return _u.SetProxyID(v.ID)
@@ -1860,6 +1969,27 @@ func (_u *AccountUpdateOne) RemoveGroups(v ...*Group) *AccountUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveGroupIDs(ids...)
+}
+
+// ClearSubPools clears all "sub_pools" edges to the SubPool entity.
+func (_u *AccountUpdateOne) ClearSubPools() *AccountUpdateOne {
+	_u.mutation.ClearSubPools()
+	return _u
+}
+
+// RemoveSubPoolIDs removes the "sub_pools" edge to SubPool entities by IDs.
+func (_u *AccountUpdateOne) RemoveSubPoolIDs(ids ...int64) *AccountUpdateOne {
+	_u.mutation.RemoveSubPoolIDs(ids...)
+	return _u
+}
+
+// RemoveSubPools removes "sub_pools" edges to SubPool entities.
+func (_u *AccountUpdateOne) RemoveSubPools(v ...*SubPool) *AccountUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSubPoolIDs(ids...)
 }
 
 // ClearProxy clears the "proxy" edge to the Proxy entity.
@@ -2240,6 +2370,63 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &AccountGroupCreate{config: _u.config, mutation: newAccountGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SubPoolsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		createE := &SubPoolAccountCreate{config: _u.config, mutation: newSubPoolAccountMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSubPoolsIDs(); len(nodes) > 0 && !_u.mutation.SubPoolsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &SubPoolAccountCreate{config: _u.config, mutation: newSubPoolAccountMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SubPoolsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &SubPoolAccountCreate{config: _u.config, mutation: newSubPoolAccountMutation(_u.config, OpCreate)}
 		createE.defaults()
 		_, specE := createE.createSpec()
 		edge.Target.Fields = specE.Fields

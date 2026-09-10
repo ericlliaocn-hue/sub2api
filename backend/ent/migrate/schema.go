@@ -34,6 +34,7 @@ var (
 		{Name: "window_1d_start", Type: field.TypeTime, Nullable: true},
 		{Name: "window_7d_start", Type: field.TypeTime, Nullable: true},
 		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "sub_pool_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "user_id", Type: field.TypeInt64},
 	}
 	// APIKeysTable holds the schema information for the "api_keys" table.
@@ -49,8 +50,14 @@ var (
 				OnDelete:   schema.SetNull,
 			},
 			{
-				Symbol:     "api_keys_users_api_keys",
+				Symbol:     "api_keys_sub_pools_api_keys",
 				Columns:    []*schema.Column{APIKeysColumns[23]},
+				RefColumns: []*schema.Column{SubPoolsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "api_keys_users_api_keys",
+				Columns:    []*schema.Column{APIKeysColumns[24]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -59,12 +66,17 @@ var (
 			{
 				Name:    "apikey_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[23]},
+				Columns: []*schema.Column{APIKeysColumns[24]},
 			},
 			{
 				Name:    "apikey_group_id",
 				Unique:  false,
 				Columns: []*schema.Column{APIKeysColumns[22]},
+			},
+			{
+				Name:    "apikey_sub_pool_id",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeysColumns[23]},
 			},
 			{
 				Name:    "apikey_status",
@@ -90,6 +102,36 @@ var (
 				Name:    "apikey_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{APIKeysColumns[12]},
+			},
+		},
+	}
+	// APIKeySubPoolBindingsColumns holds the columns for the "api_key_sub_pool_bindings" table.
+	APIKeySubPoolBindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "api_key_id", Type: field.TypeInt64},
+		{Name: "sub_pool_id", Type: field.TypeInt64},
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "bound_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "unbound_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "reason", Type: field.TypeString, Size: 40},
+		{Name: "operator", Type: field.TypeString, Size: 64, Default: "system"},
+		{Name: "note", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+	}
+	// APIKeySubPoolBindingsTable holds the schema information for the "api_key_sub_pool_bindings" table.
+	APIKeySubPoolBindingsTable = &schema.Table{
+		Name:       "api_key_sub_pool_bindings",
+		Columns:    APIKeySubPoolBindingsColumns,
+		PrimaryKey: []*schema.Column{APIKeySubPoolBindingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "apikeysubpoolbinding_api_key_id_bound_at",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeySubPoolBindingsColumns[1], APIKeySubPoolBindingsColumns[4]},
+			},
+			{
+				Name:    "apikeysubpoolbinding_sub_pool_id_bound_at",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeySubPoolBindingsColumns[2], APIKeySubPoolBindingsColumns[4]},
 			},
 		},
 	}
@@ -918,6 +960,7 @@ var (
 		{Name: "peak_end", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "peak_rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
 		{Name: "is_exclusive", Type: field.TypeBool, Default: false},
+		{Name: "sub_pool_enabled", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
 		{Name: "duplicate_operation_id", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "platform", Type: field.TypeString, Size: 50, Default: "anthropic"},
@@ -983,17 +1026,17 @@ var (
 			{
 				Name:    "group_status",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[12]},
+				Columns: []*schema.Column{GroupsColumns[13]},
 			},
 			{
 				Name:    "group_platform",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[14]},
+				Columns: []*schema.Column{GroupsColumns[15]},
 			},
 			{
 				Name:    "group_subscription_type",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[15]},
+				Columns: []*schema.Column{GroupsColumns[16]},
 			},
 			{
 				Name:    "group_is_exclusive",
@@ -1008,12 +1051,12 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[49]},
+				Columns: []*schema.Column{GroupsColumns[50]},
 			},
 			{
 				Name:    "idx_groups_duplicate_operation_id_active",
 				Unique:  true,
-				Columns: []*schema.Column{GroupsColumns[13]},
+				Columns: []*schema.Column{GroupsColumns[14]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "duplicate_operation_id IS NOT NULL AND deleted_at IS NULL",
 				},
@@ -1538,6 +1581,75 @@ var (
 		Name:       "settings",
 		Columns:    SettingsColumns,
 		PrimaryKey: []*schema.Column{SettingsColumns[0]},
+	}
+	// SubPoolsColumns holds the columns for the "sub_pools" table.
+	SubPoolsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "description", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "kind", Type: field.TypeString, Size: 20, Default: "formal"},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "healthy"},
+		{Name: "key_soft_limit", Type: field.TypeInt, Default: 8},
+		{Name: "cooling_until", Type: field.TypeTime, Nullable: true},
+		{Name: "cooling_reason", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+	}
+	// SubPoolsTable holds the schema information for the "sub_pools" table.
+	SubPoolsTable = &schema.Table{
+		Name:       "sub_pools",
+		Columns:    SubPoolsColumns,
+		PrimaryKey: []*schema.Column{SubPoolsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "subpool_group_id_status_kind",
+				Unique:  false,
+				Columns: []*schema.Column{SubPoolsColumns[4], SubPoolsColumns[8], SubPoolsColumns[7]},
+			},
+		},
+	}
+	// SubPoolAccountsColumns holds the columns for the "sub_pool_accounts" table.
+	SubPoolAccountsColumns = []*schema.Column{
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "role", Type: field.TypeString, Size: 20, Default: "primary"},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sub_pool_id", Type: field.TypeInt64},
+		{Name: "account_id", Type: field.TypeInt64},
+	}
+	// SubPoolAccountsTable holds the schema information for the "sub_pool_accounts" table.
+	SubPoolAccountsTable = &schema.Table{
+		Name:       "sub_pool_accounts",
+		Columns:    SubPoolAccountsColumns,
+		PrimaryKey: []*schema.Column{SubPoolAccountsColumns[3], SubPoolAccountsColumns[4]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sub_pool_accounts_sub_pools_sub_pool",
+				Columns:    []*schema.Column{SubPoolAccountsColumns[3]},
+				RefColumns: []*schema.Column{SubPoolsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "sub_pool_accounts_accounts_account",
+				Columns:    []*schema.Column{SubPoolAccountsColumns[4]},
+				RefColumns: []*schema.Column{AccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "subpoolaccount_group_id_account_id",
+				Unique:  true,
+				Columns: []*schema.Column{SubPoolAccountsColumns[0], SubPoolAccountsColumns[4]},
+			},
+			{
+				Name:    "subpoolaccount_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{SubPoolAccountsColumns[4]},
+			},
+		},
 	}
 	// SubscriptionPlansColumns holds the columns for the "subscription_plans" table.
 	SubscriptionPlansColumns = []*schema.Column{
@@ -2098,6 +2210,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		APIKeySubPoolBindingsTable,
 		AccountsTable,
 		AccountGroupsTable,
 		AnnouncementsTable,
@@ -2126,6 +2239,8 @@ var (
 		RedeemCodesTable,
 		SecuritySecretsTable,
 		SettingsTable,
+		SubPoolsTable,
+		SubPoolAccountsTable,
 		SubscriptionPlansTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
@@ -2141,9 +2256,13 @@ var (
 
 func init() {
 	APIKeysTable.ForeignKeys[0].RefTable = GroupsTable
-	APIKeysTable.ForeignKeys[1].RefTable = UsersTable
+	APIKeysTable.ForeignKeys[1].RefTable = SubPoolsTable
+	APIKeysTable.ForeignKeys[2].RefTable = UsersTable
 	APIKeysTable.Annotation = &entsql.Annotation{
 		Table: "api_keys",
+	}
+	APIKeySubPoolBindingsTable.Annotation = &entsql.Annotation{
+		Table: "api_key_sub_pool_bindings",
 	}
 	AccountsTable.ForeignKeys[0].RefTable = ProxiesTable
 	AccountsTable.ForeignKeys[1].RefTable = AccountsTable
@@ -2249,6 +2368,14 @@ func init() {
 	}
 	SettingsTable.Annotation = &entsql.Annotation{
 		Table: "settings",
+	}
+	SubPoolsTable.Annotation = &entsql.Annotation{
+		Table: "sub_pools",
+	}
+	SubPoolAccountsTable.ForeignKeys[0].RefTable = SubPoolsTable
+	SubPoolAccountsTable.ForeignKeys[1].RefTable = AccountsTable
+	SubPoolAccountsTable.Annotation = &entsql.Annotation{
+		Table: "sub_pool_accounts",
 	}
 	SubscriptionPlansTable.Annotation = &entsql.Annotation{
 		Table: "subscription_plans",
