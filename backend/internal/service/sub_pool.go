@@ -134,4 +134,8 @@ type SubPoolRepository interface {
 	ListBindingHistory(ctx context.Context, apiKeyID int64, limit int) ([]SubPoolBinding, error)
 	// GetOpenBinding returns the currently open binding row of a key, if any.
 	GetOpenBinding(ctx context.Context, apiKeyID int64) (*SubPoolBinding, error)
+
+	// ListProbationCandidates returns keys that have been sitting in a probe pool
+	// since before boundBefore, limited to groups that run sub-pool scheduling.
+	ListProbationCandidates(ctx context.Context, boundBefore time.Time, limit int) ([]SubPoolProbationCandidate, error)
 }

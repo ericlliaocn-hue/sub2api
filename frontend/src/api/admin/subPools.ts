@@ -137,6 +137,38 @@ export async function topKeysByAccount(
   return data
 }
 
+/**
+ * Rules a key must satisfy to leave the probe pool. Global rather than
+ * per-group: probation is about the key's own behaviour, not the product tier.
+ */
+export interface SubPoolGraduationPolicy {
+  enabled: boolean
+  probation_days: number
+  /** Peak calls on any single day of probation. 0 disables the check. */
+  max_daily_calls: number
+}
+
+export async function getGraduationPolicy(): Promise<SubPoolGraduationPolicy> {
+  const { data } = await apiClient.get<SubPoolGraduationPolicy>('/admin/sub-pools/graduation')
+  return data
+}
+
+export async function updateGraduationPolicy(
+  payload: SubPoolGraduationPolicy
+): Promise<SubPoolGraduationPolicy> {
+  const { data } = await apiClient.put<SubPoolGraduationPolicy>(
+    '/admin/sub-pools/graduation',
+    payload
+  )
+  return data
+}
+
+/** Run one sweep now instead of waiting for the 10-minute ticker. */
+export async function runGraduation(): Promise<{ graduated: number }> {
+  const { data } = await apiClient.post<{ graduated: number }>('/admin/sub-pools/graduation/run')
+  return data
+}
+
 export const subPoolsAPI = {
   listByGroup,
   create,
@@ -145,7 +177,10 @@ export const subPoolsAPI = {
   setAccounts,
   bindKey,
   migrateCleanKeys,
-  topKeysByAccount
+  topKeysByAccount,
+  getGraduationPolicy,
+  updateGraduationPolicy,
+  runGraduation
 }
 
 export default subPoolsAPI

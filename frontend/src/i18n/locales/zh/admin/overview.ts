@@ -995,6 +995,17 @@ export default {
       rpmOverrides: '专属 RPM',
       subPools: {
         action: '子池',
+        graduation: {
+          title: '观察期毕业规则',
+          hint: '全局生效。新 Key 先进观察池用日抛号，满足观察期且期间无违规、用量未超阈值后，自动迁入负载最低的正式池。关闭时不会自动迁任何 Key。',
+          probationDays: '观察期（天）',
+          maxDailyCalls: '单日调用上限',
+          maxDailyCallsHint: '观察期内任意一天超过该次数则不予毕业；0 表示不检查',
+          runNow: '立即执行一次',
+          runSuccess: '本次毕业 {count} 个 Key',
+          runFailed: '执行失败',
+          saveFailed: '保存毕业规则失败'
+        },
         title: '子池隔离',
         enableLabel: '启用子池隔离',
         enableHint: '开启后，该分组内的每个 Key 只会调度到自己所在子池的账号；用户侧看不到子池的存在。',

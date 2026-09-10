@@ -420,6 +420,12 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerSubPoolRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	pools := admin.Group("/sub-pools")
 	{
+		// Static segments must precede :pool_id conceptually; gin resolves the
+		// tree by specificity, so "graduation" never matches a pool id.
+		pools.GET("/graduation", h.Admin.SubPool.GetGraduationPolicy)
+		pools.PUT("/graduation", h.Admin.SubPool.UpdateGraduationPolicy)
+		pools.POST("/graduation/run", h.Admin.SubPool.RunGraduation)
+
 		pools.PUT("/:pool_id", h.Admin.SubPool.Update)
 		pools.DELETE("/:pool_id", h.Admin.SubPool.Delete)
 		pools.PUT("/:pool_id/accounts", h.Admin.SubPool.SetAccounts)

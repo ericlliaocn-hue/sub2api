@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	dbapikey "github.com/Wei-Shaw/sub2api/ent/apikey"
@@ -470,6 +471,45 @@ func (r *subPoolRepository) GetOpenBinding(ctx context.Context, apiKeyID int64) 
 		return nil, err
 	}
 	return subPoolBindingEntityToService(row), nil
+}
+
+// ListProbationCandidates finds keys whose probe-pool stay is long enough to
+// qualify for graduation. It reads bound_at from the open binding row rather
+// than from the key row, so a key that was moved between probe pools restarts
+// its clock — which is the point of a move.
+func (r *subPoolRepository) ListProbationCandidates(ctx context.Context, boundBefore time.Time, limit int) ([]service.SubPoolProbationCandidate, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	const query = `
+		SELECT b.api_key_id, b.group_id, b.sub_pool_id, b.bound_at
+		FROM api_key_sub_pool_bindings b
+		JOIN api_keys k ON k.id = b.api_key_id AND k.sub_pool_id = b.sub_pool_id
+		JOIN sub_pools p ON p.id = b.sub_pool_id AND p.deleted_at IS NULL
+		JOIN groups g ON g.id = b.group_id
+		WHERE b.unbound_at IS NULL
+		  AND b.bound_at <= $1
+		  AND p.kind = $2
+		  AND g.sub_pool_enabled
+		  AND k.status = $3
+		ORDER BY b.bound_at
+		LIMIT $4`
+
+	rows, err := r.sql.QueryContext(ctx, query, boundBefore, domain.SubPoolKindProbe, domain.StatusActive, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query sub-pool probation candidates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]service.SubPoolProbationCandidate, 0, limit)
+	for rows.Next() {
+		var c service.SubPoolProbationCandidate
+		if err := rows.Scan(&c.APIKeyID, &c.GroupID, &c.SubPoolID, &c.BoundAt); err != nil {
+			return nil, fmt.Errorf("scan sub-pool probation candidate: %w", err)
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 func (r *subPoolRepository) countKeysByPool(ctx context.Context, subPoolIDs []int64) (map[int64]int, error) {

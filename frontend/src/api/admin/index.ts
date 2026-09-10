@@ -137,7 +137,8 @@ export type {
   CreateSubPoolRequest,
   UpdateSubPoolRequest,
   SubPoolAccountKeyUsage,
-  AccountTopKeysResponse
+  AccountTopKeysResponse,
+  SubPoolGraduationPolicy
 } from './subPools'
 export type {
   PluginInstallation,

@@ -979,6 +979,17 @@ export default {
       rpmOverrides: 'RPM Overrides',
       subPools: {
         action: 'Sub-pools',
+        graduation: {
+          title: 'Probation & Graduation',
+          hint: 'Applies globally. New keys start in a probe pool on disposable accounts and move to the emptiest formal pool once probation is over with no violations and usage below the cap. Nothing moves automatically while this is off.',
+          probationDays: 'Probation (days)',
+          maxDailyCalls: 'Daily call cap',
+          maxDailyCallsHint: 'Exceeding this on any single day of probation blocks graduation; 0 disables the check',
+          runNow: 'Run now',
+          runSuccess: 'Graduated {count} keys',
+          runFailed: 'Run failed',
+          saveFailed: 'Failed to save graduation rules'
+        },
         title: 'Sub-pool Isolation',
         enableLabel: 'Enable sub-pool isolation',
         enableHint: 'When enabled, each key in this group is only scheduled onto the accounts of its own sub-pool. Users never see sub-pools.',
