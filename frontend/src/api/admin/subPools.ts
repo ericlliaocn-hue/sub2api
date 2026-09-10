@@ -169,7 +169,75 @@ export async function runGraduation(): Promise<{ graduated: number }> {
   return data
 }
 
+/** One row of the "who burned this pool" incident report. */
+export interface SubPoolKeyAttribution {
+  api_key_id: number
+  user_id: number
+  calls: number
+  /** Fraction of the pool's traffic in the window, 0..1. */
+  share: number
+  violations: number
+  suspect: boolean
+  suspect_why?: string
+  first_call_at: string | null
+  last_call_at: string | null
+  bound_at: string | null
+}
+
+export interface SubPoolAttributionReport {
+  sub_pool_id: number
+  status: SubPoolStatus
+  start: string
+  end: string
+  total_calls: number
+  keys: SubPoolKeyAttribution[]
+}
+
+export interface SubPoolCoolingResult {
+  cooled: number
+  recovered: number
+  migrated: number
+}
+
+export async function attribution(
+  poolId: number,
+  hours = 24
+): Promise<SubPoolAttributionReport> {
+  const { data } = await apiClient.get<SubPoolAttributionReport>(
+    `/admin/sub-pools/${poolId}/attribution`,
+    { params: { hours } }
+  )
+  return data
+}
+
+/** Push a key back into the probe pool: it keeps working, on disposable accounts. */
+export async function demoteKey(keyId: number, note?: string): Promise<{ demoted: boolean }> {
+  const { data } = await apiClient.post<{ demoted: boolean }>(
+    `/admin/sub-pool-keys/${keyId}/demote`,
+    { note: note ?? null }
+  )
+  return data
+}
+
+/** Stop the key from authenticating. The pool binding is kept for the record. */
+export async function disableKey(keyId: number): Promise<{ disabled: boolean }> {
+  const { data } = await apiClient.post<{ disabled: boolean }>(
+    `/admin/sub-pool-keys/${keyId}/disable`
+  )
+  return data
+}
+
+/** Run one cooling sweep now instead of waiting for the 2-minute ticker. */
+export async function runCooling(): Promise<SubPoolCoolingResult> {
+  const { data } = await apiClient.post<SubPoolCoolingResult>('/admin/sub-pools/cooling/run')
+  return data
+}
+
 export const subPoolsAPI = {
+  attribution,
+  demoteKey,
+  disableKey,
+  runCooling,
   listByGroup,
   create,
   update,

@@ -512,6 +512,98 @@ func (r *subPoolRepository) ListProbationCandidates(ctx context.Context, boundBe
 	return out, rows.Err()
 }
 
+// GetSchedulingState is the hot-path read: status plus account allowlist, with
+// none of the key counting that GetByID does.
+func (r *subPoolRepository) GetSchedulingState(ctx context.Context, subPoolID int64) (*service.SubPoolSchedulingState, error) {
+	row, err := r.client.SubPool.Query().
+		Where(dbsubpool.IDEQ(subPoolID)).
+		Select(dbsubpool.FieldStatus).
+		Only(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, service.ErrSubPoolNotFound
+		}
+		return nil, err
+	}
+	accountIDs, err := r.ListAccountIDs(ctx, subPoolID)
+	if err != nil {
+		return nil, err
+	}
+	return &service.SubPoolSchedulingState{Status: row.Status, AccountIDs: accountIDs}, nil
+}
+
+// ListPoolsInEnabledGroups feeds the cooling sweep. Groups without sub-pool
+// scheduling are skipped so the job stays proportional to the feature's usage
+// rather than to the total number of groups.
+func (r *subPoolRepository) ListPoolsInEnabledGroups(ctx context.Context) ([]service.SubPool, error) {
+	const query = `
+		SELECT p.id, p.group_id, p.name, p.kind, p.status, p.key_soft_limit,
+		       p.cooling_until, p.cooling_reason, p.sort_order
+		FROM sub_pools p
+		JOIN groups g ON g.id = p.group_id
+		WHERE p.deleted_at IS NULL AND g.sub_pool_enabled
+		ORDER BY p.group_id, p.sort_order, p.id`
+
+	rows, err := r.sql.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query sub-pools in enabled groups: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	pools := make([]service.SubPool, 0)
+	ids := make([]int64, 0)
+	for rows.Next() {
+		var pool service.SubPool
+		if err := rows.Scan(&pool.ID, &pool.GroupID, &pool.Name, &pool.Kind, &pool.Status,
+			&pool.KeySoftLimit, &pool.CoolingUntil, &pool.CoolingReason, &pool.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan sub-pool in enabled group: %w", err)
+		}
+		pools = append(pools, pool)
+		ids = append(ids, pool.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return pools, nil
+	}
+
+	members, err := r.client.SubPoolAccount.Query().
+		Where(dbsubpoolaccount.SubPoolIDIn(ids...)).
+		Order(dbent.Asc(dbsubpoolaccount.FieldAccountID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	accountsByPool := make(map[int64][]int64, len(ids))
+	for _, m := range members {
+		accountsByPool[m.SubPoolID] = append(accountsByPool[m.SubPoolID], m.AccountID)
+	}
+	counts, err := r.countKeysByPool(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range pools {
+		pools[i].AccountIDs = accountsByPool[pools[i].ID]
+		pools[i].BoundKeys = counts[pools[i].ID]
+	}
+	return pools, nil
+}
+
+// CountAutoMigrationsSince counts system-initiated cooling migrations of a key.
+// Admin moves are excluded on purpose: the debounce protects users from pools
+// flapping, it must not stop an operator from acting.
+func (r *subPoolRepository) CountAutoMigrationsSince(ctx context.Context, apiKeyID int64, since time.Time) (int, error) {
+	return r.client.APIKeySubPoolBinding.Query().
+		Where(
+			dbbinding.APIKeyIDEQ(apiKeyID),
+			dbbinding.ReasonEQ(domain.SubPoolBindReasonCoolingMigration),
+			dbbinding.OperatorEQ(domain.SubPoolBindOperatorSystem),
+			dbbinding.BoundAtGTE(since),
+		).
+		Count(ctx)
+}
+
 func (r *subPoolRepository) countKeysByPool(ctx context.Context, subPoolIDs []int64) (map[int64]int, error) {
 	counts := make(map[int64]int, len(subPoolIDs))
 	if len(subPoolIDs) == 0 {

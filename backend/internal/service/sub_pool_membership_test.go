@@ -5,22 +5,28 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 )
 
 type stubSubPoolRepo struct {
 	SubPoolRepository
 	accounts map[int64][]int64
+	statuses map[int64]string
 	err      error
 	calls    int
 }
 
-func (s *stubSubPoolRepo) ListAccountIDs(_ context.Context, subPoolID int64) ([]int64, error) {
+func (s *stubSubPoolRepo) GetSchedulingState(_ context.Context, subPoolID int64) (*SubPoolSchedulingState, error) {
 	s.calls++
 	if s.err != nil {
 		return nil, s.err
 	}
-	return s.accounts[subPoolID], nil
+	status := s.statuses[subPoolID]
+	if status == "" {
+		status = domain.SubPoolStatusHealthy
+	}
+	return &SubPoolSchedulingState{Status: status, AccountIDs: s.accounts[subPoolID]}, nil
 }
 
 func ctxWithSubPool(id int64) context.Context {
@@ -120,5 +126,36 @@ func TestAllowedAccountIDsCachesLookups(t *testing.T) {
 	}
 	if repo.calls != 2 {
 		t.Fatalf("expected 2 repository calls after invalidation, got %d", repo.calls)
+	}
+}
+
+// Cooling is the response to a burned pool: it must stop serving traffic, not
+// merely stop accepting new keys. Spilling over to the group would hand the
+// pool's users a fresh set of accounts mid-incident.
+func TestFilterAccountsBySubPoolBlocksCoolingPool(t *testing.T) {
+	m := NewSubPoolMembership(&stubSubPoolRepo{
+		accounts: map[int64][]int64{7: {2, 4}},
+		statuses: map[int64]string{7: domain.SubPoolStatusCooling},
+	})
+
+	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3, 4))
+
+	if len(got) != 0 {
+		t.Fatalf("expected a cooling pool to serve nothing, got %v", accountIDs(got))
+	}
+}
+
+// A closed pool still serves the keys already bound to it; it only refuses new
+// bindings. Cutting it off would strand those users for no incident reason.
+func TestFilterAccountsBySubPoolStillServesClosedPool(t *testing.T) {
+	m := NewSubPoolMembership(&stubSubPoolRepo{
+		accounts: map[int64][]int64{7: {2, 4}},
+		statuses: map[int64]string{7: domain.SubPoolStatusClosed},
+	})
+
+	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3, 4))
+
+	if len(got) != 2 {
+		t.Fatalf("expected the pool's own accounts, got %v", accountIDs(got))
 	}
 }

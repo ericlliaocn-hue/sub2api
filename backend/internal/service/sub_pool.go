@@ -138,4 +138,19 @@ type SubPoolRepository interface {
 	// ListProbationCandidates returns keys that have been sitting in a probe pool
 	// since before boundBefore, limited to groups that run sub-pool scheduling.
 	ListProbationCandidates(ctx context.Context, boundBefore time.Time, limit int) ([]SubPoolProbationCandidate, error)
+
+	// GetSchedulingState returns only what the request hot path needs: the pool
+	// status and its account allowlist.
+	GetSchedulingState(ctx context.Context, subPoolID int64) (*SubPoolSchedulingState, error)
+	// ListPoolsInEnabledGroups returns every pool belonging to a group that runs
+	// sub-pool scheduling, for the periodic cooling sweep.
+	ListPoolsInEnabledGroups(ctx context.Context) ([]SubPool, error)
+	// CountAutoMigrationsSince backs the per-key migration debounce.
+	CountAutoMigrationsSince(ctx context.Context, apiKeyID int64, since time.Time) (int, error)
+}
+
+// SubPoolSchedulingState is the minimal pool view consulted per request.
+type SubPoolSchedulingState struct {
+	Status     string
+	AccountIDs []int64
 }

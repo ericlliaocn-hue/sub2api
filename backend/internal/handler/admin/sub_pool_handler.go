@@ -17,17 +17,20 @@ import (
 type SubPoolHandler struct {
 	subPoolService *service.SubPoolService
 	graduation     *service.SubPoolGraduationService
+	cooling        *service.SubPoolCoolingService
 	settingService *service.SettingService
 }
 
 func NewSubPoolHandler(
 	subPoolService *service.SubPoolService,
 	graduation *service.SubPoolGraduationService,
+	cooling *service.SubPoolCoolingService,
 	settingService *service.SettingService,
 ) *SubPoolHandler {
 	return &SubPoolHandler{
 		subPoolService: subPoolService,
 		graduation:     graduation,
+		cooling:        cooling,
 		settingService: settingService,
 	}
 }
@@ -418,4 +421,67 @@ func (h *SubPoolHandler) UpdateGraduationPolicy(c *gin.Context) {
 func (h *SubPoolHandler) RunGraduation(c *gin.Context) {
 	graduated := h.graduation.RunOnce(c.Request.Context())
 	response.Success(c, gin.H{"graduated": graduated})
+}
+
+// --- Incident attribution and sanctions ---
+
+// Attribution answers "who burned this pool" for a time window.
+func (h *SubPoolHandler) Attribution(c *gin.Context) {
+	poolID, ok := parseIDParam(c, "pool_id")
+	if !ok {
+		return
+	}
+	hours := 24
+	if raw := c.Query("hours"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 || parsed > 24*30 {
+			response.BadRequest(c, "hours must be between 1 and 720")
+			return
+		}
+		hours = parsed
+	}
+	report, err := h.subPoolService.Attribution(c.Request.Context(), poolID, time.Duration(hours)*time.Hour)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, report)
+}
+
+type subPoolSanctionRequest struct {
+	Note *string `json:"note"`
+}
+
+// DemoteKey pushes one key back into the probe pool.
+func (h *SubPoolHandler) DemoteKey(c *gin.Context) {
+	keyID, ok := parseIDParam(c, "key_id")
+	if !ok {
+		return
+	}
+	var req subPoolSanctionRequest
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.subPoolService.DemoteToProbe(c.Request.Context(), keyID, subPoolAdminOperator(c), req.Note); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"demoted": true})
+}
+
+// DisableKey stops the key from authenticating.
+func (h *SubPoolHandler) DisableKey(c *gin.Context) {
+	keyID, ok := parseIDParam(c, "key_id")
+	if !ok {
+		return
+	}
+	if err := h.subPoolService.DisableKey(c.Request.Context(), keyID, subPoolAdminOperator(c)); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"disabled": true})
+}
+
+// RunCooling triggers one cooling sweep on demand.
+func (h *SubPoolHandler) RunCooling(c *gin.Context) {
+	response.Success(c, h.cooling.RunOnce(c.Request.Context()))
 }

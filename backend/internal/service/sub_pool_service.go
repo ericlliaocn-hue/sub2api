@@ -59,6 +59,10 @@ type SubPoolUsageRepository interface {
 	// MaxDailyCallsSince returns the busiest single day of the key since `since`,
 	// bucketed by the site timezone.
 	MaxDailyCallsSince(ctx context.Context, apiKeyID int64, since time.Time) (int64, error)
+	// KeyUsageInWindow aggregates the given keys over one window. It backs the
+	// "who burned this pool" report, so it must include keys with zero calls —
+	// their absence from the traffic is itself evidence.
+	KeyUsageInWindow(ctx context.Context, apiKeyIDs []int64, start, end time.Time) (map[int64]SubPoolAccountKeyUsage, error)
 }
 
 // SubPoolPeer is one anonymised member of the caller's own pool.
@@ -433,6 +437,81 @@ func pickMigrationTarget(pools []SubPool, excludeID int64) *SubPool {
 		return best
 	}
 	return probe
+}
+
+// ── Sanctions ─────────────────────────────────────────────────────────────
+
+// DemoteToProbe pushes a key back into the group's probe pool.
+//
+// This is the middle rung of the escalation ladder between rate limiting and a
+// ban: the key keeps working, but on disposable accounts, and it has to serve
+// probation again before it can return to the formal pools.
+func (s *SubPoolService) DemoteToProbe(ctx context.Context, apiKeyID int64, operator string, note *string) error {
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, apiKeyID)
+	if err != nil {
+		return err
+	}
+	if apiKey.GroupID == nil || *apiKey.GroupID <= 0 {
+		return ErrSubPoolNotEnabled
+	}
+	pools, err := s.repo.ListByGroup(ctx, *apiKey.GroupID)
+	if err != nil {
+		return err
+	}
+	target := pickProbePool(pools)
+	if target == nil {
+		return ErrSubPoolNoCapacity
+	}
+	if err := s.repo.BindKey(ctx, SubPoolBindInput{
+		APIKeyID:  apiKeyID,
+		SubPoolID: target.ID,
+		GroupID:   *apiKey.GroupID,
+		Reason:    domain.SubPoolBindReasonPunishDemotion,
+		Operator:  operator,
+		Note:      note,
+	}); err != nil {
+		return err
+	}
+	s.invalidateAuthByKey(ctx, apiKey.Key)
+	slog.Info("sub_pool_key_demoted_to_probe",
+		"api_key_id", apiKeyID, "sub_pool_id", target.ID, "operator", operator)
+	return nil
+}
+
+// pickProbePool returns the emptiest probe pool that can actually serve traffic.
+// Unlike graduation targets, a full probe pool is still acceptable: holding a
+// sanctioned key is more important than respecting the soft cap.
+func pickProbePool(pools []SubPool) *SubPool {
+	var best *SubPool
+	for i := range pools {
+		pool := &pools[i]
+		if !pool.IsProbe() || pool.Status != domain.SubPoolStatusHealthy || len(pool.AccountIDs) == 0 {
+			continue
+		}
+		if best == nil || pool.BoundKeys < best.BoundKeys {
+			best = pool
+		}
+	}
+	return best
+}
+
+// DisableKey is the last rung: the key stops authenticating entirely. The pool
+// binding is left intact so the incident history stays readable.
+func (s *SubPoolService) DisableKey(ctx context.Context, apiKeyID int64, operator string) error {
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, apiKeyID)
+	if err != nil {
+		return err
+	}
+	if apiKey.Status == StatusAPIKeyDisabled {
+		return nil
+	}
+	apiKey.Status = StatusAPIKeyDisabled
+	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{Status: true}); err != nil {
+		return err
+	}
+	s.invalidateAuthByKey(ctx, apiKey.Key)
+	slog.Info("sub_pool_key_disabled", "api_key_id", apiKeyID, "operator", operator)
+	return nil
 }
 
 // ── User-facing board ─────────────────────────────────────────────────────
