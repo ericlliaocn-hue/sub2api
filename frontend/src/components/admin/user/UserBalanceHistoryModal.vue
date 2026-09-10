@@ -42,7 +42,7 @@
             <template v-else>&nbsp;</template>
           </p>
           <p class="ml-4 flex-shrink-0 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ totalRecharged.toFixed(2) }}</span>
+            {{ t('admin.users.balanceHistoryCredits') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ totalRecharged.toFixed(2) }}</span>
           </p>
         </div>
       </div>
@@ -86,6 +86,10 @@
       </div>
 
       <!-- Empty state -->
+      <div v-else-if="loadFailed" class="py-8 text-center text-red-600">
+        {{ t('admin.users.balanceHistoryLoadFailed') }}
+        <button class="ml-2 underline" @click="loadHistory(currentPage)">{{ t('common.retry') }}</button>
+      </div>
       <div v-else-if="history.length === 0" class="py-8 text-center">
         <p class="text-sm text-gray-500">{{ t('admin.users.noBalanceHistory') }}</p>
       </div>
@@ -94,12 +98,12 @@
       <div v-else class="max-h-[28rem] space-y-3 overflow-y-auto">
         <div
           v-for="item in history"
-          :key="item.id"
+          :key="`${item.type}:${item.code}:${item.id}`"
           class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800"
         >
           <div class="flex items-start justify-between">
             <!-- Left: type icon + description -->
-            <div class="flex items-start gap-3">
+            <div class="flex min-w-0 flex-1 items-start gap-3">
               <div
                 :class="[
                   'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg',
@@ -108,17 +112,17 @@
               >
                 <Icon :name="getIconName(item)" size="sm" :class="getIconColor(item)" />
               </div>
-              <div>
+              <div class="min-w-0">
                 <p class="text-sm font-medium text-gray-900 dark:text-white">
                   {{ getItemTitle(item) }}
                 </p>
                 <!-- Notes (admin adjustment reason) -->
                 <p
                   v-if="item.notes"
-                  class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
+                  class="mt-0.5 break-words text-xs text-gray-500 dark:text-dark-400"
                   :title="item.notes"
                 >
-                  {{ item.notes.length > 60 ? item.notes.substring(0, 55) + '...' : item.notes }}
+                  {{ item.notes }}
                 </p>
                 <p class="mt-0.5 text-xs text-gray-400 dark:text-dark-500">
                   {{ formatDateTime(item.used_at || item.created_at) }}
@@ -187,17 +191,21 @@ const { t } = useI18n()
 
 const history = ref<BalanceHistoryItem[]>([])
 const loading = ref(false)
+const loadFailed = ref(false)
+let historyRequest = 0
 const currentPage = ref(1)
 const total = ref(0)
 const totalRecharged = ref(0)
 const pageSize = 15
 const typeFilter = ref('')
+const ledgerTypes = ['registration_bonus', 'initial_balance', 'admin_bonus_granted', 'recharge_bonus_granted', 'bonus_expired', 'payment_refund', 'bonus_expiry_changed', 'subscription_created', 'subscription_changed', 'subscription_removed']
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 
 // Type filter options
 const typeOptions = computed(() => [
   { value: '', label: t('admin.users.allTypes') },
+  ...ledgerTypes.map(value => ({ value, label: t(`admin.users.historyEvents.${value}`) })),
   { value: 'balance', label: t('admin.users.typeBalance') },
   { value: 'affiliate_balance', label: t('admin.users.typeAffiliateBalance') },
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
@@ -216,7 +224,9 @@ watch(() => props.show, (v) => {
 
 const loadHistory = async (page: number) => {
   if (!props.user) return
+  const request = ++historyRequest
   loading.value = true
+  loadFailed.value = false
   currentPage.value = page
   try {
     const res = await adminAPI.users.getUserBalanceHistory(
@@ -225,13 +235,17 @@ const loadHistory = async (page: number) => {
       pageSize,
       typeFilter.value || undefined
     )
+    if (request !== historyRequest) return
     history.value = res.items || []
     total.value = res.total || 0
     totalRecharged.value = res.total_recharged || 0
   } catch (error) {
+    if (request !== historyRequest) return
+    history.value = []
+    loadFailed.value = true
     console.error('Failed to load balance history:', error)
   } finally {
-    loading.value = false
+    if (request === historyRequest) loading.value = false
   }
 }
 
@@ -239,7 +253,7 @@ const loadHistory = async (page: number) => {
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 
 // Helper: check if balance type (includes admin_balance)
-const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance'
+const isBalanceType = (type: string) => !type.includes('subscription') && !type.includes('concurrency') && type !== 'bonus_expiry_changed'
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
@@ -292,6 +306,7 @@ const getValueColor = (item: BalanceHistoryItem) => {
 
 // Item title
 const getItemTitle = (item: BalanceHistoryItem) => {
+  if (ledgerTypes.includes(item.type)) return t(`admin.users.historyEvents.${item.type}`)
   switch (item.type) {
     case 'balance':
       return t('redeem.balanceAddedRedeem')
@@ -306,12 +321,13 @@ const getItemTitle = (item: BalanceHistoryItem) => {
     case 'subscription':
       return t('redeem.subscriptionAssigned')
     default:
-      return t('common.unknown')
+      return item.type
   }
 }
 
 // Format display value
 const formatValue = (item: BalanceHistoryItem) => {
+  if (item.type === 'bonus_expiry_changed' || item.type.startsWith('subscription_')) return ''
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}$${item.value.toFixed(2)}`

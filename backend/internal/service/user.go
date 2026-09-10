@@ -7,6 +7,10 @@ import (
 )
 
 type User struct {
+	// CreationBalanceEvent is write-only provenance for the opening balance.
+	CreationBalanceEvent string
+	CreationActorID      int64
+
 	ID             int64
 	Email          string
 	Username       string

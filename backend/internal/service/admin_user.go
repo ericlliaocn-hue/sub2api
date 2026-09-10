@@ -132,15 +132,17 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	}
 
 	user := &User{
-		Email:         input.Email,
-		Username:      input.Username,
-		Notes:         input.Notes,
-		Role:          role,
-		Balance:       balance,
-		Concurrency:   input.Concurrency,
-		RPMLimit:      input.RPMLimit,
-		Status:        StatusActive,
-		AllowedGroups: input.AllowedGroups,
+		CreationBalanceEvent: "initial_balance",
+		CreationActorID:      input.ActorAdminID,
+		Email:                input.Email,
+		Username:             input.Username,
+		Notes:                input.Notes,
+		Role:                 role,
+		Balance:              balance,
+		Concurrency:          input.Concurrency,
+		RPMLimit:             input.RPMLimit,
+		Status:               StatusActive,
+		AllowedGroups:        input.AllowedGroups,
 
 		RestrictPublicGroups: input.RestrictPublicGroups,
 	}
@@ -698,6 +700,9 @@ func (s *adminServiceImpl) GetUserUsageStats(ctx context.Context, userID int64, 
 
 // GetUserBalanceHistory returns paginated balance/concurrency change records for a user.
 func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, codeType string) ([]RedeemCode, int64, float64, error) {
+	if s.entClient != nil {
+		return s.listNonUsageBalanceHistory(ctx, userID, page, pageSize, codeType)
+	}
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
 	if codeType == RedeemTypeAffiliateBalance {
 		codes, total, err := s.listAffiliateBalanceHistory(ctx, userID, params)
