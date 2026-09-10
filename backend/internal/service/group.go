@@ -28,7 +28,10 @@ type Group struct {
 	PeakEnd            string
 	PeakRateMultiplier float64
 	IsExclusive        bool
-	Status             string
+	// SubPoolEnabled routes this group's keys through sub-pools instead of the
+	// whole account_groups membership.
+	SubPoolEnabled bool
+	Status         string
 	Hydrated           bool // indicates the group was loaded from a trusted repository source
 	// DuplicateOperationID is internal persistence metadata used only to recover
 	// an already committed one-click copy. It must never be mapped to API DTOs.

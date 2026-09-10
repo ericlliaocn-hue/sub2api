@@ -1,0 +1,516 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	dbapikey "github.com/Wei-Shaw/sub2api/ent/apikey"
+	dbbinding "github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
+	dbsubpool "github.com/Wei-Shaw/sub2api/ent/subpool"
+	dbsubpoolaccount "github.com/Wei-Shaw/sub2api/ent/subpoolaccount"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/Wei-Shaw/sub2api/internal/service"
+)
+
+type subPoolRepository struct {
+	client *dbent.Client
+	sql    sqlExecutor
+}
+
+// NewSubPoolRepository wires the sub-pool persistence layer. sqlDB is used for
+// scheduler outbox notifications so that membership changes invalidate the
+// scheduler snapshot the same way account_groups changes do.
+func NewSubPoolRepository(client *dbent.Client, sqlDB *sql.DB) service.SubPoolRepository {
+	return &subPoolRepository{client: client, sql: sqlDB}
+}
+
+func subPoolEntityToService(row *dbent.SubPool) *service.SubPool {
+	if row == nil {
+		return nil
+	}
+	return &service.SubPool{
+		ID:            row.ID,
+		GroupID:       row.GroupID,
+		Name:          row.Name,
+		Description:   row.Description,
+		Kind:          row.Kind,
+		Status:        row.Status,
+		KeySoftLimit:  row.KeySoftLimit,
+		CoolingUntil:  row.CoolingUntil,
+		CoolingReason: row.CoolingReason,
+		SortOrder:     row.SortOrder,
+		CreatedAt:     row.CreatedAt,
+		UpdatedAt:     row.UpdatedAt,
+	}
+}
+
+func subPoolBindingEntityToService(row *dbent.APIKeySubPoolBinding) *service.SubPoolBinding {
+	if row == nil {
+		return nil
+	}
+	return &service.SubPoolBinding{
+		ID:        row.ID,
+		APIKeyID:  row.APIKeyID,
+		SubPoolID: row.SubPoolID,
+		GroupID:   row.GroupID,
+		BoundAt:   row.BoundAt,
+		UnboundAt: row.UnboundAt,
+		Reason:    row.Reason,
+		Operator:  row.Operator,
+		Note:      row.Note,
+	}
+}
+
+func (r *subPoolRepository) Create(ctx context.Context, pool *service.SubPool) error {
+	if pool == nil {
+		return errors.New("sub-pool is nil")
+	}
+	builder := r.client.SubPool.Create().
+		SetGroupID(pool.GroupID).
+		SetName(pool.Name).
+		SetNillableDescription(pool.Description).
+		SetKind(pool.Kind).
+		SetStatus(pool.Status).
+		SetKeySoftLimit(pool.KeySoftLimit).
+		SetSortOrder(pool.SortOrder).
+		SetNillableCoolingUntil(pool.CoolingUntil).
+		SetNillableCoolingReason(pool.CoolingReason)
+	row, err := builder.Save(ctx)
+	if err != nil {
+		if dbent.IsConstraintError(err) {
+			return service.ErrSubPoolExists
+		}
+		return err
+	}
+	pool.ID = row.ID
+	pool.CreatedAt = row.CreatedAt
+	pool.UpdatedAt = row.UpdatedAt
+	return nil
+}
+
+func (r *subPoolRepository) GetByID(ctx context.Context, id int64) (*service.SubPool, error) {
+	row, err := r.client.SubPool.Get(ctx, id)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, service.ErrSubPoolNotFound
+		}
+		return nil, err
+	}
+	pool := subPoolEntityToService(row)
+	accountIDs, err := r.ListAccountIDs(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	pool.AccountIDs = accountIDs
+	counts, err := r.countKeysByPool(ctx, []int64{id})
+	if err != nil {
+		return nil, err
+	}
+	pool.BoundKeys = counts[id]
+	return pool, nil
+}
+
+func (r *subPoolRepository) Update(ctx context.Context, pool *service.SubPool) error {
+	if pool == nil {
+		return errors.New("sub-pool is nil")
+	}
+	update := r.client.SubPool.UpdateOneID(pool.ID).
+		SetName(pool.Name).
+		SetKind(pool.Kind).
+		SetStatus(pool.Status).
+		SetKeySoftLimit(pool.KeySoftLimit).
+		SetSortOrder(pool.SortOrder).
+		SetUpdatedAt(timezone.Now())
+	if pool.Description != nil {
+		update = update.SetDescription(*pool.Description)
+	} else {
+		update = update.ClearDescription()
+	}
+	if pool.CoolingUntil != nil {
+		update = update.SetCoolingUntil(*pool.CoolingUntil)
+	} else {
+		update = update.ClearCoolingUntil()
+	}
+	if pool.CoolingReason != nil {
+		update = update.SetCoolingReason(*pool.CoolingReason)
+	} else {
+		update = update.ClearCoolingReason()
+	}
+	row, err := update.Save(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrSubPoolNotFound
+		}
+		if dbent.IsConstraintError(err) {
+			return service.ErrSubPoolExists
+		}
+		return err
+	}
+	pool.UpdatedAt = row.UpdatedAt
+	r.notifyGroupChanged(ctx, pool.GroupID)
+	return nil
+}
+
+// Delete soft-deletes the pool and detaches its accounts and keys. Keys fall
+// back to whole-group scheduling rather than being stranded on a dead pool.
+func (r *subPoolRepository) Delete(ctx context.Context, id int64) error {
+	pool, err := r.client.SubPool.Get(ctx, id)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrSubPoolNotFound
+		}
+		return err
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	var txClient *dbent.Client
+	if err == nil {
+		defer func() { _ = tx.Rollback() }()
+		txClient = tx.Client()
+	} else {
+		tx = nil
+		txClient = r.client
+	}
+
+	keyIDs, err := txClient.APIKey.Query().
+		Where(dbapikey.SubPoolIDEQ(id)).
+		IDs(ctx)
+	if err != nil {
+		return err
+	}
+	if len(keyIDs) > 0 {
+		if _, err := txClient.APIKey.Update().
+			Where(dbapikey.IDIn(keyIDs...)).
+			ClearSubPoolID().
+			Save(ctx); err != nil {
+			return err
+		}
+		if err := closeOpenSubPoolBindings(ctx, txClient, keyIDs); err != nil {
+			return err
+		}
+	}
+	if _, err := txClient.SubPoolAccount.Delete().
+		Where(dbsubpoolaccount.SubPoolIDEQ(id)).
+		Exec(ctx); err != nil {
+		return err
+	}
+	if err := txClient.SubPool.DeleteOneID(id).Exec(ctx); err != nil {
+		return err
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+	}
+	r.notifyGroupChanged(ctx, pool.GroupID)
+	return nil
+}
+
+func (r *subPoolRepository) ListByGroup(ctx context.Context, groupID int64) ([]service.SubPool, error) {
+	rows, err := r.client.SubPool.Query().
+		Where(dbsubpool.GroupIDEQ(groupID)).
+		Order(dbent.Asc(dbsubpool.FieldSortOrder), dbent.Asc(dbsubpool.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pools := make([]service.SubPool, 0, len(rows))
+	ids := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		pools = append(pools, *subPoolEntityToService(row))
+		ids = append(ids, row.ID)
+	}
+	if len(ids) == 0 {
+		return pools, nil
+	}
+
+	members, err := r.client.SubPoolAccount.Query().
+		Where(dbsubpoolaccount.SubPoolIDIn(ids...)).
+		Order(dbent.Asc(dbsubpoolaccount.FieldAccountID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	accountsByPool := make(map[int64][]int64, len(ids))
+	for _, m := range members {
+		accountsByPool[m.SubPoolID] = append(accountsByPool[m.SubPoolID], m.AccountID)
+	}
+	counts, err := r.countKeysByPool(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range pools {
+		pools[i].AccountIDs = accountsByPool[pools[i].ID]
+		pools[i].BoundKeys = counts[pools[i].ID]
+	}
+	return pools, nil
+}
+
+func (r *subPoolRepository) ExistsByName(ctx context.Context, groupID int64, name string, excludeID int64) (bool, error) {
+	query := r.client.SubPool.Query().
+		Where(dbsubpool.GroupIDEQ(groupID), dbsubpool.NameEQ(name))
+	if excludeID > 0 {
+		query = query.Where(dbsubpool.IDNEQ(excludeID))
+	}
+	return query.Exist(ctx)
+}
+
+func (r *subPoolRepository) SetAccounts(ctx context.Context, subPoolID int64, accountIDs []int64) error {
+	pool, err := r.client.SubPool.Get(ctx, subPoolID)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrSubPoolNotFound
+		}
+		return err
+	}
+
+	previous, err := r.ListAccountIDs(ctx, subPoolID)
+	if err != nil {
+		return err
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	var txClient *dbent.Client
+	if err == nil {
+		defer func() { _ = tx.Rollback() }()
+		txClient = tx.Client()
+	} else {
+		tx = nil
+		txClient = r.client
+	}
+
+	if _, err := txClient.SubPoolAccount.Delete().
+		Where(dbsubpoolaccount.SubPoolIDEQ(subPoolID)).
+		Exec(ctx); err != nil {
+		return err
+	}
+	if len(accountIDs) > 0 {
+		builders := make([]*dbent.SubPoolAccountCreate, 0, len(accountIDs))
+		for _, accountID := range accountIDs {
+			builders = append(builders, txClient.SubPoolAccount.Create().
+				SetSubPoolID(subPoolID).
+				SetAccountID(accountID).
+				SetGroupID(pool.GroupID).
+				SetRole(domain.SubPoolAccountRolePrimary))
+		}
+		if _, err := txClient.SubPoolAccount.CreateBulk(builders...).Save(ctx); err != nil {
+			if dbent.IsConstraintError(err) {
+				return service.ErrSubPoolAccountTaken
+			}
+			return err
+		}
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+	}
+
+	// Scheduling candidates changed for every account that entered or left.
+	for _, accountID := range mergeGroupIDs(previous, accountIDs) {
+		id := accountID
+		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountGroupsChanged, &id, nil, nil); err != nil {
+			logger.LegacyPrintf("repository.subpool", "[SchedulerOutbox] enqueue sub-pool accounts failed: account=%d err=%v", id, err)
+		}
+	}
+	r.notifyGroupChanged(ctx, pool.GroupID)
+	return nil
+}
+
+func (r *subPoolRepository) ListAccountIDs(ctx context.Context, subPoolID int64) ([]int64, error) {
+	rows, err := r.client.SubPoolAccount.Query().
+		Where(dbsubpoolaccount.SubPoolIDEQ(subPoolID)).
+		Order(dbent.Asc(dbsubpoolaccount.FieldAccountID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.AccountID)
+	}
+	return ids, nil
+}
+
+func (r *subPoolRepository) BindKey(ctx context.Context, in service.SubPoolBindInput) error {
+	if in.APIKeyID <= 0 || in.SubPoolID <= 0 {
+		return errors.New("api key id and sub-pool id are required")
+	}
+	if in.Reason == "" {
+		return errors.New("bind reason is required")
+	}
+	if in.Operator == "" {
+		in.Operator = domain.SubPoolBindOperatorSystem
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	var txClient *dbent.Client
+	if err == nil {
+		defer func() { _ = tx.Rollback() }()
+		txClient = tx.Client()
+	} else {
+		tx = nil
+		txClient = r.client
+	}
+
+	if err := closeOpenSubPoolBindings(ctx, txClient, []int64{in.APIKeyID}); err != nil {
+		return err
+	}
+	if _, err := txClient.APIKey.UpdateOneID(in.APIKeyID).
+		SetSubPoolID(in.SubPoolID).
+		Save(ctx); err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrAPIKeyNotFound
+		}
+		return err
+	}
+	if _, err := txClient.APIKeySubPoolBinding.Create().
+		SetAPIKeyID(in.APIKeyID).
+		SetSubPoolID(in.SubPoolID).
+		SetGroupID(in.GroupID).
+		SetBoundAt(timezone.Now()).
+		SetReason(in.Reason).
+		SetOperator(in.Operator).
+		SetNillableNote(in.Note).
+		Save(ctx); err != nil {
+		return err
+	}
+	if tx != nil {
+		return tx.Commit()
+	}
+	return nil
+}
+
+func (r *subPoolRepository) UnbindKey(ctx context.Context, apiKeyID int64, reason, operator string) error {
+	if apiKeyID <= 0 {
+		return errors.New("api key id is required")
+	}
+	_ = reason
+	_ = operator
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	var txClient *dbent.Client
+	if err == nil {
+		defer func() { _ = tx.Rollback() }()
+		txClient = tx.Client()
+	} else {
+		tx = nil
+		txClient = r.client
+	}
+
+	if _, err := txClient.APIKey.UpdateOneID(apiKeyID).
+		ClearSubPoolID().
+		Save(ctx); err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrAPIKeyNotFound
+		}
+		return err
+	}
+	if err := closeOpenSubPoolBindings(ctx, txClient, []int64{apiKeyID}); err != nil {
+		return err
+	}
+	if tx != nil {
+		return tx.Commit()
+	}
+	return nil
+}
+
+func (r *subPoolRepository) ListKeyIDs(ctx context.Context, subPoolID int64) ([]int64, error) {
+	return r.client.APIKey.Query().
+		Where(dbapikey.SubPoolIDEQ(subPoolID)).
+		Order(dbent.Asc(dbapikey.FieldID)).
+		IDs(ctx)
+}
+
+func (r *subPoolRepository) ListBindingHistory(ctx context.Context, apiKeyID int64, limit int) ([]service.SubPoolBinding, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := r.client.APIKeySubPoolBinding.Query().
+		Where(dbbinding.APIKeyIDEQ(apiKeyID)).
+		Order(dbent.Desc(dbbinding.FieldBoundAt), dbent.Desc(dbbinding.FieldID)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]service.SubPoolBinding, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, *subPoolBindingEntityToService(row))
+	}
+	return out, nil
+}
+
+func (r *subPoolRepository) GetOpenBinding(ctx context.Context, apiKeyID int64) (*service.SubPoolBinding, error) {
+	row, err := r.client.APIKeySubPoolBinding.Query().
+		Where(dbbinding.APIKeyIDEQ(apiKeyID), dbbinding.UnboundAtIsNil()).
+		Order(dbent.Desc(dbbinding.FieldBoundAt)).
+		First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return subPoolBindingEntityToService(row), nil
+}
+
+func (r *subPoolRepository) countKeysByPool(ctx context.Context, subPoolIDs []int64) (map[int64]int, error) {
+	counts := make(map[int64]int, len(subPoolIDs))
+	if len(subPoolIDs) == 0 {
+		return counts, nil
+	}
+	rows, err := r.client.APIKey.Query().
+		Where(dbapikey.SubPoolIDIn(subPoolIDs...)).
+		Select(dbapikey.FieldSubPoolID).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row.SubPoolID == nil {
+			continue
+		}
+		counts[*row.SubPoolID]++
+	}
+	return counts, nil
+}
+
+// notifyGroupChanged invalidates the scheduler snapshot for the group so that
+// the next selection sees the new pool membership.
+func (r *subPoolRepository) notifyGroupChanged(ctx context.Context, groupID int64) {
+	id := groupID
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventGroupChanged, nil, &id, nil); err != nil {
+		logger.LegacyPrintf("repository.subpool", "[SchedulerOutbox] enqueue sub-pool group change failed: group=%d err=%v", groupID, err)
+	}
+}
+
+func closeOpenSubPoolBindings(ctx context.Context, client *dbent.Client, apiKeyIDs []int64) error {
+	if len(apiKeyIDs) == 0 {
+		return nil
+	}
+	if _, err := client.APIKeySubPoolBinding.Update().
+		Where(dbbinding.APIKeyIDIn(apiKeyIDs...), dbbinding.UnboundAtIsNil()).
+		SetUnboundAt(timezone.Now()).
+		Save(ctx); err != nil {
+		return fmt.Errorf("close open sub-pool bindings: %w", err)
+	}
+	return nil
+}
