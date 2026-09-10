@@ -127,6 +127,20 @@ export default {
     lastUsedAt: 'Last Used',
     lastUsedIP: 'Last Used IP',
     useKey: 'Use Key',
+    poolPeers: {
+      action: 'Peers',
+      title: 'Pool Peers',
+      description: 'These users share the same upstream accounts as you. Everything is anonymised: only call rhythm is shown, so you can judge how crowded the pool is.',
+      memberCount: 'Members in your pool',
+      member: 'Member',
+      you: 'You',
+      firstCall: 'First call',
+      lastCall: 'Last call',
+      todayCalls: 'Today',
+      weekCalls: 'Last 7 days',
+      windowHint: 'Last 7 days is a rolling {hours}-hour window, counted from when each member joined this pool.',
+      unavailable: 'The group behind this key does not expose a peer view yet.'
+    },
     useKeyModal: {
       title: 'Use API Key',
       description:
