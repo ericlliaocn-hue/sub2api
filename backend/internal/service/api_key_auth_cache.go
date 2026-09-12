@@ -4,10 +4,10 @@ import "time"
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
-	Version     int                      `json:"version"`
-	APIKeyID    int64                    `json:"api_key_id"`
-	UserID      int64                    `json:"user_id"`
-	GroupID     *int64                   `json:"group_id,omitempty"`
+	Version  int    `json:"version"`
+	APIKeyID int64  `json:"api_key_id"`
+	UserID   int64  `json:"user_id"`
+	GroupID  *int64 `json:"group_id,omitempty"`
 	// SubPoolID 是该 Key 绑定的子池。调度层据此把候选账号收敛到子池内，
 	// 因此它必须随快照缓存，否则命中缓存的请求会退回整组调度、隔离失效。
 	// 成员名单本身不进快照（改动不触发认证缓存失效），由 SubPoolMembership 短 TTL 解析。

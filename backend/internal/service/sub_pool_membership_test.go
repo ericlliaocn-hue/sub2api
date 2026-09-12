@@ -41,7 +41,7 @@ func accountsWithIDs(ids ...int64) []Account {
 	return out
 }
 
-func accountIDs(accounts []Account) []int64 {
+func subPoolAccountIDs(accounts []Account) []int64 {
 	out := make([]int64, 0, len(accounts))
 	for _, acc := range accounts {
 		out = append(out, acc.ID)
@@ -55,7 +55,7 @@ func TestFilterAccountsBySubPoolKeepsOnlyPoolMembers(t *testing.T) {
 	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3, 4, 5))
 
 	want := []int64{2, 4}
-	if ids := accountIDs(got); len(ids) != len(want) || ids[0] != want[0] || ids[1] != want[1] {
+	if ids := subPoolAccountIDs(got); len(ids) != len(want) || ids[0] != want[0] || ids[1] != want[1] {
 		t.Fatalf("expected accounts %v, got %v", want, ids)
 	}
 }
@@ -68,7 +68,7 @@ func TestFilterAccountsBySubPoolReturnsEmptyWhenPoolHasNoAccounts(t *testing.T) 
 	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3))
 
 	if len(got) != 0 {
-		t.Fatalf("expected no candidates, got %v", accountIDs(got))
+		t.Fatalf("expected no candidates, got %v", subPoolAccountIDs(got))
 	}
 }
 
@@ -78,7 +78,7 @@ func TestFilterAccountsBySubPoolIsNoOpWithoutBinding(t *testing.T) {
 	got := m.FilterAccountsBySubPool(context.Background(), accountsWithIDs(1, 2, 3))
 
 	if len(got) != 3 {
-		t.Fatalf("expected all candidates, got %v", accountIDs(got))
+		t.Fatalf("expected all candidates, got %v", subPoolAccountIDs(got))
 	}
 }
 
@@ -90,7 +90,7 @@ func TestFilterAccountsBySubPoolIsNoOpWhenResolverMissing(t *testing.T) {
 	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3))
 
 	if len(got) != 3 {
-		t.Fatalf("expected all candidates, got %v", accountIDs(got))
+		t.Fatalf("expected all candidates, got %v", subPoolAccountIDs(got))
 	}
 }
 
@@ -102,7 +102,7 @@ func TestFilterAccountsBySubPoolFallsBackWhenMembershipUnresolved(t *testing.T) 
 	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3))
 
 	if len(got) != 3 {
-		t.Fatalf("expected all candidates, got %v", accountIDs(got))
+		t.Fatalf("expected all candidates, got %v", subPoolAccountIDs(got))
 	}
 }
 
@@ -141,7 +141,7 @@ func TestFilterAccountsBySubPoolBlocksCoolingPool(t *testing.T) {
 	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3, 4))
 
 	if len(got) != 0 {
-		t.Fatalf("expected a cooling pool to serve nothing, got %v", accountIDs(got))
+		t.Fatalf("expected a cooling pool to serve nothing, got %v", subPoolAccountIDs(got))
 	}
 }
 
@@ -156,6 +156,6 @@ func TestFilterAccountsBySubPoolStillServesClosedPool(t *testing.T) {
 	got := m.FilterAccountsBySubPool(ctxWithSubPool(7), accountsWithIDs(1, 2, 3, 4))
 
 	if len(got) != 2 {
-		t.Fatalf("expected the pool's own accounts, got %v", accountIDs(got))
+		t.Fatalf("expected the pool's own accounts, got %v", subPoolAccountIDs(got))
 	}
 }
