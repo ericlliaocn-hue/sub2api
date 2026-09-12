@@ -291,7 +291,7 @@ func (s *OpenAIGatewayService) SelectAccountForTokenCount(
 // Seedance 同样通过兼容网关调度，因此也保留独立平台值。
 func NormalizeOpenAICompatiblePlatform(platform string) string {
 	switch platform {
-	case PlatformGrok, PlatformSeedance, PlatformKimi, PlatformZhipu, PlatformDeepseek:
+	case PlatformGrok, PlatformSeedance, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax:
 		return platform
 	default:
 		return PlatformOpenAI

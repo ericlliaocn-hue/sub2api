@@ -84,6 +84,7 @@ var usageLogInsertArgTypes = [...]string{
 	"numeric",     // account_stats_cost
 	"numeric",     // upstream_cost
 	"jsonb",       // upstream_cost_snapshot
+	"text",        // upstream_request_id
 	"text",        // session_id
 	"bigint",      // account_rate_version_id
 	"text",        // account_rate_source
@@ -289,6 +290,7 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			account_stats_cost,
 			upstream_cost,
 			upstream_cost_snapshot,
+			upstream_request_id,
 			session_id,
 			account_rate_version_id,
 			account_rate_source,
@@ -301,7 +303,7 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			$12, $13, $14, $15,
 			$16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -753,6 +755,7 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			account_stats_cost,
 			upstream_cost,
 			upstream_cost_snapshot,
+			upstream_request_id,
 			session_id,
 			account_rate_version_id,
 			account_rate_source,
@@ -851,6 +854,7 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				account_stats_cost,
 				upstream_cost,
 				upstream_cost_snapshot,
+				upstream_request_id,
 				session_id,
 				account_rate_version_id,
 				account_rate_source,
@@ -919,6 +923,7 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				account_stats_cost,
 				upstream_cost,
 				upstream_cost_snapshot,
+				upstream_request_id,
 				session_id,
 				account_rate_version_id,
 				account_rate_source,
@@ -1027,6 +1032,7 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			account_stats_cost,
 			upstream_cost,
 			upstream_cost_snapshot,
+			upstream_request_id,
 			session_id,
 			account_rate_version_id,
 			account_rate_source,
@@ -1121,6 +1127,7 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			account_stats_cost,
 			upstream_cost,
 			upstream_cost_snapshot,
+			upstream_request_id,
 			session_id,
 			account_rate_version_id,
 			account_rate_source,
@@ -1189,6 +1196,7 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			account_stats_cost,
 			upstream_cost,
 			upstream_cost_snapshot,
+			upstream_request_id,
 			session_id,
 			account_rate_version_id,
 			account_rate_source,
@@ -1265,6 +1273,7 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			account_stats_cost,
 			upstream_cost,
 			upstream_cost_snapshot,
+			upstream_request_id,
 			session_id,
 			account_rate_version_id,
 			account_rate_source,
@@ -1277,7 +1286,7 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			$12, $13, $14, $15,
 			$16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65
+			$26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`, prepared.args...)
@@ -1320,6 +1329,7 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 	billingTier := nullString(log.BillingTier)
 	billingMode := nullString(log.BillingMode)
 	upstreamCostSnapshot := nullAnyMapJSON(log.UpstreamCostSnapshot)
+	upstreamRequestID := nullString(log.UpstreamRequestID)
 	sessionID := nullString(log.SessionID)
 	accountRateSnapshot := nullAnyMapJSON(log.AccountRateSnapshot)
 	requestedModel := strings.TrimSpace(log.RequestedModel)
@@ -1401,6 +1411,7 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			log.AccountStatsCost,     // account_stats_cost
 			log.UpstreamCost,         // upstream_cost
 			upstreamCostSnapshot,     // upstream_cost_snapshot
+			upstreamRequestID,        // upstream_request_id
 			sessionID,                // session_id
 			log.AccountRateVersionID, // account_rate_version_id
 			log.AccountRateSource,    // account_rate_source
