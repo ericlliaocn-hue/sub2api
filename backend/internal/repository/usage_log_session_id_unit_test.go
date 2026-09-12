@@ -33,7 +33,7 @@ func newSessionIDUsageLog(sessionID *string) *service.UsageLog {
 // sits between upstream_cost_snapshot and the three account-rate version columns,
 // followed by native_compaction_v2; created_at is always last.
 func TestPrepareUsageLogInsert_SessionIDArgWiring(t *testing.T) {
-	require.Len(t, usageLogInsertArgTypes, 65, "arg-type table must include merged usage fields")
+	require.Len(t, usageLogInsertArgTypes, 66, "arg-type table must include merged usage fields")
 
 	sessionID := "sess-persisted-123"
 	prepared := prepareUsageLogInsert(newSessionIDUsageLog(&sessionID))
