@@ -252,104 +252,59 @@ export default {
         pricing: 'Pricing'
       },
       hero: {
-        eyebrow: 'anytoken · multi-model AI API platform',
-        title: 'Connect leading models.',
-        accent: 'Keep one entry point.',
-        description: 'Use one API key for Claude, GPT, Grok and more, or work directly in the Model Plaza and Creation Studio. Keep familiar protocols while pricing and usage stay visible.',
-        primary: 'Browse models',
-        secondary: 'Open the studio',
-        proof1Title: 'Unified API',
-        proof1Desc: 'One key for multiple models',
-        proof2Title: 'Familiar protocols',
-        proof2Desc: 'Keep using the SDKs and tools you know',
-        proof3Title: 'Visible usage',
-        proof3Desc: 'Track balance, spend and request details'
+        meta: 'OpenAI · Anthropic · Gemini protocols',
+        title: 'One address,\nevery model.',
+        accent: 'Just a base_url away.',
+        description: 'Send requests here and Claude, GPT, Gemini and Grok work as they are. One key, one balance, and a record of every call.',
+        primary: 'Models & pricing',
+        secondary: 'Get a key',
+        ioIn: 'in',
+        ioOut: 'out'
       },
-      surface: {
-        title: 'anytoken workspace',
-        live: 'Service ready',
-        workspace: 'Workspace',
-        models: 'Model Plaza',
-        creation: 'Creation Studio',
-        usage: 'Usage & balance',
-        personal: 'Personal workspace',
-        greeting: 'Where will you start today?',
-        modelsTitle: 'Choose a model that fits',
-        creationTitle: 'Turn an idea into work',
-        usageTitle: 'Your usage at a glance',
-        ready: 'Ready to use',
-        modelAvailable: 'Ready to use',
-        modelFast: 'Fast response',
-        modelPopular: 'Popular choice',
-        modelVisual: 'Made for creation',
-        modelReasoning: 'Advanced reasoning',
-        modelFooter: 'Explore more models and groups',
-        openPlaza: 'Open Model Plaza',
-        creationLabel: 'Creation Studio',
-        creationHeadline: 'Start with an idea.',
-        creationFooter: 'Image and video creation, in one place',
-        openCreation: 'Open Creation Studio',
-        usageBalance: 'Current balance',
-        usageFooter: 'Balance, credits and every unit of usage stay clear',
-        openUsage: 'View usage'
+      three: {
+        label: 'Three things',
+        n1Title: 'One address',
+        n1Desc: 'Point base_url here. OpenAI, Anthropic and Gemini protocols work unchanged, so your SDKs and CLIs stay.',
+        n2Title: 'One key',
+        n2Desc: 'Every model shares a single key and a single balance. No topping up and switching between vendors.',
+        n3Title: 'One ledger',
+        n3Desc: 'Model, tokens and cost are recorded for every call. Look it up by key, no login needed.'
       },
-      access: {
-        label: 'How it connects',
-        title: 'Change the endpoint. Keep the tools you know.',
-        description: 'Requests move from your code, client or Creation Studio into the anytoken gateway, then route by model and available group with usage recorded on the same path.',
-        clientsLabel: 'Your workflow',
-        gatewayLabel: 'Unified entry',
-        gatewayTitle: 'anytoken gateway',
-        gatewayDesc: 'Model access, routing and usage records in one request path.',
-        gatewayKey: 'One API key',
-        gatewayRoute: 'Model and group routing',
-        gatewayBilling: 'Usage recorded per request',
-        modelsLabel: 'Model services',
-        moreModels: 'More models'
+      models: {
+        label: 'Models',
+        title: 'Models on the line today',
+        note: 'Exact variants, groups and live prices are in the Model Plaza.',
+        more: 'All models & pricing'
       },
-      compat: {
-        label: 'Protocol support',
-        title: 'Move your workflow without rebuilding it.',
-        description: 'anytoken exposes common model protocol endpoints for existing apps, scripts and developer tools. Current model and group availability is shown in the Model Plaza.',
-        openaiTitle: 'Chat Completions',
-        openaiDesc: 'Compatible with familiar OpenAI chat calls.',
-        responsesTitle: 'Responses API',
-        responsesDesc: 'Response endpoints for tools and agent workflows.',
-        anthropicTitle: 'Anthropic Messages',
-        anthropicDesc: 'A compatible request path for Claude Messages.',
-        geminiTitle: 'Gemini API',
-        geminiDesc: 'Support for the Gemini generateContent protocol.'
+      code: {
+        label: 'Setup',
+        title: 'Switch base_url.',
+        accent: 'Leave the rest.',
+        description: 'Official SDKs, Codex CLI, Claude Code and most clients support a custom endpoint.',
+        tabCurl: 'curl',
+        tabPython: 'Python',
+        tabNode: 'Node.js',
+        baseLabel: 'Base URL',
+        copy: 'Copy',
+        copied: 'Copied',
+        prompt: 'Hello'
       },
-      path: {
-        label: 'Where to start',
-        title: 'API access and direct creation start here.',
-        description: 'Enter through the workflow that fits. You do not need to learn every route and billing rule first.',
-        modelsTitle: 'Model Plaza',
-        modelsDesc: 'Compare capability, available groups and current prices.',
-        creationTitle: 'Creation Studio',
-        creationDesc: 'Start image or video creation with a prompt and a reference.',
-        pricingTitle: 'Pricing and usage',
-        pricingDesc: 'Review recharge options, balance and every request record.'
-      },
-      trust: {
-        label: 'Use it clearly',
-        title: 'A gateway should not make spending opaque.',
-        description: 'Important information stays visible from model choice to usage review. The page describes capabilities already present in the product instead of replacing records with inflated promises.',
-        item1Title: 'Pricing and balance',
-        item1Desc: 'Find the relevant price, balance and credit information before and after use.',
-        item2Title: 'Request-level records',
-        item2Desc: 'Review model, token and cost details to see where usage went.',
-        item3Title: 'Availability you can check',
-        item3Desc: 'The Model Plaza shows current models, groups and prices as the source of truth.'
+      faq: {
+        label: 'FAQ',
+        q1: 'Which protocols and clients are supported?',
+        a1: 'OpenAI Chat Completions, Responses API, Anthropic Messages and Gemini generateContent. Any SDK, CLI or client that allows a custom base_url works.',
+        q2: 'How is billing done?',
+        a2: 'Usage-based, priced per model as shown in the Model Plaza. One balance covers every model.',
+        q3: 'How do I check usage?',
+        a3: 'Log in for the usage page, or paste a key into the API Key usage page without logging in.'
       },
       cta: {
-        title: 'Start with one model.',
-        description: 'Open the Model Plaza, compare capability, groups and price, then choose how to connect.',
-        action: 'Open Model Plaza'
+        title: 'Switch today.',
+        description: 'Check models and pricing, grab a key. Two minutes.',
+        action: 'Models & pricing'
       },
-      footerNavLabel: 'Related pages',
       footerUsage: 'API Key usage',
-      footer: 'One entry point for your AI workflow'
+      footer: 'One address, every model'
     }
   },
 

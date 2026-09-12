@@ -12,7 +12,7 @@
         class="auth-orb auth-orb-right absolute -right-40 -top-40 h-80 w-80 rounded-full bg-primary-400/20 blur-3xl"
       ></div>
       <div
-        class="auth-orb auth-orb-left absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-primary-500/15 blur-3xl"
+        class="auth-orb auth-orb-left absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-[#ff9a6b]/20 blur-3xl"
       ></div>
       <div
         class="auth-orb auth-orb-center absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-300/10 blur-3xl"
@@ -186,6 +186,6 @@ onMounted(() => {
 }
 
 .text-gradient {
-  @apply bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent;
+  @apply bg-gradient-to-r from-primary-700 via-primary-600 to-[#ff9a6b] bg-clip-text text-transparent;
 }
 </style>

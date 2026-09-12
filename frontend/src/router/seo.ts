@@ -14,7 +14,8 @@ interface PublicSEO {
 let trustedCanonicalBase = ''
 
 function normalizedSiteName(siteName?: string): string {
-  return typeof siteName === 'string' && siteName.trim() ? siteName.trim() : 'Sub2API'
+  if (typeof siteName !== 'string' || !siteName.trim() || ['anytoken', 'sub2api'].includes(siteName.trim().toLowerCase())) return 'oioio'
+  return siteName.trim()
 }
 
 export function resolvePublicSEO(path: string, siteName?: string, locale = 'zh'): PublicSEO | null {
@@ -24,15 +25,15 @@ export function resolvePublicSEO(path: string, siteName?: string, locale = 'zh')
   if (path === '/') {
     return lang === 'en'
       ? {
-          title: `${name} - Multi-model AI API Platform | Unified API Access`,
-          description: `${name} provides unified multi-model API access. Use one API key for currently available models, with model pricing, usage records and integration documentation.`,
-          heading: 'Multi-model AI API platform',
+          title: `${name} - AI Digital Club | Models, Workflows and API Access`,
+          description: `${name} is a digital club for sharing AI models, workflows and experiments, with one API key for available models, clear pricing and usage records.`,
+          heading: 'AI digital club',
           schemaType: 'home',
         }
       : {
-          title: `${name} - AI中转站｜多模型 API 聚合平台`,
-          description: `${name} 是面向开发者的 AI中转站，通过一个 API Key 统一接入当前可用的 Claude、GPT、Grok 等模型，并提供模型价格、用量查询和开发文档。`,
-          heading: `${name} AI中转站`,
+          title: `${name} - AI数字俱乐部｜模型、玩法与 API 入口`,
+          description: `${name} 是一个分享 AI 模型、玩法与工作流的数字俱乐部，通过一个 API Key 接入当前可用模型，并提供价格、用量查询和开发文档。`,
+          heading: `${name} AI数字俱乐部`,
           schemaType: 'home',
         }
   }
@@ -135,7 +136,7 @@ function applyStructuredData(seo: PublicSEO, siteName: string, canonical: string
           '@id': organizationID,
           name: siteName,
           url: canonical,
-          logo: new URL('/anytoken-logo.png', canonical).href,
+          logo: new URL('/oioio-logo.svg', canonical).href,
         },
         {
           '@type': 'WebSite',
@@ -205,7 +206,7 @@ export function applyRouteSEO(
   ensureMeta('meta[property="og:title"]', { property: 'og:title', content: seo.title })
   ensureMeta('meta[property="og:description"]', { property: 'og:description', content: seo.description })
   ensureMeta('meta[property="og:url"]', { property: 'og:url', content: canonical })
-  ensureMeta('meta[property="og:image"]', { property: 'og:image', content: new URL('/anytoken-logo.png', canonical).href })
+  ensureMeta('meta[property="og:image"]', { property: 'og:image', content: new URL('/oioio-logo.svg', canonical).href })
   ensureMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary' })
   applyStructuredData(seo, name, canonical)
 }

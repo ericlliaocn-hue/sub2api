@@ -252,104 +252,59 @@ export default {
         pricing: '定价'
       },
       hero: {
-        eyebrow: 'AnyToken · AI中转站',
-        title: 'AI中转站，',
-        accent: '一个入口连接主流模型。',
-        description: 'AnyToken 通过单个 API Key 接入 Claude、GPT、Grok 等主流模型，并可直接使用模型广场与创作中心。兼容常用调用协议，价格、余额及用量记录清晰可查。',
-        primary: '浏览模型',
-        secondary: '进入创作中心',
-        proof1Title: '统一 API',
-        proof1Desc: '使用单个 Key 调用多种模型',
-        proof2Title: '主流协议兼容',
-        proof2Desc: '兼容常用 SDK 与开发工具',
-        proof3Title: '用量透明',
-        proof3Desc: '支持余额、消费及调用明细查询'
+        meta: 'OpenAI · Anthropic · Gemini 协议',
+        title: '一个地址，\n所有模型。',
+        accent: '换个 base_url 的事。',
+        description: '把请求发到这里，Claude、GPT、Gemini、Grok 原样可用。一把 Key，一份余额，每一次调用都有账可查。',
+        primary: '看模型与价格',
+        secondary: '拿一把 Key',
+        ioIn: '进',
+        ioOut: '出'
       },
-      surface: {
-        title: 'anytoken workspace',
-        live: '服务可用',
-        workspace: 'Workspace',
-        models: '模型广场',
-        creation: '创作中心',
-        usage: '用量与余额',
-        personal: '个人工作区',
-        greeting: '选择所需服务',
-        modelsTitle: '选择所需模型',
-        creationTitle: '创建图片与视频内容',
-        usageTitle: '用量与账户概览',
-        ready: '服务可用',
-        modelAvailable: '当前可用',
-        modelFast: '快速响应',
-        modelPopular: '常用选择',
-        modelVisual: '适合创作',
-        modelReasoning: '智能推理',
-        modelFooter: '查看更多可用模型与分组',
-        openPlaza: '打开模型广场',
-        creationLabel: 'Creation Studio',
-        creationHeadline: '图片与视频创作',
-        creationFooter: '统一管理图片与视频创作任务',
-        openCreation: '打开创作中心',
-        usageBalance: '当前余额',
-        usageFooter: '集中查看余额、额度及调用明细',
-        openUsage: '查看用量'
+      three: {
+        label: '三件事',
+        n1Title: '一个地址',
+        n1Desc: '把 base_url 指向这里。OpenAI、Anthropic、Gemini 三种协议原样可用，SDK 和 CLI 都不用换。',
+        n2Title: '一把 Key',
+        n2Desc: '所有模型共用一把 Key、一份余额，不用在几家之间来回充值和切换。',
+        n3Title: '一份账单',
+        n3Desc: '每次调用的模型、Token 与费用都记着。凭 Key 就能查，不登录也行。'
       },
-      access: {
-        label: '接入方式',
-        title: '统一接入，兼容现有开发工具。',
-        description: '来自代码、客户端或创作中心的请求通过 anytoken 统一网关，依据模型和可用分组完成路由，并同步记录计费与用量。各模型无需单独维护接入配置。',
-        clientsLabel: '接入客户端',
-        gatewayLabel: '统一入口',
-        gatewayTitle: 'anytoken 网关',
-        gatewayDesc: '统一承载模型接入、请求路由与用量记录。',
-        gatewayKey: '统一 API Key',
-        gatewayRoute: '按模型与分组路由',
-        gatewayBilling: '记录计费与用量',
-        modelsLabel: '模型服务',
-        moreModels: '更多模型'
+      models: {
+        label: '模型',
+        title: '今天能调的模型',
+        note: '具体型号、分组与实时价格，以模型广场为准。',
+        more: '全部模型与价格'
       },
-      compat: {
-        label: '协议兼容',
-        title: '兼容主流协议，降低迁移成本。',
-        description: 'anytoken 提供常用模型协议入口，支持现有应用、脚本及开发工具迁移。具体可用模型与分组以模型广场展示为准。',
-        openaiTitle: 'Chat Completions',
-        openaiDesc: '兼容常见 OpenAI 对话调用方式。',
-        responsesTitle: 'Responses API',
-        responsesDesc: '支持面向工具与智能体的响应接口。',
-        anthropicTitle: 'Anthropic Messages',
-        anthropicDesc: '适配 Claude Messages 调用链路。',
-        geminiTitle: 'Gemini API',
-        geminiDesc: '支持 Gemini generateContent 协议。'
+      code: {
+        label: '接入',
+        title: '把 base_url 换过来，',
+        accent: '剩下的不用改。',
+        description: '官方 SDK、Codex CLI、Claude Code 和常见客户端都支持自定义地址。',
+        tabCurl: 'curl',
+        tabPython: 'Python',
+        tabNode: 'Node.js',
+        baseLabel: '接入地址',
+        copy: '复制',
+        copied: '已复制',
+        prompt: '你好'
       },
-      path: {
-        label: '平台入口',
-        title: '覆盖 API 调用与内容创作场景。',
-        description: '根据实际需求选择模型调用、内容创作或账户管理入口，模型渠道与计费信息由平台统一呈现。',
-        modelsTitle: '模型广场',
-        modelsDesc: '比较模型能力、可用分组和当前价格。',
-        creationTitle: '创作中心',
-        creationDesc: '使用提示词与素材生成图片或视频内容。',
-        pricingTitle: '定价与用量',
-        pricingDesc: '查看充值方案、账户余额及调用记录。'
-      },
-      trust: {
-        label: '透明计费',
-        title: '价格、用量与服务状态清晰可查。',
-        description: '平台集中呈现模型价格、账户余额、调用明细与当前可用状态，为模型选择和成本管理提供明确依据。',
-        item1Title: '价格与余额透明',
-        item1Desc: '购买与使用环节均展示对应的价格、余额及额度信息。',
-        item2Title: '调用明细可追踪',
-        item2Desc: '支持按请求查看模型、Token 与费用等使用记录。',
-        item3Title: '模型状态实时展示',
-        item3Desc: '模型广场集中展示当前模型、可用分组及对应价格。'
+      faq: {
+        label: '常见问题',
+        q1: '支持哪些协议和客户端？',
+        a1: 'OpenAI Chat Completions、Responses API、Anthropic Messages 和 Gemini generateContent。凡是允许自定义 base_url 的 SDK、CLI 和客户端都能直接用。',
+        q2: '怎么计费？',
+        a2: '按实际用量计费，价格按模型区分，以模型广场为准。充值后余额通用于所有模型。',
+        q3: '怎么查用量？',
+        a3: '登录后在用量页看明细；也可以在「API Key 用量查询」页直接输入 Key，不需要登录。'
       },
       cta: {
-        title: '选择符合需求的模型。',
-        description: '进入模型广场，比较模型能力、可用分组及当前价格，并选择相应接入方式。',
-        action: '进入模型广场'
+        title: '现在就换。',
+        description: '先看模型与价格，再拿一把 Key，两分钟的事。',
+        action: '看模型与价格'
       },
-      footerNavLabel: '相关页面',
       footerUsage: 'API Key 用量查询',
-      footer: '一个入口，连接你的 AI 工作流'
+      footer: '一个地址，所有模型'
     }
   },
 
