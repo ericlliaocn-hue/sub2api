@@ -423,7 +423,9 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
-	accountRepo           AccountRepository
+	accountRepo AccountRepository
+	// subPoolMembership 为 nil 时不做子池收敛，行为与引入子池前一致。
+	subPoolMembership     *SubPoolMembership
 	usageLogRepo          UsageLogRepository
 	usageBillingRepo      UsageBillingRepository
 	userRepo              UserRepository

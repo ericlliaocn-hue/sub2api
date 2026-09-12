@@ -274,6 +274,84 @@ func ProvideAccountTestService(
 	return service
 }
 
+// ProvideSubPoolMembership builds the sub-pool resolver and attaches it to the
+// three services that enumerate scheduling candidates. Attaching here rather
+// than through their constructors keeps the resolver optional: nothing else in
+// the graph changes if sub-pools are never enabled.
+func ProvideSubPoolMembership(
+	repo SubPoolRepository,
+	gatewayService *GatewayService,
+	openAIGatewayService *OpenAIGatewayService,
+	geminiCompatService *GeminiMessagesCompatService,
+) *SubPoolMembership {
+	membership := NewSubPoolMembership(repo)
+	gatewayService.SetSubPoolMembership(membership)
+	openAIGatewayService.SetSubPoolMembership(membership)
+	geminiCompatService.SetSubPoolMembership(membership)
+	return membership
+}
+
+// ProvideSubPoolService builds the sub-pool service and registers it as the
+// placement policy for newly created API keys.
+func ProvideSubPoolService(
+	repo SubPoolRepository,
+	groupRepo GroupRepository,
+	apiKeyRepo APIKeyRepository,
+	usageRepo SubPoolUsageRepository,
+	membership *SubPoolMembership,
+	apiKeyService *APIKeyService,
+) *SubPoolService {
+	svc := NewSubPoolService(repo, groupRepo, apiKeyRepo, usageRepo, membership)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	apiKeyService.SetSubPoolBinder(svc)
+	return svc
+}
+
+// ProvideAPIKeyReputationService starts the scoring sweep that turns moderation
+// history into key sanctions. The job is inert until key_reputation_enabled is
+// set.
+func ProvideAPIKeyReputationService(
+	repo APIKeyReputationRepository,
+	settingService *SettingService,
+	subPools *SubPoolService,
+	lockCache LeaderLockCache,
+) *APIKeyReputationService {
+	svc := NewAPIKeyReputationService(repo, settingService, subPools, lockCache)
+	svc.Start()
+	return svc
+}
+
+// ProvideSubPoolCoolingService starts the incident sweep that cools burned pools
+// and drains their bystander keys.
+func ProvideSubPoolCoolingService(
+	repo SubPoolRepository,
+	accountRepo AccountRepository,
+	subPools *SubPoolService,
+	membership *SubPoolMembership,
+	lockCache LeaderLockCache,
+	apiKeyService *APIKeyService,
+) *SubPoolCoolingService {
+	svc := NewSubPoolCoolingService(repo, accountRepo, subPools, membership, lockCache)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	svc.Start()
+	return svc
+}
+
+// ProvideSubPoolGraduationService starts the probation sweep that moves keys out
+// of the probe pool. The job is inert until sub_pool_graduation_enabled is set.
+func ProvideSubPoolGraduationService(
+	repo SubPoolRepository,
+	usageRepo SubPoolUsageRepository,
+	settingService *SettingService,
+	lockCache LeaderLockCache,
+	apiKeyService *APIKeyService,
+) *SubPoolGraduationService {
+	svc := NewSubPoolGraduationService(repo, usageRepo, settingService, lockCache)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	svc.Start()
+	return svc
+}
+
 func ProvideGrokQuotaService(
 	accountRepo AccountRepository,
 	proxyRepo ProxyRepository,
@@ -843,6 +921,11 @@ var ProviderSet = wire.NewSet(
 	NewAdminService,
 	NewGatewayService,
 	NewOpenAIGatewayService,
+	ProvideSubPoolMembership,
+	ProvideSubPoolService,
+	ProvideSubPoolGraduationService,
+	ProvideSubPoolCoolingService,
+	ProvideAPIKeyReputationService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
 	ProvideBatchImageModelPricingResolver,

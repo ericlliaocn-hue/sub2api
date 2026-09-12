@@ -9,6 +9,12 @@ import (
 // APIKey is the predicate function for apikey builders.
 type APIKey func(*sql.Selector)
 
+// APIKeyReputation is the predicate function for apikeyreputation builders.
+type APIKeyReputation func(*sql.Selector)
+
+// APIKeySubPoolBinding is the predicate function for apikeysubpoolbinding builders.
+type APIKeySubPoolBinding func(*sql.Selector)
+
 // Account is the predicate function for account builders.
 type Account func(*sql.Selector)
 
@@ -92,6 +98,12 @@ type SecuritySecret func(*sql.Selector)
 
 // Setting is the predicate function for setting builders.
 type Setting func(*sql.Selector)
+
+// SubPool is the predicate function for subpool builders.
+type SubPool func(*sql.Selector)
+
+// SubPoolAccount is the predicate function for subpoolaccount builders.
+type SubPoolAccount func(*sql.Selector)
 
 // SubscriptionPlan is the predicate function for subscriptionplan builders.
 type SubscriptionPlan func(*sql.Selector)

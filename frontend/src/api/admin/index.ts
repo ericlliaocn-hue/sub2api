@@ -38,6 +38,7 @@ import auditAPI from './audit'
 import businessFinanceAPI from './businessFinance'
 import upstreamConnectionsAPI from './upstreamConnections'
 import pluginsAPI from './plugins'
+import subPoolsAPI from './subPools'
 
 /**
  * Unified admin API object for convenient access
@@ -77,7 +78,8 @@ export const adminAPI = {
   audit: auditAPI,
   businessFinance: businessFinanceAPI,
   upstreamConnections: upstreamConnectionsAPI,
-  plugins: pluginsAPI
+  plugins: pluginsAPI,
+  subPools: subPoolsAPI
 }
 
 export {
@@ -115,7 +117,8 @@ export {
   auditAPI,
   businessFinanceAPI,
   upstreamConnectionsAPI,
-  pluginsAPI
+  pluginsAPI,
+  subPoolsAPI
 }
 
 export default adminAPI
@@ -127,6 +130,19 @@ export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from 
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
+export type {
+  SubPool,
+  SubPoolKind,
+  SubPoolStatus,
+  CreateSubPoolRequest,
+  UpdateSubPoolRequest,
+  SubPoolAccountKeyUsage,
+  AccountTopKeysResponse,
+  SubPoolGraduationPolicy,
+  SubPoolKeyAttribution,
+  SubPoolAttributionReport,
+  SubPoolCoolingResult
+} from './subPools'
 export type {
   PluginInstallation,
   PluginCompatibility,

@@ -17,6 +17,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeyreputation"
+	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageevent"
@@ -42,6 +44,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
+	"github.com/Wei-Shaw/sub2api/ent/subpoolaccount"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -65,6 +69,8 @@ const (
 
 	// Node types.
 	TypeAPIKey                        = "APIKey"
+	TypeAPIKeyReputation              = "APIKeyReputation"
+	TypeAPIKeySubPoolBinding          = "APIKeySubPoolBinding"
 	TypeAccount                       = "Account"
 	TypeAccountGroup                  = "AccountGroup"
 	TypeAnnouncement                  = "Announcement"
@@ -93,6 +99,8 @@ const (
 	TypeRedeemCode                    = "RedeemCode"
 	TypeSecuritySecret                = "SecuritySecret"
 	TypeSetting                       = "Setting"
+	TypeSubPool                       = "SubPool"
+	TypeSubPoolAccount                = "SubPoolAccount"
 	TypeSubscriptionPlan              = "SubscriptionPlan"
 	TypeTLSFingerprintProfile         = "TLSFingerprintProfile"
 	TypeUsageCleanupTask              = "UsageCleanupTask"
@@ -147,6 +155,8 @@ type APIKeyMutation struct {
 	cleareduser        bool
 	group              *int64
 	clearedgroup       bool
+	sub_pool           *int64
+	clearedsub_pool    bool
 	usage_logs         map[int64]struct{}
 	removedusage_logs  map[int64]struct{}
 	clearedusage_logs  bool
@@ -529,6 +539,55 @@ func (m *APIKeyMutation) GroupIDCleared() bool {
 func (m *APIKeyMutation) ResetGroupID() {
 	m.group = nil
 	delete(m.clearedFields, apikey.FieldGroupID)
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (m *APIKeyMutation) SetSubPoolID(i int64) {
+	m.sub_pool = &i
+}
+
+// SubPoolID returns the value of the "sub_pool_id" field in the mutation.
+func (m *APIKeyMutation) SubPoolID() (r int64, exists bool) {
+	v := m.sub_pool
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubPoolID returns the old "sub_pool_id" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldSubPoolID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubPoolID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubPoolID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubPoolID: %w", err)
+	}
+	return oldValue.SubPoolID, nil
+}
+
+// ClearSubPoolID clears the value of the "sub_pool_id" field.
+func (m *APIKeyMutation) ClearSubPoolID() {
+	m.sub_pool = nil
+	m.clearedFields[apikey.FieldSubPoolID] = struct{}{}
+}
+
+// SubPoolIDCleared returns if the "sub_pool_id" field was cleared in this mutation.
+func (m *APIKeyMutation) SubPoolIDCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldSubPoolID]
+	return ok
+}
+
+// ResetSubPoolID resets all changes to the "sub_pool_id" field.
+func (m *APIKeyMutation) ResetSubPoolID() {
+	m.sub_pool = nil
+	delete(m.clearedFields, apikey.FieldSubPoolID)
 }
 
 // SetStatus sets the "status" field.
@@ -1444,6 +1503,33 @@ func (m *APIKeyMutation) ResetGroup() {
 	m.clearedgroup = false
 }
 
+// ClearSubPool clears the "sub_pool" edge to the SubPool entity.
+func (m *APIKeyMutation) ClearSubPool() {
+	m.clearedsub_pool = true
+	m.clearedFields[apikey.FieldSubPoolID] = struct{}{}
+}
+
+// SubPoolCleared reports if the "sub_pool" edge to the SubPool entity was cleared.
+func (m *APIKeyMutation) SubPoolCleared() bool {
+	return m.SubPoolIDCleared() || m.clearedsub_pool
+}
+
+// SubPoolIDs returns the "sub_pool" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SubPoolID instead. It exists only for internal usage by the builders.
+func (m *APIKeyMutation) SubPoolIDs() (ids []int64) {
+	if id := m.sub_pool; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSubPool resets all changes to the "sub_pool" edge.
+func (m *APIKeyMutation) ResetSubPool() {
+	m.sub_pool = nil
+	m.clearedsub_pool = false
+}
+
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by ids.
 func (m *APIKeyMutation) AddUsageLogIDs(ids ...int64) {
 	if m.usage_logs == nil {
@@ -1532,7 +1618,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -1553,6 +1639,9 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.group != nil {
 		fields = append(fields, apikey.FieldGroupID)
+	}
+	if m.sub_pool != nil {
+		fields = append(fields, apikey.FieldSubPoolID)
 	}
 	if m.status != nil {
 		fields = append(fields, apikey.FieldStatus)
@@ -1624,6 +1713,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case apikey.FieldGroupID:
 		return m.GroupID()
+	case apikey.FieldSubPoolID:
+		return m.SubPoolID()
 	case apikey.FieldStatus:
 		return m.Status()
 	case apikey.FieldLastUsedAt:
@@ -1679,6 +1770,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldName(ctx)
 	case apikey.FieldGroupID:
 		return m.OldGroupID(ctx)
+	case apikey.FieldSubPoolID:
+		return m.OldSubPoolID(ctx)
 	case apikey.FieldStatus:
 		return m.OldStatus(ctx)
 	case apikey.FieldLastUsedAt:
@@ -1768,6 +1861,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGroupID(v)
+		return nil
+	case apikey.FieldSubPoolID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubPoolID(v)
 		return nil
 	case apikey.FieldStatus:
 		v, ok := value.(string)
@@ -2016,6 +2116,9 @@ func (m *APIKeyMutation) ClearedFields() []string {
 	if m.FieldCleared(apikey.FieldGroupID) {
 		fields = append(fields, apikey.FieldGroupID)
 	}
+	if m.FieldCleared(apikey.FieldSubPoolID) {
+		fields = append(fields, apikey.FieldSubPoolID)
+	}
 	if m.FieldCleared(apikey.FieldLastUsedAt) {
 		fields = append(fields, apikey.FieldLastUsedAt)
 	}
@@ -2056,6 +2159,9 @@ func (m *APIKeyMutation) ClearField(name string) error {
 		return nil
 	case apikey.FieldGroupID:
 		m.ClearGroupID()
+		return nil
+	case apikey.FieldSubPoolID:
+		m.ClearSubPoolID()
 		return nil
 	case apikey.FieldLastUsedAt:
 		m.ClearLastUsedAt()
@@ -2106,6 +2212,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldGroupID:
 		m.ResetGroupID()
+		return nil
+	case apikey.FieldSubPoolID:
+		m.ResetSubPoolID()
 		return nil
 	case apikey.FieldStatus:
 		m.ResetStatus()
@@ -2161,12 +2270,15 @@ func (m *APIKeyMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *APIKeyMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.user != nil {
 		edges = append(edges, apikey.EdgeUser)
 	}
 	if m.group != nil {
 		edges = append(edges, apikey.EdgeGroup)
+	}
+	if m.sub_pool != nil {
+		edges = append(edges, apikey.EdgeSubPool)
 	}
 	if m.usage_logs != nil {
 		edges = append(edges, apikey.EdgeUsageLogs)
@@ -2186,6 +2298,10 @@ func (m *APIKeyMutation) AddedIDs(name string) []ent.Value {
 		if id := m.group; id != nil {
 			return []ent.Value{*id}
 		}
+	case apikey.EdgeSubPool:
+		if id := m.sub_pool; id != nil {
+			return []ent.Value{*id}
+		}
 	case apikey.EdgeUsageLogs:
 		ids := make([]ent.Value, 0, len(m.usage_logs))
 		for id := range m.usage_logs {
@@ -2198,7 +2314,7 @@ func (m *APIKeyMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *APIKeyMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedusage_logs != nil {
 		edges = append(edges, apikey.EdgeUsageLogs)
 	}
@@ -2221,12 +2337,15 @@ func (m *APIKeyMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *APIKeyMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.cleareduser {
 		edges = append(edges, apikey.EdgeUser)
 	}
 	if m.clearedgroup {
 		edges = append(edges, apikey.EdgeGroup)
+	}
+	if m.clearedsub_pool {
+		edges = append(edges, apikey.EdgeSubPool)
 	}
 	if m.clearedusage_logs {
 		edges = append(edges, apikey.EdgeUsageLogs)
@@ -2242,6 +2361,8 @@ func (m *APIKeyMutation) EdgeCleared(name string) bool {
 		return m.cleareduser
 	case apikey.EdgeGroup:
 		return m.clearedgroup
+	case apikey.EdgeSubPool:
+		return m.clearedsub_pool
 	case apikey.EdgeUsageLogs:
 		return m.clearedusage_logs
 	}
@@ -2258,6 +2379,9 @@ func (m *APIKeyMutation) ClearEdge(name string) error {
 	case apikey.EdgeGroup:
 		m.ClearGroup()
 		return nil
+	case apikey.EdgeSubPool:
+		m.ClearSubPool()
+		return nil
 	}
 	return fmt.Errorf("unknown APIKey unique edge %s", name)
 }
@@ -2272,11 +2396,1922 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 	case apikey.EdgeGroup:
 		m.ResetGroup()
 		return nil
+	case apikey.EdgeSubPool:
+		m.ResetSubPool()
+		return nil
 	case apikey.EdgeUsageLogs:
 		m.ResetUsageLogs()
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey edge %s", name)
+}
+
+// APIKeyReputationMutation represents an operation that mutates the APIKeyReputation nodes in the graph.
+type APIKeyReputationMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int64
+	api_key_id      *int64
+	addapi_key_id   *int64
+	score           *int
+	addscore        *int
+	severe_hits     *int
+	addsevere_hits  *int
+	total_hits      *int
+	addtotal_hits   *int
+	last_event_at   *time.Time
+	scored_at       *time.Time
+	sanction        *string
+	sanctioned_at   *time.Time
+	sanction_reason *string
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*APIKeyReputation, error)
+	predicates      []predicate.APIKeyReputation
+}
+
+var _ ent.Mutation = (*APIKeyReputationMutation)(nil)
+
+// apikeyreputationOption allows management of the mutation configuration using functional options.
+type apikeyreputationOption func(*APIKeyReputationMutation)
+
+// newAPIKeyReputationMutation creates new mutation for the APIKeyReputation entity.
+func newAPIKeyReputationMutation(c config, op Op, opts ...apikeyreputationOption) *APIKeyReputationMutation {
+	m := &APIKeyReputationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeyReputation,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAPIKeyReputationID sets the ID field of the mutation.
+func withAPIKeyReputationID(id int64) apikeyreputationOption {
+	return func(m *APIKeyReputationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *APIKeyReputation
+		)
+		m.oldValue = func(ctx context.Context) (*APIKeyReputation, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().APIKeyReputation.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAPIKeyReputation sets the old APIKeyReputation of the mutation.
+func withAPIKeyReputation(node *APIKeyReputation) apikeyreputationOption {
+	return func(m *APIKeyReputationMutation) {
+		m.oldValue = func(context.Context) (*APIKeyReputation, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeyReputationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeyReputationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *APIKeyReputationMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *APIKeyReputationMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().APIKeyReputation.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *APIKeyReputationMutation) SetAPIKeyID(i int64) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *APIKeyReputationMutation) APIKeyID() (r int64, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldAPIKeyID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *APIKeyReputationMutation) AddAPIKeyID(i int64) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *APIKeyReputationMutation) AddedAPIKeyID() (r int64, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *APIKeyReputationMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetScore sets the "score" field.
+func (m *APIKeyReputationMutation) SetScore(i int) {
+	m.score = &i
+	m.addscore = nil
+}
+
+// Score returns the value of the "score" field in the mutation.
+func (m *APIKeyReputationMutation) Score() (r int, exists bool) {
+	v := m.score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScore returns the old "score" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldScore(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScore: %w", err)
+	}
+	return oldValue.Score, nil
+}
+
+// AddScore adds i to the "score" field.
+func (m *APIKeyReputationMutation) AddScore(i int) {
+	if m.addscore != nil {
+		*m.addscore += i
+	} else {
+		m.addscore = &i
+	}
+}
+
+// AddedScore returns the value that was added to the "score" field in this mutation.
+func (m *APIKeyReputationMutation) AddedScore() (r int, exists bool) {
+	v := m.addscore
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetScore resets all changes to the "score" field.
+func (m *APIKeyReputationMutation) ResetScore() {
+	m.score = nil
+	m.addscore = nil
+}
+
+// SetSevereHits sets the "severe_hits" field.
+func (m *APIKeyReputationMutation) SetSevereHits(i int) {
+	m.severe_hits = &i
+	m.addsevere_hits = nil
+}
+
+// SevereHits returns the value of the "severe_hits" field in the mutation.
+func (m *APIKeyReputationMutation) SevereHits() (r int, exists bool) {
+	v := m.severe_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSevereHits returns the old "severe_hits" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSevereHits(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSevereHits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSevereHits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSevereHits: %w", err)
+	}
+	return oldValue.SevereHits, nil
+}
+
+// AddSevereHits adds i to the "severe_hits" field.
+func (m *APIKeyReputationMutation) AddSevereHits(i int) {
+	if m.addsevere_hits != nil {
+		*m.addsevere_hits += i
+	} else {
+		m.addsevere_hits = &i
+	}
+}
+
+// AddedSevereHits returns the value that was added to the "severe_hits" field in this mutation.
+func (m *APIKeyReputationMutation) AddedSevereHits() (r int, exists bool) {
+	v := m.addsevere_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSevereHits resets all changes to the "severe_hits" field.
+func (m *APIKeyReputationMutation) ResetSevereHits() {
+	m.severe_hits = nil
+	m.addsevere_hits = nil
+}
+
+// SetTotalHits sets the "total_hits" field.
+func (m *APIKeyReputationMutation) SetTotalHits(i int) {
+	m.total_hits = &i
+	m.addtotal_hits = nil
+}
+
+// TotalHits returns the value of the "total_hits" field in the mutation.
+func (m *APIKeyReputationMutation) TotalHits() (r int, exists bool) {
+	v := m.total_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalHits returns the old "total_hits" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldTotalHits(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalHits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalHits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalHits: %w", err)
+	}
+	return oldValue.TotalHits, nil
+}
+
+// AddTotalHits adds i to the "total_hits" field.
+func (m *APIKeyReputationMutation) AddTotalHits(i int) {
+	if m.addtotal_hits != nil {
+		*m.addtotal_hits += i
+	} else {
+		m.addtotal_hits = &i
+	}
+}
+
+// AddedTotalHits returns the value that was added to the "total_hits" field in this mutation.
+func (m *APIKeyReputationMutation) AddedTotalHits() (r int, exists bool) {
+	v := m.addtotal_hits
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalHits resets all changes to the "total_hits" field.
+func (m *APIKeyReputationMutation) ResetTotalHits() {
+	m.total_hits = nil
+	m.addtotal_hits = nil
+}
+
+// SetLastEventAt sets the "last_event_at" field.
+func (m *APIKeyReputationMutation) SetLastEventAt(t time.Time) {
+	m.last_event_at = &t
+}
+
+// LastEventAt returns the value of the "last_event_at" field in the mutation.
+func (m *APIKeyReputationMutation) LastEventAt() (r time.Time, exists bool) {
+	v := m.last_event_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastEventAt returns the old "last_event_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldLastEventAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastEventAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastEventAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastEventAt: %w", err)
+	}
+	return oldValue.LastEventAt, nil
+}
+
+// ClearLastEventAt clears the value of the "last_event_at" field.
+func (m *APIKeyReputationMutation) ClearLastEventAt() {
+	m.last_event_at = nil
+	m.clearedFields[apikeyreputation.FieldLastEventAt] = struct{}{}
+}
+
+// LastEventAtCleared returns if the "last_event_at" field was cleared in this mutation.
+func (m *APIKeyReputationMutation) LastEventAtCleared() bool {
+	_, ok := m.clearedFields[apikeyreputation.FieldLastEventAt]
+	return ok
+}
+
+// ResetLastEventAt resets all changes to the "last_event_at" field.
+func (m *APIKeyReputationMutation) ResetLastEventAt() {
+	m.last_event_at = nil
+	delete(m.clearedFields, apikeyreputation.FieldLastEventAt)
+}
+
+// SetScoredAt sets the "scored_at" field.
+func (m *APIKeyReputationMutation) SetScoredAt(t time.Time) {
+	m.scored_at = &t
+}
+
+// ScoredAt returns the value of the "scored_at" field in the mutation.
+func (m *APIKeyReputationMutation) ScoredAt() (r time.Time, exists bool) {
+	v := m.scored_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScoredAt returns the old "scored_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldScoredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScoredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScoredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScoredAt: %w", err)
+	}
+	return oldValue.ScoredAt, nil
+}
+
+// ResetScoredAt resets all changes to the "scored_at" field.
+func (m *APIKeyReputationMutation) ResetScoredAt() {
+	m.scored_at = nil
+}
+
+// SetSanction sets the "sanction" field.
+func (m *APIKeyReputationMutation) SetSanction(s string) {
+	m.sanction = &s
+}
+
+// Sanction returns the value of the "sanction" field in the mutation.
+func (m *APIKeyReputationMutation) Sanction() (r string, exists bool) {
+	v := m.sanction
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSanction returns the old "sanction" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSanction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSanction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSanction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSanction: %w", err)
+	}
+	return oldValue.Sanction, nil
+}
+
+// ResetSanction resets all changes to the "sanction" field.
+func (m *APIKeyReputationMutation) ResetSanction() {
+	m.sanction = nil
+}
+
+// SetSanctionedAt sets the "sanctioned_at" field.
+func (m *APIKeyReputationMutation) SetSanctionedAt(t time.Time) {
+	m.sanctioned_at = &t
+}
+
+// SanctionedAt returns the value of the "sanctioned_at" field in the mutation.
+func (m *APIKeyReputationMutation) SanctionedAt() (r time.Time, exists bool) {
+	v := m.sanctioned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSanctionedAt returns the old "sanctioned_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSanctionedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSanctionedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSanctionedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSanctionedAt: %w", err)
+	}
+	return oldValue.SanctionedAt, nil
+}
+
+// ClearSanctionedAt clears the value of the "sanctioned_at" field.
+func (m *APIKeyReputationMutation) ClearSanctionedAt() {
+	m.sanctioned_at = nil
+	m.clearedFields[apikeyreputation.FieldSanctionedAt] = struct{}{}
+}
+
+// SanctionedAtCleared returns if the "sanctioned_at" field was cleared in this mutation.
+func (m *APIKeyReputationMutation) SanctionedAtCleared() bool {
+	_, ok := m.clearedFields[apikeyreputation.FieldSanctionedAt]
+	return ok
+}
+
+// ResetSanctionedAt resets all changes to the "sanctioned_at" field.
+func (m *APIKeyReputationMutation) ResetSanctionedAt() {
+	m.sanctioned_at = nil
+	delete(m.clearedFields, apikeyreputation.FieldSanctionedAt)
+}
+
+// SetSanctionReason sets the "sanction_reason" field.
+func (m *APIKeyReputationMutation) SetSanctionReason(s string) {
+	m.sanction_reason = &s
+}
+
+// SanctionReason returns the value of the "sanction_reason" field in the mutation.
+func (m *APIKeyReputationMutation) SanctionReason() (r string, exists bool) {
+	v := m.sanction_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSanctionReason returns the old "sanction_reason" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldSanctionReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSanctionReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSanctionReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSanctionReason: %w", err)
+	}
+	return oldValue.SanctionReason, nil
+}
+
+// ClearSanctionReason clears the value of the "sanction_reason" field.
+func (m *APIKeyReputationMutation) ClearSanctionReason() {
+	m.sanction_reason = nil
+	m.clearedFields[apikeyreputation.FieldSanctionReason] = struct{}{}
+}
+
+// SanctionReasonCleared returns if the "sanction_reason" field was cleared in this mutation.
+func (m *APIKeyReputationMutation) SanctionReasonCleared() bool {
+	_, ok := m.clearedFields[apikeyreputation.FieldSanctionReason]
+	return ok
+}
+
+// ResetSanctionReason resets all changes to the "sanction_reason" field.
+func (m *APIKeyReputationMutation) ResetSanctionReason() {
+	m.sanction_reason = nil
+	delete(m.clearedFields, apikeyreputation.FieldSanctionReason)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *APIKeyReputationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *APIKeyReputationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *APIKeyReputationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *APIKeyReputationMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *APIKeyReputationMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the APIKeyReputation entity.
+// If the APIKeyReputation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyReputationMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *APIKeyReputationMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the APIKeyReputationMutation builder.
+func (m *APIKeyReputationMutation) Where(ps ...predicate.APIKeyReputation) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeyReputationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeyReputationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeyReputation, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeyReputationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeyReputationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeyReputation).
+func (m *APIKeyReputationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeyReputationMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.api_key_id != nil {
+		fields = append(fields, apikeyreputation.FieldAPIKeyID)
+	}
+	if m.score != nil {
+		fields = append(fields, apikeyreputation.FieldScore)
+	}
+	if m.severe_hits != nil {
+		fields = append(fields, apikeyreputation.FieldSevereHits)
+	}
+	if m.total_hits != nil {
+		fields = append(fields, apikeyreputation.FieldTotalHits)
+	}
+	if m.last_event_at != nil {
+		fields = append(fields, apikeyreputation.FieldLastEventAt)
+	}
+	if m.scored_at != nil {
+		fields = append(fields, apikeyreputation.FieldScoredAt)
+	}
+	if m.sanction != nil {
+		fields = append(fields, apikeyreputation.FieldSanction)
+	}
+	if m.sanctioned_at != nil {
+		fields = append(fields, apikeyreputation.FieldSanctionedAt)
+	}
+	if m.sanction_reason != nil {
+		fields = append(fields, apikeyreputation.FieldSanctionReason)
+	}
+	if m.created_at != nil {
+		fields = append(fields, apikeyreputation.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, apikeyreputation.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeyReputationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		return m.APIKeyID()
+	case apikeyreputation.FieldScore:
+		return m.Score()
+	case apikeyreputation.FieldSevereHits:
+		return m.SevereHits()
+	case apikeyreputation.FieldTotalHits:
+		return m.TotalHits()
+	case apikeyreputation.FieldLastEventAt:
+		return m.LastEventAt()
+	case apikeyreputation.FieldScoredAt:
+		return m.ScoredAt()
+	case apikeyreputation.FieldSanction:
+		return m.Sanction()
+	case apikeyreputation.FieldSanctionedAt:
+		return m.SanctionedAt()
+	case apikeyreputation.FieldSanctionReason:
+		return m.SanctionReason()
+	case apikeyreputation.FieldCreatedAt:
+		return m.CreatedAt()
+	case apikeyreputation.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeyReputationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case apikeyreputation.FieldScore:
+		return m.OldScore(ctx)
+	case apikeyreputation.FieldSevereHits:
+		return m.OldSevereHits(ctx)
+	case apikeyreputation.FieldTotalHits:
+		return m.OldTotalHits(ctx)
+	case apikeyreputation.FieldLastEventAt:
+		return m.OldLastEventAt(ctx)
+	case apikeyreputation.FieldScoredAt:
+		return m.OldScoredAt(ctx)
+	case apikeyreputation.FieldSanction:
+		return m.OldSanction(ctx)
+	case apikeyreputation.FieldSanctionedAt:
+		return m.OldSanctionedAt(ctx)
+	case apikeyreputation.FieldSanctionReason:
+		return m.OldSanctionReason(ctx)
+	case apikeyreputation.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case apikeyreputation.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown APIKeyReputation field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyReputationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case apikeyreputation.FieldScore:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScore(v)
+		return nil
+	case apikeyreputation.FieldSevereHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSevereHits(v)
+		return nil
+	case apikeyreputation.FieldTotalHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalHits(v)
+		return nil
+	case apikeyreputation.FieldLastEventAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastEventAt(v)
+		return nil
+	case apikeyreputation.FieldScoredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScoredAt(v)
+		return nil
+	case apikeyreputation.FieldSanction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSanction(v)
+		return nil
+	case apikeyreputation.FieldSanctionedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSanctionedAt(v)
+		return nil
+	case apikeyreputation.FieldSanctionReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSanctionReason(v)
+		return nil
+	case apikeyreputation.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case apikeyreputation.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeyReputationMutation) AddedFields() []string {
+	var fields []string
+	if m.addapi_key_id != nil {
+		fields = append(fields, apikeyreputation.FieldAPIKeyID)
+	}
+	if m.addscore != nil {
+		fields = append(fields, apikeyreputation.FieldScore)
+	}
+	if m.addsevere_hits != nil {
+		fields = append(fields, apikeyreputation.FieldSevereHits)
+	}
+	if m.addtotal_hits != nil {
+		fields = append(fields, apikeyreputation.FieldTotalHits)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeyReputationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case apikeyreputation.FieldScore:
+		return m.AddedScore()
+	case apikeyreputation.FieldSevereHits:
+		return m.AddedSevereHits()
+	case apikeyreputation.FieldTotalHits:
+		return m.AddedTotalHits()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyReputationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case apikeyreputation.FieldScore:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddScore(v)
+		return nil
+	case apikeyreputation.FieldSevereHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSevereHits(v)
+		return nil
+	case apikeyreputation.FieldTotalHits:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalHits(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeyReputationMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(apikeyreputation.FieldLastEventAt) {
+		fields = append(fields, apikeyreputation.FieldLastEventAt)
+	}
+	if m.FieldCleared(apikeyreputation.FieldSanctionedAt) {
+		fields = append(fields, apikeyreputation.FieldSanctionedAt)
+	}
+	if m.FieldCleared(apikeyreputation.FieldSanctionReason) {
+		fields = append(fields, apikeyreputation.FieldSanctionReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeyReputationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeyReputationMutation) ClearField(name string) error {
+	switch name {
+	case apikeyreputation.FieldLastEventAt:
+		m.ClearLastEventAt()
+		return nil
+	case apikeyreputation.FieldSanctionedAt:
+		m.ClearSanctionedAt()
+		return nil
+	case apikeyreputation.FieldSanctionReason:
+		m.ClearSanctionReason()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeyReputationMutation) ResetField(name string) error {
+	switch name {
+	case apikeyreputation.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case apikeyreputation.FieldScore:
+		m.ResetScore()
+		return nil
+	case apikeyreputation.FieldSevereHits:
+		m.ResetSevereHits()
+		return nil
+	case apikeyreputation.FieldTotalHits:
+		m.ResetTotalHits()
+		return nil
+	case apikeyreputation.FieldLastEventAt:
+		m.ResetLastEventAt()
+		return nil
+	case apikeyreputation.FieldScoredAt:
+		m.ResetScoredAt()
+		return nil
+	case apikeyreputation.FieldSanction:
+		m.ResetSanction()
+		return nil
+	case apikeyreputation.FieldSanctionedAt:
+		m.ResetSanctionedAt()
+		return nil
+	case apikeyreputation.FieldSanctionReason:
+		m.ResetSanctionReason()
+		return nil
+	case apikeyreputation.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case apikeyreputation.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyReputation field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeyReputationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeyReputationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeyReputationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeyReputationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeyReputationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeyReputationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeyReputationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown APIKeyReputation unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeyReputationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown APIKeyReputation edge %s", name)
+}
+
+// APIKeySubPoolBindingMutation represents an operation that mutates the APIKeySubPoolBinding nodes in the graph.
+type APIKeySubPoolBindingMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int64
+	api_key_id     *int64
+	addapi_key_id  *int64
+	sub_pool_id    *int64
+	addsub_pool_id *int64
+	group_id       *int64
+	addgroup_id    *int64
+	bound_at       *time.Time
+	unbound_at     *time.Time
+	reason         *string
+	operator       *string
+	note           *string
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*APIKeySubPoolBinding, error)
+	predicates     []predicate.APIKeySubPoolBinding
+}
+
+var _ ent.Mutation = (*APIKeySubPoolBindingMutation)(nil)
+
+// apikeysubpoolbindingOption allows management of the mutation configuration using functional options.
+type apikeysubpoolbindingOption func(*APIKeySubPoolBindingMutation)
+
+// newAPIKeySubPoolBindingMutation creates new mutation for the APIKeySubPoolBinding entity.
+func newAPIKeySubPoolBindingMutation(c config, op Op, opts ...apikeysubpoolbindingOption) *APIKeySubPoolBindingMutation {
+	m := &APIKeySubPoolBindingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeySubPoolBinding,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAPIKeySubPoolBindingID sets the ID field of the mutation.
+func withAPIKeySubPoolBindingID(id int64) apikeysubpoolbindingOption {
+	return func(m *APIKeySubPoolBindingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *APIKeySubPoolBinding
+		)
+		m.oldValue = func(ctx context.Context) (*APIKeySubPoolBinding, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().APIKeySubPoolBinding.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAPIKeySubPoolBinding sets the old APIKeySubPoolBinding of the mutation.
+func withAPIKeySubPoolBinding(node *APIKeySubPoolBinding) apikeysubpoolbindingOption {
+	return func(m *APIKeySubPoolBindingMutation) {
+		m.oldValue = func(context.Context) (*APIKeySubPoolBinding, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeySubPoolBindingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeySubPoolBindingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *APIKeySubPoolBindingMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *APIKeySubPoolBindingMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().APIKeySubPoolBinding.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *APIKeySubPoolBindingMutation) SetAPIKeyID(i int64) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) APIKeyID() (r int64, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldAPIKeyID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *APIKeySubPoolBindingMutation) AddAPIKeyID(i int64) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *APIKeySubPoolBindingMutation) AddedAPIKeyID() (r int64, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *APIKeySubPoolBindingMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (m *APIKeySubPoolBindingMutation) SetSubPoolID(i int64) {
+	m.sub_pool_id = &i
+	m.addsub_pool_id = nil
+}
+
+// SubPoolID returns the value of the "sub_pool_id" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) SubPoolID() (r int64, exists bool) {
+	v := m.sub_pool_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubPoolID returns the old "sub_pool_id" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldSubPoolID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubPoolID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubPoolID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubPoolID: %w", err)
+	}
+	return oldValue.SubPoolID, nil
+}
+
+// AddSubPoolID adds i to the "sub_pool_id" field.
+func (m *APIKeySubPoolBindingMutation) AddSubPoolID(i int64) {
+	if m.addsub_pool_id != nil {
+		*m.addsub_pool_id += i
+	} else {
+		m.addsub_pool_id = &i
+	}
+}
+
+// AddedSubPoolID returns the value that was added to the "sub_pool_id" field in this mutation.
+func (m *APIKeySubPoolBindingMutation) AddedSubPoolID() (r int64, exists bool) {
+	v := m.addsub_pool_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubPoolID resets all changes to the "sub_pool_id" field.
+func (m *APIKeySubPoolBindingMutation) ResetSubPoolID() {
+	m.sub_pool_id = nil
+	m.addsub_pool_id = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *APIKeySubPoolBindingMutation) SetGroupID(i int64) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) GroupID() (r int64, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldGroupID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *APIKeySubPoolBindingMutation) AddGroupID(i int64) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *APIKeySubPoolBindingMutation) AddedGroupID() (r int64, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *APIKeySubPoolBindingMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+}
+
+// SetBoundAt sets the "bound_at" field.
+func (m *APIKeySubPoolBindingMutation) SetBoundAt(t time.Time) {
+	m.bound_at = &t
+}
+
+// BoundAt returns the value of the "bound_at" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) BoundAt() (r time.Time, exists bool) {
+	v := m.bound_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBoundAt returns the old "bound_at" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldBoundAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBoundAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBoundAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBoundAt: %w", err)
+	}
+	return oldValue.BoundAt, nil
+}
+
+// ResetBoundAt resets all changes to the "bound_at" field.
+func (m *APIKeySubPoolBindingMutation) ResetBoundAt() {
+	m.bound_at = nil
+}
+
+// SetUnboundAt sets the "unbound_at" field.
+func (m *APIKeySubPoolBindingMutation) SetUnboundAt(t time.Time) {
+	m.unbound_at = &t
+}
+
+// UnboundAt returns the value of the "unbound_at" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) UnboundAt() (r time.Time, exists bool) {
+	v := m.unbound_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnboundAt returns the old "unbound_at" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldUnboundAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnboundAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnboundAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnboundAt: %w", err)
+	}
+	return oldValue.UnboundAt, nil
+}
+
+// ClearUnboundAt clears the value of the "unbound_at" field.
+func (m *APIKeySubPoolBindingMutation) ClearUnboundAt() {
+	m.unbound_at = nil
+	m.clearedFields[apikeysubpoolbinding.FieldUnboundAt] = struct{}{}
+}
+
+// UnboundAtCleared returns if the "unbound_at" field was cleared in this mutation.
+func (m *APIKeySubPoolBindingMutation) UnboundAtCleared() bool {
+	_, ok := m.clearedFields[apikeysubpoolbinding.FieldUnboundAt]
+	return ok
+}
+
+// ResetUnboundAt resets all changes to the "unbound_at" field.
+func (m *APIKeySubPoolBindingMutation) ResetUnboundAt() {
+	m.unbound_at = nil
+	delete(m.clearedFields, apikeysubpoolbinding.FieldUnboundAt)
+}
+
+// SetReason sets the "reason" field.
+func (m *APIKeySubPoolBindingMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *APIKeySubPoolBindingMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetOperator sets the "operator" field.
+func (m *APIKeySubPoolBindingMutation) SetOperator(s string) {
+	m.operator = &s
+}
+
+// Operator returns the value of the "operator" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) Operator() (r string, exists bool) {
+	v := m.operator
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperator returns the old "operator" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldOperator(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperator is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperator requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperator: %w", err)
+	}
+	return oldValue.Operator, nil
+}
+
+// ResetOperator resets all changes to the "operator" field.
+func (m *APIKeySubPoolBindingMutation) ResetOperator() {
+	m.operator = nil
+}
+
+// SetNote sets the "note" field.
+func (m *APIKeySubPoolBindingMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *APIKeySubPoolBindingMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the APIKeySubPoolBinding entity.
+// If the APIKeySubPoolBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeySubPoolBindingMutation) OldNote(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ClearNote clears the value of the "note" field.
+func (m *APIKeySubPoolBindingMutation) ClearNote() {
+	m.note = nil
+	m.clearedFields[apikeysubpoolbinding.FieldNote] = struct{}{}
+}
+
+// NoteCleared returns if the "note" field was cleared in this mutation.
+func (m *APIKeySubPoolBindingMutation) NoteCleared() bool {
+	_, ok := m.clearedFields[apikeysubpoolbinding.FieldNote]
+	return ok
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *APIKeySubPoolBindingMutation) ResetNote() {
+	m.note = nil
+	delete(m.clearedFields, apikeysubpoolbinding.FieldNote)
+}
+
+// Where appends a list predicates to the APIKeySubPoolBindingMutation builder.
+func (m *APIKeySubPoolBindingMutation) Where(ps ...predicate.APIKeySubPoolBinding) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeySubPoolBindingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeySubPoolBindingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeySubPoolBinding, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeySubPoolBindingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeySubPoolBindingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeySubPoolBinding).
+func (m *APIKeySubPoolBindingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeySubPoolBindingMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.api_key_id != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldAPIKeyID)
+	}
+	if m.sub_pool_id != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldSubPoolID)
+	}
+	if m.group_id != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldGroupID)
+	}
+	if m.bound_at != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldBoundAt)
+	}
+	if m.unbound_at != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldUnboundAt)
+	}
+	if m.reason != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldReason)
+	}
+	if m.operator != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldOperator)
+	}
+	if m.note != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldNote)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeySubPoolBindingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeysubpoolbinding.FieldAPIKeyID:
+		return m.APIKeyID()
+	case apikeysubpoolbinding.FieldSubPoolID:
+		return m.SubPoolID()
+	case apikeysubpoolbinding.FieldGroupID:
+		return m.GroupID()
+	case apikeysubpoolbinding.FieldBoundAt:
+		return m.BoundAt()
+	case apikeysubpoolbinding.FieldUnboundAt:
+		return m.UnboundAt()
+	case apikeysubpoolbinding.FieldReason:
+		return m.Reason()
+	case apikeysubpoolbinding.FieldOperator:
+		return m.Operator()
+	case apikeysubpoolbinding.FieldNote:
+		return m.Note()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeySubPoolBindingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case apikeysubpoolbinding.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case apikeysubpoolbinding.FieldSubPoolID:
+		return m.OldSubPoolID(ctx)
+	case apikeysubpoolbinding.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case apikeysubpoolbinding.FieldBoundAt:
+		return m.OldBoundAt(ctx)
+	case apikeysubpoolbinding.FieldUnboundAt:
+		return m.OldUnboundAt(ctx)
+	case apikeysubpoolbinding.FieldReason:
+		return m.OldReason(ctx)
+	case apikeysubpoolbinding.FieldOperator:
+		return m.OldOperator(ctx)
+	case apikeysubpoolbinding.FieldNote:
+		return m.OldNote(ctx)
+	}
+	return nil, fmt.Errorf("unknown APIKeySubPoolBinding field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeySubPoolBindingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeysubpoolbinding.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case apikeysubpoolbinding.FieldSubPoolID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubPoolID(v)
+		return nil
+	case apikeysubpoolbinding.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case apikeysubpoolbinding.FieldBoundAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBoundAt(v)
+		return nil
+	case apikeysubpoolbinding.FieldUnboundAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnboundAt(v)
+		return nil
+	case apikeysubpoolbinding.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case apikeysubpoolbinding.FieldOperator:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperator(v)
+		return nil
+	case apikeysubpoolbinding.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeySubPoolBinding field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeySubPoolBindingMutation) AddedFields() []string {
+	var fields []string
+	if m.addapi_key_id != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldAPIKeyID)
+	}
+	if m.addsub_pool_id != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldSubPoolID)
+	}
+	if m.addgroup_id != nil {
+		fields = append(fields, apikeysubpoolbinding.FieldGroupID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeySubPoolBindingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case apikeysubpoolbinding.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case apikeysubpoolbinding.FieldSubPoolID:
+		return m.AddedSubPoolID()
+	case apikeysubpoolbinding.FieldGroupID:
+		return m.AddedGroupID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeySubPoolBindingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case apikeysubpoolbinding.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case apikeysubpoolbinding.FieldSubPoolID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubPoolID(v)
+		return nil
+	case apikeysubpoolbinding.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeySubPoolBinding numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeySubPoolBindingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(apikeysubpoolbinding.FieldUnboundAt) {
+		fields = append(fields, apikeysubpoolbinding.FieldUnboundAt)
+	}
+	if m.FieldCleared(apikeysubpoolbinding.FieldNote) {
+		fields = append(fields, apikeysubpoolbinding.FieldNote)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeySubPoolBindingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeySubPoolBindingMutation) ClearField(name string) error {
+	switch name {
+	case apikeysubpoolbinding.FieldUnboundAt:
+		m.ClearUnboundAt()
+		return nil
+	case apikeysubpoolbinding.FieldNote:
+		m.ClearNote()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeySubPoolBinding nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeySubPoolBindingMutation) ResetField(name string) error {
+	switch name {
+	case apikeysubpoolbinding.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case apikeysubpoolbinding.FieldSubPoolID:
+		m.ResetSubPoolID()
+		return nil
+	case apikeysubpoolbinding.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case apikeysubpoolbinding.FieldBoundAt:
+		m.ResetBoundAt()
+		return nil
+	case apikeysubpoolbinding.FieldUnboundAt:
+		m.ResetUnboundAt()
+		return nil
+	case apikeysubpoolbinding.FieldReason:
+		m.ResetReason()
+		return nil
+	case apikeysubpoolbinding.FieldOperator:
+		m.ResetOperator()
+		return nil
+	case apikeysubpoolbinding.FieldNote:
+		m.ResetNote()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeySubPoolBinding field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeySubPoolBindingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeySubPoolBindingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeySubPoolBindingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeySubPoolBindingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeySubPoolBindingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeySubPoolBindingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeySubPoolBindingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown APIKeySubPoolBinding unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeySubPoolBindingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown APIKeySubPoolBinding edge %s", name)
 }
 
 // AccountMutation represents an operation that mutates the Account nodes in the graph.
@@ -2325,6 +4360,9 @@ type AccountMutation struct {
 	groups                             map[int64]struct{}
 	removedgroups                      map[int64]struct{}
 	clearedgroups                      bool
+	sub_pools                          map[int64]struct{}
+	removedsub_pools                   map[int64]struct{}
+	clearedsub_pools                   bool
 	proxy                              *int64
 	clearedproxy                       bool
 	parent                             *int64
@@ -4001,6 +6039,60 @@ func (m *AccountMutation) ResetGroups() {
 	m.removedgroups = nil
 }
 
+// AddSubPoolIDs adds the "sub_pools" edge to the SubPool entity by ids.
+func (m *AccountMutation) AddSubPoolIDs(ids ...int64) {
+	if m.sub_pools == nil {
+		m.sub_pools = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.sub_pools[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSubPools clears the "sub_pools" edge to the SubPool entity.
+func (m *AccountMutation) ClearSubPools() {
+	m.clearedsub_pools = true
+}
+
+// SubPoolsCleared reports if the "sub_pools" edge to the SubPool entity was cleared.
+func (m *AccountMutation) SubPoolsCleared() bool {
+	return m.clearedsub_pools
+}
+
+// RemoveSubPoolIDs removes the "sub_pools" edge to the SubPool entity by IDs.
+func (m *AccountMutation) RemoveSubPoolIDs(ids ...int64) {
+	if m.removedsub_pools == nil {
+		m.removedsub_pools = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.sub_pools, ids[i])
+		m.removedsub_pools[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSubPools returns the removed IDs of the "sub_pools" edge to the SubPool entity.
+func (m *AccountMutation) RemovedSubPoolsIDs() (ids []int64) {
+	for id := range m.removedsub_pools {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SubPoolsIDs returns the "sub_pools" edge IDs in the mutation.
+func (m *AccountMutation) SubPoolsIDs() (ids []int64) {
+	for id := range m.sub_pools {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSubPools resets all changes to the "sub_pools" edge.
+func (m *AccountMutation) ResetSubPools() {
+	m.sub_pools = nil
+	m.clearedsub_pools = false
+	m.removedsub_pools = nil
+}
+
 // ClearProxy clears the "proxy" edge to the Proxy entity.
 func (m *AccountMutation) ClearProxy() {
 	m.clearedproxy = true
@@ -5022,9 +7114,12 @@ func (m *AccountMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AccountMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.groups != nil {
 		edges = append(edges, account.EdgeGroups)
+	}
+	if m.sub_pools != nil {
+		edges = append(edges, account.EdgeSubPools)
 	}
 	if m.proxy != nil {
 		edges = append(edges, account.EdgeProxy)
@@ -5048,6 +7143,12 @@ func (m *AccountMutation) AddedIDs(name string) []ent.Value {
 	case account.EdgeGroups:
 		ids := make([]ent.Value, 0, len(m.groups))
 		for id := range m.groups {
+			ids = append(ids, id)
+		}
+		return ids
+	case account.EdgeSubPools:
+		ids := make([]ent.Value, 0, len(m.sub_pools))
+		for id := range m.sub_pools {
 			ids = append(ids, id)
 		}
 		return ids
@@ -5077,9 +7178,12 @@ func (m *AccountMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AccountMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedgroups != nil {
 		edges = append(edges, account.EdgeGroups)
+	}
+	if m.removedsub_pools != nil {
+		edges = append(edges, account.EdgeSubPools)
 	}
 	if m.removedchildren != nil {
 		edges = append(edges, account.EdgeChildren)
@@ -5097,6 +7201,12 @@ func (m *AccountMutation) RemovedIDs(name string) []ent.Value {
 	case account.EdgeGroups:
 		ids := make([]ent.Value, 0, len(m.removedgroups))
 		for id := range m.removedgroups {
+			ids = append(ids, id)
+		}
+		return ids
+	case account.EdgeSubPools:
+		ids := make([]ent.Value, 0, len(m.removedsub_pools))
+		for id := range m.removedsub_pools {
 			ids = append(ids, id)
 		}
 		return ids
@@ -5118,9 +7228,12 @@ func (m *AccountMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AccountMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedgroups {
 		edges = append(edges, account.EdgeGroups)
+	}
+	if m.clearedsub_pools {
+		edges = append(edges, account.EdgeSubPools)
 	}
 	if m.clearedproxy {
 		edges = append(edges, account.EdgeProxy)
@@ -5143,6 +7256,8 @@ func (m *AccountMutation) EdgeCleared(name string) bool {
 	switch name {
 	case account.EdgeGroups:
 		return m.clearedgroups
+	case account.EdgeSubPools:
+		return m.clearedsub_pools
 	case account.EdgeProxy:
 		return m.clearedproxy
 	case account.EdgeParent:
@@ -5175,6 +7290,9 @@ func (m *AccountMutation) ResetEdge(name string) error {
 	switch name {
 	case account.EdgeGroups:
 		m.ResetGroups()
+		return nil
+	case account.EdgeSubPools:
+		m.ResetSubPools()
 		return nil
 	case account.EdgeProxy:
 		m.ResetProxy()
@@ -22454,6 +24572,7 @@ type GroupMutation struct {
 	peak_rate_multiplier                    *float64
 	addpeak_rate_multiplier                 *float64
 	is_exclusive                            *bool
+	sub_pool_enabled                        *bool
 	status                                  *string
 	duplicate_operation_id                  *string
 	platform                                *string
@@ -23118,6 +25237,42 @@ func (m *GroupMutation) OldIsExclusive(ctx context.Context) (v bool, err error) 
 // ResetIsExclusive resets all changes to the "is_exclusive" field.
 func (m *GroupMutation) ResetIsExclusive() {
 	m.is_exclusive = nil
+}
+
+// SetSubPoolEnabled sets the "sub_pool_enabled" field.
+func (m *GroupMutation) SetSubPoolEnabled(b bool) {
+	m.sub_pool_enabled = &b
+}
+
+// SubPoolEnabled returns the value of the "sub_pool_enabled" field in the mutation.
+func (m *GroupMutation) SubPoolEnabled() (r bool, exists bool) {
+	v := m.sub_pool_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubPoolEnabled returns the old "sub_pool_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSubPoolEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubPoolEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubPoolEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubPoolEnabled: %w", err)
+	}
+	return oldValue.SubPoolEnabled, nil
+}
+
+// ResetSubPoolEnabled resets all changes to the "sub_pool_enabled" field.
+func (m *GroupMutation) ResetSubPoolEnabled() {
+	m.sub_pool_enabled = nil
 }
 
 // SetStatus sets the "status" field.
@@ -26244,7 +28399,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 65)
+	fields := make([]string, 0, 66)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26277,6 +28432,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.is_exclusive != nil {
 		fields = append(fields, group.FieldIsExclusive)
+	}
+	if m.sub_pool_enabled != nil {
+		fields = append(fields, group.FieldSubPoolEnabled)
 	}
 	if m.status != nil {
 		fields = append(fields, group.FieldStatus)
@@ -26470,6 +28628,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.PeakRateMultiplier()
 	case group.FieldIsExclusive:
 		return m.IsExclusive()
+	case group.FieldSubPoolEnabled:
+		return m.SubPoolEnabled()
 	case group.FieldStatus:
 		return m.Status()
 	case group.FieldDuplicateOperationID:
@@ -26609,6 +28769,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPeakRateMultiplier(ctx)
 	case group.FieldIsExclusive:
 		return m.OldIsExclusive(ctx)
+	case group.FieldSubPoolEnabled:
+		return m.OldSubPoolEnabled(ctx)
 	case group.FieldStatus:
 		return m.OldStatus(ctx)
 	case group.FieldDuplicateOperationID:
@@ -26802,6 +28964,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetIsExclusive(v)
+		return nil
+	case group.FieldSubPoolEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubPoolEnabled(v)
 		return nil
 	case group.FieldStatus:
 		v, ok := value.(string)
@@ -27724,6 +29893,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldIsExclusive:
 		m.ResetIsExclusive()
+		return nil
+	case group.FieldSubPoolEnabled:
+		m.ResetSubPoolEnabled()
 		return nil
 	case group.FieldStatus:
 		m.ResetStatus()
@@ -41069,6 +43241,1803 @@ func (m *SettingMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *SettingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Setting edge %s", name)
+}
+
+// SubPoolMutation represents an operation that mutates the SubPool nodes in the graph.
+type SubPoolMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int64
+	created_at        *time.Time
+	updated_at        *time.Time
+	deleted_at        *time.Time
+	group_id          *int64
+	addgroup_id       *int64
+	name              *string
+	description       *string
+	kind              *string
+	status            *string
+	key_soft_limit    *int
+	addkey_soft_limit *int
+	cooling_until     *time.Time
+	cooling_reason    *string
+	sort_order        *int
+	addsort_order     *int
+	clearedFields     map[string]struct{}
+	api_keys          map[int64]struct{}
+	removedapi_keys   map[int64]struct{}
+	clearedapi_keys   bool
+	accounts          map[int64]struct{}
+	removedaccounts   map[int64]struct{}
+	clearedaccounts   bool
+	done              bool
+	oldValue          func(context.Context) (*SubPool, error)
+	predicates        []predicate.SubPool
+}
+
+var _ ent.Mutation = (*SubPoolMutation)(nil)
+
+// subpoolOption allows management of the mutation configuration using functional options.
+type subpoolOption func(*SubPoolMutation)
+
+// newSubPoolMutation creates new mutation for the SubPool entity.
+func newSubPoolMutation(c config, op Op, opts ...subpoolOption) *SubPoolMutation {
+	m := &SubPoolMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSubPool,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSubPoolID sets the ID field of the mutation.
+func withSubPoolID(id int64) subpoolOption {
+	return func(m *SubPoolMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SubPool
+		)
+		m.oldValue = func(ctx context.Context) (*SubPool, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SubPool.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSubPool sets the old SubPool of the mutation.
+func withSubPool(node *SubPool) subpoolOption {
+	return func(m *SubPoolMutation) {
+		m.oldValue = func(context.Context) (*SubPool, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SubPoolMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SubPoolMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SubPoolMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SubPoolMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SubPool.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SubPoolMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SubPoolMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SubPoolMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SubPoolMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SubPoolMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SubPoolMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *SubPoolMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *SubPoolMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *SubPoolMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[subpool.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *SubPoolMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[subpool.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *SubPoolMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, subpool.FieldDeletedAt)
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *SubPoolMutation) SetGroupID(i int64) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *SubPoolMutation) GroupID() (r int64, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldGroupID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *SubPoolMutation) AddGroupID(i int64) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *SubPoolMutation) AddedGroupID() (r int64, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *SubPoolMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *SubPoolMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SubPoolMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SubPoolMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *SubPoolMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *SubPoolMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldDescription(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *SubPoolMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[subpool.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *SubPoolMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[subpool.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *SubPoolMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, subpool.FieldDescription)
+}
+
+// SetKind sets the "kind" field.
+func (m *SubPoolMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *SubPoolMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *SubPoolMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SubPoolMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SubPoolMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SubPoolMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetKeySoftLimit sets the "key_soft_limit" field.
+func (m *SubPoolMutation) SetKeySoftLimit(i int) {
+	m.key_soft_limit = &i
+	m.addkey_soft_limit = nil
+}
+
+// KeySoftLimit returns the value of the "key_soft_limit" field in the mutation.
+func (m *SubPoolMutation) KeySoftLimit() (r int, exists bool) {
+	v := m.key_soft_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeySoftLimit returns the old "key_soft_limit" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldKeySoftLimit(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeySoftLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeySoftLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeySoftLimit: %w", err)
+	}
+	return oldValue.KeySoftLimit, nil
+}
+
+// AddKeySoftLimit adds i to the "key_soft_limit" field.
+func (m *SubPoolMutation) AddKeySoftLimit(i int) {
+	if m.addkey_soft_limit != nil {
+		*m.addkey_soft_limit += i
+	} else {
+		m.addkey_soft_limit = &i
+	}
+}
+
+// AddedKeySoftLimit returns the value that was added to the "key_soft_limit" field in this mutation.
+func (m *SubPoolMutation) AddedKeySoftLimit() (r int, exists bool) {
+	v := m.addkey_soft_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKeySoftLimit resets all changes to the "key_soft_limit" field.
+func (m *SubPoolMutation) ResetKeySoftLimit() {
+	m.key_soft_limit = nil
+	m.addkey_soft_limit = nil
+}
+
+// SetCoolingUntil sets the "cooling_until" field.
+func (m *SubPoolMutation) SetCoolingUntil(t time.Time) {
+	m.cooling_until = &t
+}
+
+// CoolingUntil returns the value of the "cooling_until" field in the mutation.
+func (m *SubPoolMutation) CoolingUntil() (r time.Time, exists bool) {
+	v := m.cooling_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoolingUntil returns the old "cooling_until" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldCoolingUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoolingUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoolingUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoolingUntil: %w", err)
+	}
+	return oldValue.CoolingUntil, nil
+}
+
+// ClearCoolingUntil clears the value of the "cooling_until" field.
+func (m *SubPoolMutation) ClearCoolingUntil() {
+	m.cooling_until = nil
+	m.clearedFields[subpool.FieldCoolingUntil] = struct{}{}
+}
+
+// CoolingUntilCleared returns if the "cooling_until" field was cleared in this mutation.
+func (m *SubPoolMutation) CoolingUntilCleared() bool {
+	_, ok := m.clearedFields[subpool.FieldCoolingUntil]
+	return ok
+}
+
+// ResetCoolingUntil resets all changes to the "cooling_until" field.
+func (m *SubPoolMutation) ResetCoolingUntil() {
+	m.cooling_until = nil
+	delete(m.clearedFields, subpool.FieldCoolingUntil)
+}
+
+// SetCoolingReason sets the "cooling_reason" field.
+func (m *SubPoolMutation) SetCoolingReason(s string) {
+	m.cooling_reason = &s
+}
+
+// CoolingReason returns the value of the "cooling_reason" field in the mutation.
+func (m *SubPoolMutation) CoolingReason() (r string, exists bool) {
+	v := m.cooling_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoolingReason returns the old "cooling_reason" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldCoolingReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoolingReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoolingReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoolingReason: %w", err)
+	}
+	return oldValue.CoolingReason, nil
+}
+
+// ClearCoolingReason clears the value of the "cooling_reason" field.
+func (m *SubPoolMutation) ClearCoolingReason() {
+	m.cooling_reason = nil
+	m.clearedFields[subpool.FieldCoolingReason] = struct{}{}
+}
+
+// CoolingReasonCleared returns if the "cooling_reason" field was cleared in this mutation.
+func (m *SubPoolMutation) CoolingReasonCleared() bool {
+	_, ok := m.clearedFields[subpool.FieldCoolingReason]
+	return ok
+}
+
+// ResetCoolingReason resets all changes to the "cooling_reason" field.
+func (m *SubPoolMutation) ResetCoolingReason() {
+	m.cooling_reason = nil
+	delete(m.clearedFields, subpool.FieldCoolingReason)
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *SubPoolMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *SubPoolMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the SubPool entity.
+// If the SubPool object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubPoolMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *SubPoolMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *SubPoolMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *SubPoolMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
+func (m *SubPoolMutation) AddAPIKeyIDs(ids ...int64) {
+	if m.api_keys == nil {
+		m.api_keys = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.api_keys[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAPIKeys clears the "api_keys" edge to the APIKey entity.
+func (m *SubPoolMutation) ClearAPIKeys() {
+	m.clearedapi_keys = true
+}
+
+// APIKeysCleared reports if the "api_keys" edge to the APIKey entity was cleared.
+func (m *SubPoolMutation) APIKeysCleared() bool {
+	return m.clearedapi_keys
+}
+
+// RemoveAPIKeyIDs removes the "api_keys" edge to the APIKey entity by IDs.
+func (m *SubPoolMutation) RemoveAPIKeyIDs(ids ...int64) {
+	if m.removedapi_keys == nil {
+		m.removedapi_keys = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.api_keys, ids[i])
+		m.removedapi_keys[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAPIKeys returns the removed IDs of the "api_keys" edge to the APIKey entity.
+func (m *SubPoolMutation) RemovedAPIKeysIDs() (ids []int64) {
+	for id := range m.removedapi_keys {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// APIKeysIDs returns the "api_keys" edge IDs in the mutation.
+func (m *SubPoolMutation) APIKeysIDs() (ids []int64) {
+	for id := range m.api_keys {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAPIKeys resets all changes to the "api_keys" edge.
+func (m *SubPoolMutation) ResetAPIKeys() {
+	m.api_keys = nil
+	m.clearedapi_keys = false
+	m.removedapi_keys = nil
+}
+
+// AddAccountIDs adds the "accounts" edge to the Account entity by ids.
+func (m *SubPoolMutation) AddAccountIDs(ids ...int64) {
+	if m.accounts == nil {
+		m.accounts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.accounts[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAccounts clears the "accounts" edge to the Account entity.
+func (m *SubPoolMutation) ClearAccounts() {
+	m.clearedaccounts = true
+}
+
+// AccountsCleared reports if the "accounts" edge to the Account entity was cleared.
+func (m *SubPoolMutation) AccountsCleared() bool {
+	return m.clearedaccounts
+}
+
+// RemoveAccountIDs removes the "accounts" edge to the Account entity by IDs.
+func (m *SubPoolMutation) RemoveAccountIDs(ids ...int64) {
+	if m.removedaccounts == nil {
+		m.removedaccounts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.accounts, ids[i])
+		m.removedaccounts[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAccounts returns the removed IDs of the "accounts" edge to the Account entity.
+func (m *SubPoolMutation) RemovedAccountsIDs() (ids []int64) {
+	for id := range m.removedaccounts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AccountsIDs returns the "accounts" edge IDs in the mutation.
+func (m *SubPoolMutation) AccountsIDs() (ids []int64) {
+	for id := range m.accounts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAccounts resets all changes to the "accounts" edge.
+func (m *SubPoolMutation) ResetAccounts() {
+	m.accounts = nil
+	m.clearedaccounts = false
+	m.removedaccounts = nil
+}
+
+// Where appends a list predicates to the SubPoolMutation builder.
+func (m *SubPoolMutation) Where(ps ...predicate.SubPool) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SubPoolMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SubPoolMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SubPool, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SubPoolMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SubPoolMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SubPool).
+func (m *SubPoolMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SubPoolMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.created_at != nil {
+		fields = append(fields, subpool.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, subpool.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, subpool.FieldDeletedAt)
+	}
+	if m.group_id != nil {
+		fields = append(fields, subpool.FieldGroupID)
+	}
+	if m.name != nil {
+		fields = append(fields, subpool.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, subpool.FieldDescription)
+	}
+	if m.kind != nil {
+		fields = append(fields, subpool.FieldKind)
+	}
+	if m.status != nil {
+		fields = append(fields, subpool.FieldStatus)
+	}
+	if m.key_soft_limit != nil {
+		fields = append(fields, subpool.FieldKeySoftLimit)
+	}
+	if m.cooling_until != nil {
+		fields = append(fields, subpool.FieldCoolingUntil)
+	}
+	if m.cooling_reason != nil {
+		fields = append(fields, subpool.FieldCoolingReason)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, subpool.FieldSortOrder)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SubPoolMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case subpool.FieldCreatedAt:
+		return m.CreatedAt()
+	case subpool.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case subpool.FieldDeletedAt:
+		return m.DeletedAt()
+	case subpool.FieldGroupID:
+		return m.GroupID()
+	case subpool.FieldName:
+		return m.Name()
+	case subpool.FieldDescription:
+		return m.Description()
+	case subpool.FieldKind:
+		return m.Kind()
+	case subpool.FieldStatus:
+		return m.Status()
+	case subpool.FieldKeySoftLimit:
+		return m.KeySoftLimit()
+	case subpool.FieldCoolingUntil:
+		return m.CoolingUntil()
+	case subpool.FieldCoolingReason:
+		return m.CoolingReason()
+	case subpool.FieldSortOrder:
+		return m.SortOrder()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SubPoolMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case subpool.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case subpool.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case subpool.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case subpool.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case subpool.FieldName:
+		return m.OldName(ctx)
+	case subpool.FieldDescription:
+		return m.OldDescription(ctx)
+	case subpool.FieldKind:
+		return m.OldKind(ctx)
+	case subpool.FieldStatus:
+		return m.OldStatus(ctx)
+	case subpool.FieldKeySoftLimit:
+		return m.OldKeySoftLimit(ctx)
+	case subpool.FieldCoolingUntil:
+		return m.OldCoolingUntil(ctx)
+	case subpool.FieldCoolingReason:
+		return m.OldCoolingReason(ctx)
+	case subpool.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	}
+	return nil, fmt.Errorf("unknown SubPool field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubPoolMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case subpool.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case subpool.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case subpool.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case subpool.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case subpool.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case subpool.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case subpool.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case subpool.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case subpool.FieldKeySoftLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeySoftLimit(v)
+		return nil
+	case subpool.FieldCoolingUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoolingUntil(v)
+		return nil
+	case subpool.FieldCoolingReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoolingReason(v)
+		return nil
+	case subpool.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubPool field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SubPoolMutation) AddedFields() []string {
+	var fields []string
+	if m.addgroup_id != nil {
+		fields = append(fields, subpool.FieldGroupID)
+	}
+	if m.addkey_soft_limit != nil {
+		fields = append(fields, subpool.FieldKeySoftLimit)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, subpool.FieldSortOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SubPoolMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case subpool.FieldGroupID:
+		return m.AddedGroupID()
+	case subpool.FieldKeySoftLimit:
+		return m.AddedKeySoftLimit()
+	case subpool.FieldSortOrder:
+		return m.AddedSortOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubPoolMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case subpool.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
+	case subpool.FieldKeySoftLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKeySoftLimit(v)
+		return nil
+	case subpool.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubPool numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SubPoolMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(subpool.FieldDeletedAt) {
+		fields = append(fields, subpool.FieldDeletedAt)
+	}
+	if m.FieldCleared(subpool.FieldDescription) {
+		fields = append(fields, subpool.FieldDescription)
+	}
+	if m.FieldCleared(subpool.FieldCoolingUntil) {
+		fields = append(fields, subpool.FieldCoolingUntil)
+	}
+	if m.FieldCleared(subpool.FieldCoolingReason) {
+		fields = append(fields, subpool.FieldCoolingReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SubPoolMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SubPoolMutation) ClearField(name string) error {
+	switch name {
+	case subpool.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case subpool.FieldDescription:
+		m.ClearDescription()
+		return nil
+	case subpool.FieldCoolingUntil:
+		m.ClearCoolingUntil()
+		return nil
+	case subpool.FieldCoolingReason:
+		m.ClearCoolingReason()
+		return nil
+	}
+	return fmt.Errorf("unknown SubPool nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SubPoolMutation) ResetField(name string) error {
+	switch name {
+	case subpool.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case subpool.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case subpool.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case subpool.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case subpool.FieldName:
+		m.ResetName()
+		return nil
+	case subpool.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case subpool.FieldKind:
+		m.ResetKind()
+		return nil
+	case subpool.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case subpool.FieldKeySoftLimit:
+		m.ResetKeySoftLimit()
+		return nil
+	case subpool.FieldCoolingUntil:
+		m.ResetCoolingUntil()
+		return nil
+	case subpool.FieldCoolingReason:
+		m.ResetCoolingReason()
+		return nil
+	case subpool.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	}
+	return fmt.Errorf("unknown SubPool field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SubPoolMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.api_keys != nil {
+		edges = append(edges, subpool.EdgeAPIKeys)
+	}
+	if m.accounts != nil {
+		edges = append(edges, subpool.EdgeAccounts)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SubPoolMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case subpool.EdgeAPIKeys:
+		ids := make([]ent.Value, 0, len(m.api_keys))
+		for id := range m.api_keys {
+			ids = append(ids, id)
+		}
+		return ids
+	case subpool.EdgeAccounts:
+		ids := make([]ent.Value, 0, len(m.accounts))
+		for id := range m.accounts {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SubPoolMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedapi_keys != nil {
+		edges = append(edges, subpool.EdgeAPIKeys)
+	}
+	if m.removedaccounts != nil {
+		edges = append(edges, subpool.EdgeAccounts)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SubPoolMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case subpool.EdgeAPIKeys:
+		ids := make([]ent.Value, 0, len(m.removedapi_keys))
+		for id := range m.removedapi_keys {
+			ids = append(ids, id)
+		}
+		return ids
+	case subpool.EdgeAccounts:
+		ids := make([]ent.Value, 0, len(m.removedaccounts))
+		for id := range m.removedaccounts {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SubPoolMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedapi_keys {
+		edges = append(edges, subpool.EdgeAPIKeys)
+	}
+	if m.clearedaccounts {
+		edges = append(edges, subpool.EdgeAccounts)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SubPoolMutation) EdgeCleared(name string) bool {
+	switch name {
+	case subpool.EdgeAPIKeys:
+		return m.clearedapi_keys
+	case subpool.EdgeAccounts:
+		return m.clearedaccounts
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SubPoolMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SubPool unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SubPoolMutation) ResetEdge(name string) error {
+	switch name {
+	case subpool.EdgeAPIKeys:
+		m.ResetAPIKeys()
+		return nil
+	case subpool.EdgeAccounts:
+		m.ResetAccounts()
+		return nil
+	}
+	return fmt.Errorf("unknown SubPool edge %s", name)
+}
+
+// SubPoolAccountMutation represents an operation that mutates the SubPoolAccount nodes in the graph.
+type SubPoolAccountMutation struct {
+	config
+	op              Op
+	typ             string
+	group_id        *int64
+	addgroup_id     *int64
+	role            *string
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	sub_pool        *int64
+	clearedsub_pool bool
+	account         *int64
+	clearedaccount  bool
+	done            bool
+	oldValue        func(context.Context) (*SubPoolAccount, error)
+	predicates      []predicate.SubPoolAccount
+}
+
+var _ ent.Mutation = (*SubPoolAccountMutation)(nil)
+
+// subpoolaccountOption allows management of the mutation configuration using functional options.
+type subpoolaccountOption func(*SubPoolAccountMutation)
+
+// newSubPoolAccountMutation creates new mutation for the SubPoolAccount entity.
+func newSubPoolAccountMutation(c config, op Op, opts ...subpoolaccountOption) *SubPoolAccountMutation {
+	m := &SubPoolAccountMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSubPoolAccount,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SubPoolAccountMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SubPoolAccountMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (m *SubPoolAccountMutation) SetSubPoolID(i int64) {
+	m.sub_pool = &i
+}
+
+// SubPoolID returns the value of the "sub_pool_id" field in the mutation.
+func (m *SubPoolAccountMutation) SubPoolID() (r int64, exists bool) {
+	v := m.sub_pool
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubPoolID resets all changes to the "sub_pool_id" field.
+func (m *SubPoolAccountMutation) ResetSubPoolID() {
+	m.sub_pool = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *SubPoolAccountMutation) SetAccountID(i int64) {
+	m.account = &i
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *SubPoolAccountMutation) AccountID() (r int64, exists bool) {
+	v := m.account
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *SubPoolAccountMutation) ResetAccountID() {
+	m.account = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *SubPoolAccountMutation) SetGroupID(i int64) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *SubPoolAccountMutation) GroupID() (r int64, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *SubPoolAccountMutation) AddGroupID(i int64) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *SubPoolAccountMutation) AddedGroupID() (r int64, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *SubPoolAccountMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+}
+
+// SetRole sets the "role" field.
+func (m *SubPoolAccountMutation) SetRole(s string) {
+	m.role = &s
+}
+
+// Role returns the value of the "role" field in the mutation.
+func (m *SubPoolAccountMutation) Role() (r string, exists bool) {
+	v := m.role
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRole resets all changes to the "role" field.
+func (m *SubPoolAccountMutation) ResetRole() {
+	m.role = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SubPoolAccountMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SubPoolAccountMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SubPoolAccountMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearSubPool clears the "sub_pool" edge to the SubPool entity.
+func (m *SubPoolAccountMutation) ClearSubPool() {
+	m.clearedsub_pool = true
+	m.clearedFields[subpoolaccount.FieldSubPoolID] = struct{}{}
+}
+
+// SubPoolCleared reports if the "sub_pool" edge to the SubPool entity was cleared.
+func (m *SubPoolAccountMutation) SubPoolCleared() bool {
+	return m.clearedsub_pool
+}
+
+// SubPoolIDs returns the "sub_pool" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SubPoolID instead. It exists only for internal usage by the builders.
+func (m *SubPoolAccountMutation) SubPoolIDs() (ids []int64) {
+	if id := m.sub_pool; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSubPool resets all changes to the "sub_pool" edge.
+func (m *SubPoolAccountMutation) ResetSubPool() {
+	m.sub_pool = nil
+	m.clearedsub_pool = false
+}
+
+// ClearAccount clears the "account" edge to the Account entity.
+func (m *SubPoolAccountMutation) ClearAccount() {
+	m.clearedaccount = true
+	m.clearedFields[subpoolaccount.FieldAccountID] = struct{}{}
+}
+
+// AccountCleared reports if the "account" edge to the Account entity was cleared.
+func (m *SubPoolAccountMutation) AccountCleared() bool {
+	return m.clearedaccount
+}
+
+// AccountIDs returns the "account" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AccountID instead. It exists only for internal usage by the builders.
+func (m *SubPoolAccountMutation) AccountIDs() (ids []int64) {
+	if id := m.account; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAccount resets all changes to the "account" edge.
+func (m *SubPoolAccountMutation) ResetAccount() {
+	m.account = nil
+	m.clearedaccount = false
+}
+
+// Where appends a list predicates to the SubPoolAccountMutation builder.
+func (m *SubPoolAccountMutation) Where(ps ...predicate.SubPoolAccount) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SubPoolAccountMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SubPoolAccountMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SubPoolAccount, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SubPoolAccountMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SubPoolAccountMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SubPoolAccount).
+func (m *SubPoolAccountMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SubPoolAccountMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.sub_pool != nil {
+		fields = append(fields, subpoolaccount.FieldSubPoolID)
+	}
+	if m.account != nil {
+		fields = append(fields, subpoolaccount.FieldAccountID)
+	}
+	if m.group_id != nil {
+		fields = append(fields, subpoolaccount.FieldGroupID)
+	}
+	if m.role != nil {
+		fields = append(fields, subpoolaccount.FieldRole)
+	}
+	if m.created_at != nil {
+		fields = append(fields, subpoolaccount.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SubPoolAccountMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case subpoolaccount.FieldSubPoolID:
+		return m.SubPoolID()
+	case subpoolaccount.FieldAccountID:
+		return m.AccountID()
+	case subpoolaccount.FieldGroupID:
+		return m.GroupID()
+	case subpoolaccount.FieldRole:
+		return m.Role()
+	case subpoolaccount.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SubPoolAccountMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	return nil, errors.New("edge schema SubPoolAccount does not support getting old values")
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubPoolAccountMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case subpoolaccount.FieldSubPoolID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubPoolID(v)
+		return nil
+	case subpoolaccount.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case subpoolaccount.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case subpoolaccount.FieldRole:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRole(v)
+		return nil
+	case subpoolaccount.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubPoolAccount field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SubPoolAccountMutation) AddedFields() []string {
+	var fields []string
+	if m.addgroup_id != nil {
+		fields = append(fields, subpoolaccount.FieldGroupID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SubPoolAccountMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case subpoolaccount.FieldGroupID:
+		return m.AddedGroupID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SubPoolAccountMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case subpoolaccount.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SubPoolAccount numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SubPoolAccountMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SubPoolAccountMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SubPoolAccountMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown SubPoolAccount nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SubPoolAccountMutation) ResetField(name string) error {
+	switch name {
+	case subpoolaccount.FieldSubPoolID:
+		m.ResetSubPoolID()
+		return nil
+	case subpoolaccount.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case subpoolaccount.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case subpoolaccount.FieldRole:
+		m.ResetRole()
+		return nil
+	case subpoolaccount.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SubPoolAccount field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SubPoolAccountMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.sub_pool != nil {
+		edges = append(edges, subpoolaccount.EdgeSubPool)
+	}
+	if m.account != nil {
+		edges = append(edges, subpoolaccount.EdgeAccount)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SubPoolAccountMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case subpoolaccount.EdgeSubPool:
+		if id := m.sub_pool; id != nil {
+			return []ent.Value{*id}
+		}
+	case subpoolaccount.EdgeAccount:
+		if id := m.account; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SubPoolAccountMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SubPoolAccountMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SubPoolAccountMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedsub_pool {
+		edges = append(edges, subpoolaccount.EdgeSubPool)
+	}
+	if m.clearedaccount {
+		edges = append(edges, subpoolaccount.EdgeAccount)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SubPoolAccountMutation) EdgeCleared(name string) bool {
+	switch name {
+	case subpoolaccount.EdgeSubPool:
+		return m.clearedsub_pool
+	case subpoolaccount.EdgeAccount:
+		return m.clearedaccount
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SubPoolAccountMutation) ClearEdge(name string) error {
+	switch name {
+	case subpoolaccount.EdgeSubPool:
+		m.ClearSubPool()
+		return nil
+	case subpoolaccount.EdgeAccount:
+		m.ClearAccount()
+		return nil
+	}
+	return fmt.Errorf("unknown SubPoolAccount unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SubPoolAccountMutation) ResetEdge(name string) error {
+	switch name {
+	case subpoolaccount.EdgeSubPool:
+		m.ResetSubPool()
+		return nil
+	case subpoolaccount.EdgeAccount:
+		m.ResetAccount()
+		return nil
+	}
+	return fmt.Errorf("unknown SubPoolAccount edge %s", name)
 }
 
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.

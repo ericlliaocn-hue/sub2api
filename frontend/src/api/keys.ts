@@ -131,13 +131,42 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
   return update(id, { status })
 }
 
+/**
+ * One anonymised member of the sub-pool behind this key.
+ * Deliberately carries no identity: only a per-pool letter label.
+ */
+export interface PoolPeer {
+  label: string
+  is_self: boolean
+  first_call_at: string | null
+  last_call_at: string | null
+  today_calls: number
+  week_calls: number
+}
+
+export interface PoolPeerBoard {
+  member_count: number
+  peers: PoolPeer[]
+  week_window_hours: number
+}
+
+/**
+ * Who else shares the upstream accounts behind this key.
+ * Fails with SUB_POOL_NOT_ENABLED when the key's group does not use sub-pools.
+ */
+export async function getPoolPeers(id: number): Promise<PoolPeerBoard> {
+  const { data } = await apiClient.get<PoolPeerBoard>(`/keys/${id}/pool-peers`)
+  return data
+}
+
 export const keysAPI = {
   list,
   getById,
   create,
   update,
   delete: deleteKey,
-  toggleStatus
+  toggleStatus,
+  getPoolPeers
 }
 
 export default keysAPI

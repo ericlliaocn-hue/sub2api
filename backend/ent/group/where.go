@@ -110,6 +110,11 @@ func IsExclusive(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldIsExclusive, v))
 }
 
+// SubPoolEnabled applies equality check predicate on the "sub_pool_enabled" field. It's identical to SubPoolEnabledEQ.
+func SubPoolEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSubPoolEnabled, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldStatus, v))
@@ -843,6 +848,16 @@ func IsExclusiveEQ(v bool) predicate.Group {
 // IsExclusiveNEQ applies the NEQ predicate on the "is_exclusive" field.
 func IsExclusiveNEQ(v bool) predicate.Group {
 	return predicate.Group(sql.FieldNEQ(FieldIsExclusive, v))
+}
+
+// SubPoolEnabledEQ applies the EQ predicate on the "sub_pool_enabled" field.
+func SubPoolEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSubPoolEnabled, v))
+}
+
+// SubPoolEnabledNEQ applies the NEQ predicate on the "sub_pool_enabled" field.
+func SubPoolEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSubPoolEnabled, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

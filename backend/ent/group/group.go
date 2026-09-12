@@ -38,6 +38,8 @@ const (
 	FieldPeakRateMultiplier = "peak_rate_multiplier"
 	// FieldIsExclusive holds the string denoting the is_exclusive field in the database.
 	FieldIsExclusive = "is_exclusive"
+	// FieldSubPoolEnabled holds the string denoting the sub_pool_enabled field in the database.
+	FieldSubPoolEnabled = "sub_pool_enabled"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldDuplicateOperationID holds the string denoting the duplicate_operation_id field in the database.
@@ -232,6 +234,7 @@ var Columns = []string{
 	FieldPeakEnd,
 	FieldPeakRateMultiplier,
 	FieldIsExclusive,
+	FieldSubPoolEnabled,
 	FieldStatus,
 	FieldDuplicateOperationID,
 	FieldPlatform,
@@ -339,6 +342,8 @@ var (
 	DefaultPeakRateMultiplier float64
 	// DefaultIsExclusive holds the default value on creation for the "is_exclusive" field.
 	DefaultIsExclusive bool
+	// DefaultSubPoolEnabled holds the default value on creation for the "sub_pool_enabled" field.
+	DefaultSubPoolEnabled bool
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -492,6 +497,11 @@ func ByPeakRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 // ByIsExclusive orders the results by the is_exclusive field.
 func ByIsExclusive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsExclusive, opts...).ToFunc()
+}
+
+// BySubPoolEnabled orders the results by the sub_pool_enabled field.
+func BySubPoolEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubPoolEnabled, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

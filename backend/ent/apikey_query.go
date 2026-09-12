@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
@@ -29,6 +30,7 @@ type APIKeyQuery struct {
 	predicates    []predicate.APIKey
 	withUser      *UserQuery
 	withGroup     *GroupQuery
+	withSubPool   *SubPoolQuery
 	withUsageLogs *UsageLogQuery
 	modifiers     []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
@@ -104,6 +106,28 @@ func (_q *APIKeyQuery) QueryGroup() *GroupQuery {
 			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
 			sqlgraph.To(group.Table, group.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, apikey.GroupTable, apikey.GroupColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySubPool chains the current query on the "sub_pool" edge.
+func (_q *APIKeyQuery) QuerySubPool() *SubPoolQuery {
+	query := (&SubPoolClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(subpool.Table, subpool.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikey.SubPoolTable, apikey.SubPoolColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -327,6 +351,7 @@ func (_q *APIKeyQuery) Clone() *APIKeyQuery {
 		predicates:    append([]predicate.APIKey{}, _q.predicates...),
 		withUser:      _q.withUser.Clone(),
 		withGroup:     _q.withGroup.Clone(),
+		withSubPool:   _q.withSubPool.Clone(),
 		withUsageLogs: _q.withUsageLogs.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -353,6 +378,17 @@ func (_q *APIKeyQuery) WithGroup(opts ...func(*GroupQuery)) *APIKeyQuery {
 		opt(query)
 	}
 	_q.withGroup = query
+	return _q
+}
+
+// WithSubPool tells the query-builder to eager-load the nodes that are connected to
+// the "sub_pool" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithSubPool(opts ...func(*SubPoolQuery)) *APIKeyQuery {
+	query := (&SubPoolClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSubPool = query
 	return _q
 }
 
@@ -445,9 +481,10 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	var (
 		nodes       = []*APIKey{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withUser != nil,
 			_q.withGroup != nil,
+			_q.withSubPool != nil,
 			_q.withUsageLogs != nil,
 		}
 	)
@@ -481,6 +518,12 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	if query := _q.withGroup; query != nil {
 		if err := _q.loadGroup(ctx, query, nodes, nil,
 			func(n *APIKey, e *Group) { n.Edges.Group = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSubPool; query != nil {
+		if err := _q.loadSubPool(ctx, query, nodes, nil,
+			func(n *APIKey, e *SubPool) { n.Edges.SubPool = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -555,6 +598,38 @@ func (_q *APIKeyQuery) loadGroup(ctx context.Context, query *GroupQuery, nodes [
 	}
 	return nil
 }
+func (_q *APIKeyQuery) loadSubPool(ctx context.Context, query *SubPoolQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *SubPool)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*APIKey)
+	for i := range nodes {
+		if nodes[i].SubPoolID == nil {
+			continue
+		}
+		fk := *nodes[i].SubPoolID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(subpool.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "sub_pool_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 func (_q *APIKeyQuery) loadUsageLogs(ctx context.Context, query *UsageLogQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *UsageLog)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int64]*APIKey)
@@ -619,6 +694,9 @@ func (_q *APIKeyQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withGroup != nil {
 			_spec.Node.AddColumnOnce(apikey.FieldGroupID)
+		}
+		if _q.withSubPool != nil {
+			_spec.Node.AddColumnOnce(apikey.FieldSubPoolID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

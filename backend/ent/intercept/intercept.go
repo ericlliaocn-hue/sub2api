@@ -13,6 +13,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeyreputation"
+	"github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageevent"
@@ -38,6 +40,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
+	"github.com/Wei-Shaw/sub2api/ent/subpoolaccount"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -131,6 +135,60 @@ func (f TraverseAPIKey) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyQuery", q)
+}
+
+// The APIKeyReputationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type APIKeyReputationFunc func(context.Context, *ent.APIKeyReputationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f APIKeyReputationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.APIKeyReputationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.APIKeyReputationQuery", q)
+}
+
+// The TraverseAPIKeyReputation type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAPIKeyReputation func(context.Context, *ent.APIKeyReputationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAPIKeyReputation) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAPIKeyReputation) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeyReputationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyReputationQuery", q)
+}
+
+// The APIKeySubPoolBindingFunc type is an adapter to allow the use of ordinary function as a Querier.
+type APIKeySubPoolBindingFunc func(context.Context, *ent.APIKeySubPoolBindingQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f APIKeySubPoolBindingFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.APIKeySubPoolBindingQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.APIKeySubPoolBindingQuery", q)
+}
+
+// The TraverseAPIKeySubPoolBinding type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAPIKeySubPoolBinding func(context.Context, *ent.APIKeySubPoolBindingQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAPIKeySubPoolBinding) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAPIKeySubPoolBinding) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.APIKeySubPoolBindingQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeySubPoolBindingQuery", q)
 }
 
 // The AccountFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -889,6 +947,60 @@ func (f TraverseSetting) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.SettingQuery", q)
 }
 
+// The SubPoolFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubPoolFunc func(context.Context, *ent.SubPoolQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubPoolFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubPoolQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubPoolQuery", q)
+}
+
+// The TraverseSubPool type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubPool func(context.Context, *ent.SubPoolQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubPool) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubPool) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubPoolQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubPoolQuery", q)
+}
+
+// The SubPoolAccountFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SubPoolAccountFunc func(context.Context, *ent.SubPoolAccountQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SubPoolAccountFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SubPoolAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubPoolAccountQuery", q)
+}
+
+// The TraverseSubPoolAccount type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSubPoolAccount func(context.Context, *ent.SubPoolAccountQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSubPoolAccount) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSubPoolAccount) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SubPoolAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SubPoolAccountQuery", q)
+}
+
 // The SubscriptionPlanFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SubscriptionPlanFunc func(context.Context, *ent.SubscriptionPlanQuery) (ent.Value, error)
 
@@ -1164,6 +1276,10 @@ func NewQuery(q ent.Query) (Query, error) {
 	switch q := q.(type) {
 	case *ent.APIKeyQuery:
 		return &query[*ent.APIKeyQuery, predicate.APIKey, apikey.OrderOption]{typ: ent.TypeAPIKey, tq: q}, nil
+	case *ent.APIKeyReputationQuery:
+		return &query[*ent.APIKeyReputationQuery, predicate.APIKeyReputation, apikeyreputation.OrderOption]{typ: ent.TypeAPIKeyReputation, tq: q}, nil
+	case *ent.APIKeySubPoolBindingQuery:
+		return &query[*ent.APIKeySubPoolBindingQuery, predicate.APIKeySubPoolBinding, apikeysubpoolbinding.OrderOption]{typ: ent.TypeAPIKeySubPoolBinding, tq: q}, nil
 	case *ent.AccountQuery:
 		return &query[*ent.AccountQuery, predicate.Account, account.OrderOption]{typ: ent.TypeAccount, tq: q}, nil
 	case *ent.AccountGroupQuery:
@@ -1220,6 +1336,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SecuritySecretQuery, predicate.SecuritySecret, securitysecret.OrderOption]{typ: ent.TypeSecuritySecret, tq: q}, nil
 	case *ent.SettingQuery:
 		return &query[*ent.SettingQuery, predicate.Setting, setting.OrderOption]{typ: ent.TypeSetting, tq: q}, nil
+	case *ent.SubPoolQuery:
+		return &query[*ent.SubPoolQuery, predicate.SubPool, subpool.OrderOption]{typ: ent.TypeSubPool, tq: q}, nil
+	case *ent.SubPoolAccountQuery:
+		return &query[*ent.SubPoolAccountQuery, predicate.SubPoolAccount, subpoolaccount.OrderOption]{typ: ent.TypeSubPoolAccount, tq: q}, nil
 	case *ent.SubscriptionPlanQuery:
 		return &query[*ent.SubscriptionPlanQuery, predicate.SubscriptionPlan, subscriptionplan.OrderOption]{typ: ent.TypeSubscriptionPlan, tq: q}, nil
 	case *ent.TLSFingerprintProfileQuery:

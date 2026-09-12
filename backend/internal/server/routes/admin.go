@@ -47,6 +47,9 @@ func RegisterAdminRoutes(
 		// 分组管理
 		registerGroupRoutes(admin, h)
 
+		// 子池管理（分组内部的账号/Key 隔离池）
+		registerSubPoolRoutes(admin, h)
+
 		// 账号管理
 		registerAccountRoutes(admin, h, stepUpAuth)
 
@@ -409,6 +412,41 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.PUT("/:id/rpm-overrides", h.Admin.Group.BatchSetGroupRPMOverrides)
 		groups.DELETE("/:id/rpm-overrides", h.Admin.Group.ClearGroupRPMOverrides)
 		groups.GET("/:id/api-keys", h.Admin.Group.GetGroupAPIKeys)
+		groups.GET("/:id/sub-pools", h.Admin.SubPool.List)
+		groups.POST("/:id/sub-pools", h.Admin.SubPool.Create)
+	}
+}
+
+func registerSubPoolRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pools := admin.Group("/sub-pools")
+	{
+		// Static segments must precede :pool_id conceptually; gin resolves the
+		// tree by specificity, so "graduation" never matches a pool id.
+		pools.GET("/graduation", h.Admin.SubPool.GetGraduationPolicy)
+		pools.PUT("/graduation", h.Admin.SubPool.UpdateGraduationPolicy)
+		pools.POST("/graduation/run", h.Admin.SubPool.RunGraduation)
+		pools.POST("/cooling/run", h.Admin.SubPool.RunCooling)
+		pools.GET("/reputation", h.Admin.SubPool.GetReputationPolicy)
+		pools.PUT("/reputation", h.Admin.SubPool.UpdateReputationPolicy)
+		pools.POST("/reputation/run", h.Admin.SubPool.RunReputation)
+		pools.GET("/reputation/worst", h.Admin.SubPool.ListWorstReputations)
+
+		pools.PUT("/:pool_id", h.Admin.SubPool.Update)
+		pools.DELETE("/:pool_id", h.Admin.SubPool.Delete)
+		pools.PUT("/:pool_id/accounts", h.Admin.SubPool.SetAccounts)
+		pools.POST("/:pool_id/keys", h.Admin.SubPool.BindKey)
+		pools.POST("/:pool_id/migrate", h.Admin.SubPool.MigrateCleanKeys)
+		pools.GET("/:pool_id/attribution", h.Admin.SubPool.Attribution)
+	}
+
+	// Sanctions act on a key, not a pool, so they sit on their own path rather
+	// than under /sub-pools/:pool_id where the pool id would be decorative.
+	keys := admin.Group("/sub-pool-keys")
+	{
+		keys.POST("/:key_id/demote", h.Admin.SubPool.DemoteKey)
+		keys.POST("/:key_id/disable", h.Admin.SubPool.DisableKey)
+		keys.GET("/:key_id/reputation", h.Admin.SubPool.GetKeyReputation)
+		keys.POST("/:key_id/reputation/clear", h.Admin.SubPool.ClearKeyReputationSanction)
 	}
 }
 
@@ -448,6 +486,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/clear-error", h.Admin.Account.ClearError)
 		accounts.POST("/:id/revert-proxy-fallback", h.Admin.Account.RevertProxyFallback)
 		accounts.GET("/:id/usage", h.Admin.Account.GetUsage)
+		// 事故归因：这个上游账号的流量分别是哪些 Key 打出来的
+		accounts.GET("/:id/top-keys", h.Admin.SubPool.TopKeysByAccount)
 		accounts.GET("/:id/today-stats", h.Admin.Account.GetTodayStats)
 		accounts.POST("/usage/batch", h.Admin.Account.GetBatchUsage)
 		accounts.POST("/today-stats/batch", h.Admin.Account.GetBatchTodayStats)

@@ -126,6 +126,9 @@ func provideCleanup(
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	auditLog *service.AuditLogService,
 	openAIAutoReset *service.OpenAIQuotaAutoResetService,
+	subPoolGraduation *service.SubPoolGraduationService,
+	subPoolCooling *service.SubPoolCoolingService,
+	keyReputation *service.APIKeyReputationService,
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 ) func() {
@@ -149,6 +152,24 @@ func provideCleanup(
 			{"OpenAIQuotaAutoResetService", func() error {
 				if openAIAutoReset != nil {
 					openAIAutoReset.Stop()
+				}
+				return nil
+			}},
+			{"SubPoolGraduationService", func() error {
+				if subPoolGraduation != nil {
+					subPoolGraduation.Stop()
+				}
+				return nil
+			}},
+			{"SubPoolCoolingService", func() error {
+				if subPoolCooling != nil {
+					subPoolCooling.Stop()
+				}
+				return nil
+			}},
+			{"APIKeyReputationService", func() error {
+				if keyReputation != nil {
+					keyReputation.Stop()
 				}
 				return nil
 			}},

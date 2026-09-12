@@ -16,6 +16,10 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// APIKeyReputation is the client for interacting with the APIKeyReputation builders.
+	APIKeyReputation *APIKeyReputationClient
+	// APIKeySubPoolBinding is the client for interacting with the APIKeySubPoolBinding builders.
+	APIKeySubPoolBinding *APIKeySubPoolBindingClient
 	// Account is the client for interacting with the Account builders.
 	Account *AccountClient
 	// AccountGroup is the client for interacting with the AccountGroup builders.
@@ -72,6 +76,10 @@ type Tx struct {
 	SecuritySecret *SecuritySecretClient
 	// Setting is the client for interacting with the Setting builders.
 	Setting *SettingClient
+	// SubPool is the client for interacting with the SubPool builders.
+	SubPool *SubPoolClient
+	// SubPoolAccount is the client for interacting with the SubPoolAccount builders.
+	SubPoolAccount *SubPoolAccountClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
@@ -224,6 +232,8 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.APIKeyReputation = NewAPIKeyReputationClient(tx.config)
+	tx.APIKeySubPoolBinding = NewAPIKeySubPoolBindingClient(tx.config)
 	tx.Account = NewAccountClient(tx.config)
 	tx.AccountGroup = NewAccountGroupClient(tx.config)
 	tx.Announcement = NewAnnouncementClient(tx.config)
@@ -252,6 +262,8 @@ func (tx *Tx) init() {
 	tx.RedeemCode = NewRedeemCodeClient(tx.config)
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
+	tx.SubPool = NewSubPoolClient(tx.config)
+	tx.SubPoolAccount = NewSubPoolAccountClient(tx.config)
 	tx.SubscriptionPlan = NewSubscriptionPlanClient(tx.config)
 	tx.TLSFingerprintProfile = NewTLSFingerprintProfileClient(tx.config)
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)
