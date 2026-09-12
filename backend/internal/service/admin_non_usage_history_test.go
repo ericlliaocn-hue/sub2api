@@ -66,7 +66,7 @@ func TestNonUsageEntitlementTriggers(t *testing.T) {
  CREATE TABLE user_subscriptions(id bigint,user_id bigint,group_id bigint,starts_at timestamptz,expires_at timestamptz,status text,deleted_at timestamptz,daily_usage_usd numeric);
  CREATE TABLE recharge_bonus_grants(id bigint,user_id bigint,expires_at timestamptz,remaining_amount numeric);`)
 	require.NoError(t, err)
-	migration, err := os.ReadFile("../../migrations/234_non_usage_history.sql")
+	migration, err := os.ReadFile("../../migrations/238_non_usage_history.sql")
 	require.NoError(t, err)
 	_, err = tx.Exec(string(migration))
 	require.NoError(t, err)
