@@ -998,6 +998,7 @@ export default {
         attribution: {
           action: '归因',
           title: '谁打的',
+          keyId: 'Key ID',
           lastHours: '近 {hours} 小时',
           total: '窗口内共 {calls} 次',
           calls: '调用',

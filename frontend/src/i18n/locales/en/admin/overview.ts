@@ -982,6 +982,7 @@ export default {
         attribution: {
           action: 'Attribution',
           title: 'Who burned this pool',
+          keyId: 'Key ID',
           lastHours: 'Last {hours}h',
           total: '{calls} calls in window',
           calls: 'Calls',

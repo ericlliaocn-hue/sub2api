@@ -2,6 +2,7 @@ export default {
   upstreamConnections: {
     title: 'Upstream Connections',
     description: 'Manage Sub2API, NewAPI and other upstream service connections',
+    name: 'Name',
     add: 'Add Upstream',
     edit: 'Edit Upstream',
     delete: 'Delete Upstream',

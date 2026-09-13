@@ -2,6 +2,7 @@ export default {
   upstreamConnections: {
     title: '上游连接',
     description: '管理 Sub2API、NewAPI 等上游服务连接，查看远程账号和分组',
+    name: '名称',
     add: '添加上游',
     edit: '编辑上游',
     delete: '删除上游',
