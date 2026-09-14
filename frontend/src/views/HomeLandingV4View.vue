@@ -1,166 +1,221 @@
 <template>
   <HomeView v-if="hasHomeContent || compactHomeEnabled" />
 
-  <div v-else class="oi-page" :class="{ 'is-latin': isLatin }">
-    <!-- 首屏：整块朱红 -->
-    <section class="oi-hero">
-      <div class="oi-wrap">
-        <header class="oi-top">
-          <RouterLink to="/" class="oi-brand" aria-label="oioio home">
-            <img :src="siteLogo" alt="" />
-            <span>{{ siteName }}</span>
-          </RouterLink>
-          <nav class="oi-nav" aria-label="Primary navigation">
-            <RouterLink to="/model-plaza">{{ t('home.v4.nav.models') }}</RouterLink>
-            <RouterLink :to="memberPath('/creation')">{{ t('home.v4.nav.creation') }}</RouterLink>
-            <RouterLink :to="memberPath('/purchase')">{{ t('home.v4.nav.pricing') }}</RouterLink>
-            <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">{{ t('home.docs') }}</a>
-          </nav>
-          <div class="oi-tools">
-            <LocaleSwitcher />
-            <button type="button" class="oi-tool" :title="isDark ? t('home.switchToLight') : t('home.switchToDark')" :aria-label="isDark ? t('home.switchToLight') : t('home.switchToDark')" @click="toggleTheme">
-              <Icon v-if="isDark" name="sun" size="sm" />
-              <Icon v-else name="moon" size="sm" />
-            </button>
-            <RouterLink :to="accountPath" class="oi-btn oi-btn-sm">{{ isAuthenticated ? t('home.dashboard') : t('home.login') }}</RouterLink>
-          </div>
-        </header>
+  <div v-else class="v4-page min-h-screen bg-[#f5f5f3] text-[#1d1d1f] dark:bg-[#0b0c0d] dark:text-[#f5f5f7]">
+    <header class="relative z-30 px-4 pt-4 sm:px-6 lg:px-10">
+      <nav class="v4-nav mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
+        <RouterLink to="/" class="flex min-w-0 items-center gap-2.5" aria-label="Home">
+          <span class="v4-logo"><img :src="siteLogo || '/logo.svg'" alt="" class="h-full w-full object-contain" /></span>
+          <span class="truncate text-[13px] font-semibold">{{ siteName }}</span>
+        </RouterLink>
 
-        <div class="oi-hero-grid">
-          <p class="oi-meta">{{ t('home.v4.hero.meta') }}</p>
-          <p class="oi-meta oi-meta-right"><code>{{ baseHost }}</code></p>
-          <h1>{{ t('home.v4.hero.title') }}</h1>
-          <p class="oi-accent">{{ t('home.v4.hero.accent') }}</p>
-          <p class="oi-lede">{{ t('home.v4.hero.description') }}</p>
-          <div class="oi-actions">
-            <RouterLink to="/model-plaza" class="oi-btn oi-btn-fill">{{ t('home.v4.hero.primary') }}</RouterLink>
-            <RouterLink :to="accountPath" class="oi-btn">{{ t('home.v4.hero.secondary') }}</RouterLink>
-          </div>
+        <div class="hidden items-center gap-7 text-[13px] text-black/60 dark:text-white/60 md:flex">
+          <RouterLink to="/model-plaza" class="v4-nav-link">{{ t('home.v4.nav.models') }}</RouterLink>
+          <RouterLink :to="memberPath('/creation')" class="v4-nav-link">{{ t('home.v4.nav.creation') }}</RouterLink>
+          <RouterLink :to="memberPath('/purchase')" class="v4-nav-link">{{ t('home.v4.nav.pricing') }}</RouterLink>
         </div>
 
-        <!-- o i o i o：进 → 出 -->
-        <div class="oi-io" aria-hidden="true">
-          <span class="oi-io-cap">{{ t('home.v4.hero.ioIn') }}</span>
-          <div class="oi-io-row">
-            <i class="oi-o"></i><i class="oi-i"></i><i class="oi-o"></i><i class="oi-i"></i><i class="oi-o"></i>
-          </div>
-          <span class="oi-io-cap">{{ t('home.v4.hero.ioOut') }}</span>
+        <div class="flex items-center gap-0.5 sm:gap-1">
+          <LocaleSwitcher />
+          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer" class="v4-icon-button" :title="t('home.viewDocs')"><Icon name="book" size="sm" /></a>
+          <button type="button" class="v4-icon-button" :title="isDark ? t('home.switchToLight') : t('home.switchToDark')" @click="toggleTheme">
+            <Icon v-if="isDark" name="sun" size="sm" /><Icon v-else name="moon" size="sm" />
+          </button>
+          <RouterLink :to="isAuthenticated ? dashboardPath : '/login'" class="v4-account-link">{{ isAuthenticated ? t('home.dashboard') : t('home.login') }}<Icon name="arrowRight" size="xs" /></RouterLink>
         </div>
-      </div>
-    </section>
+      </nav>
+    </header>
 
-    <!-- 跑马灯 -->
-    <div class="oi-ticker" aria-hidden="true">
-      <div class="oi-ticker-track">
-        <span v-for="(item, index) in tickerItems" :key="index">{{ item }}</span>
-      </div>
-    </div>
-
-    <main>
-      <!-- 三件事 -->
-      <section class="oi-three">
-        <div class="oi-wrap">
-          <p class="oi-label">{{ t('home.v4.three.label') }}</p>
-          <div class="oi-three-grid">
-            <div v-for="n in 3" :key="n">
-              <b>{{ String(n).padStart(2, '0') }}</b>
-              <h2>{{ t(`home.v4.three.n${n}Title`) }}</h2>
-              <p>{{ t(`home.v4.three.n${n}Desc`) }}</p>
+    <main class="relative z-10">
+      <section class="v4-hero mx-auto max-w-[1280px] px-5 pb-16 pt-14 sm:px-8 lg:px-10 lg:pb-20 lg:pt-20">
+        <div class="grid items-center gap-12 lg:grid-cols-[.76fr_1.24fr] lg:gap-16">
+          <div class="v4-entry max-w-xl text-center lg:text-left">
+            <div class="v4-eyebrow"><span></span>{{ t('home.v4.hero.eyebrow') }}</div>
+            <h1 class="v4-title mt-5">{{ t('home.v4.hero.title') }}<em>{{ t('home.v4.hero.accent') }}</em></h1>
+            <p class="mx-auto mt-5 max-w-xl text-[15px] leading-7 text-black/58 dark:text-white/58 lg:mx-0">{{ t('home.v4.hero.description') }}</p>
+            <div class="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <RouterLink to="/model-plaza" class="v4-primary-button">{{ t('home.v4.hero.primary') }}<Icon name="arrowRight" size="sm" /></RouterLink>
+              <RouterLink :to="memberPath('/creation')" class="v4-secondary-button">{{ t('home.v4.hero.secondary') }}</RouterLink>
             </div>
           </div>
+
+          <div class="v4-product-window w-full text-left">
+            <div class="v4-window-toolbar">
+              <div class="flex items-center gap-1.5"><i class="v4-dot v4-dot-red"></i><i class="v4-dot v4-dot-yellow"></i><i class="v4-dot v4-dot-green"></i></div>
+              <span>{{ t('home.v4.surface.title') }}</span>
+              <span class="v4-live-indicator"><b></b>{{ t('home.v4.surface.live') }}</span>
+            </div>
+
+            <div class="grid gap-0 lg:grid-cols-[208px_1fr]">
+              <aside class="v4-window-sidebar hidden border-r border-black/8 p-5 dark:border-white/8 lg:block">
+                <p class="v4-sidebar-label">{{ t('home.v4.surface.workspace') }}</p>
+                <div class="mt-5 space-y-1.5">
+                  <button type="button" class="v4-sidebar-item" :class="{ 'v4-sidebar-item-active': activeSurface === 'models' }" @click="activeSurface = 'models'"><Icon name="grid" size="sm" />{{ t('home.v4.surface.models') }}</button>
+                  <button type="button" class="v4-sidebar-item" :class="{ 'v4-sidebar-item-active': activeSurface === 'creation' }" @click="activeSurface = 'creation'"><Icon name="sparkles" size="sm" />{{ t('home.v4.surface.creation') }}</button>
+                  <button type="button" class="v4-sidebar-item" :class="{ 'v4-sidebar-item-active': activeSurface === 'usage' }" @click="activeSurface = 'usage'"><Icon name="chartBar" size="sm" />{{ t('home.v4.surface.usage') }}</button>
+                </div>
+                <div class="v4-sidebar-bottom"><span class="v4-avatar">{{ userInitial || 'AI' }}</span><span>{{ t('home.v4.surface.personal') }}</span><Icon name="chevronRight" size="xs" /></div>
+              </aside>
+
+              <div class="min-w-0 p-5 sm:p-7">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div><p class="v4-overline">{{ t('home.v4.surface.greeting') }}</p><h2 class="mt-2 text-xl font-semibold text-[#1d1d1f] dark:text-white sm:text-2xl">{{ activeSurfaceTitle }}</h2></div>
+                  <span class="v4-surface-chip"><b></b>{{ t('home.v4.surface.ready') }}</span>
+                </div>
+
+                <div class="v4-mobile-tabs mt-6 lg:hidden">
+                  <button type="button" :class="{ 'v4-mobile-tab-active': activeSurface === 'models' }" @click="activeSurface = 'models'">{{ t('home.v4.surface.models') }}</button>
+                  <button type="button" :class="{ 'v4-mobile-tab-active': activeSurface === 'creation' }" @click="activeSurface = 'creation'">{{ t('home.v4.surface.creation') }}</button>
+                  <button type="button" :class="{ 'v4-mobile-tab-active': activeSurface === 'usage' }" @click="activeSurface = 'usage'">{{ t('home.v4.surface.usage') }}</button>
+                </div>
+
+                <div :key="activeSurface" class="v4-surface-content mt-7">
+                  <template v-if="activeSurface === 'models'">
+                    <div class="grid gap-3 sm:grid-cols-3">
+                      <RouterLink to="/model-plaza" class="v4-model-card v4-model-card-active"><span class="v4-model-symbol v4-symbol-claude"><PlatformIcon platform="anthropic" size="md" /></span><strong>Claude</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelFast') }}</span></RouterLink>
+                      <RouterLink to="/model-plaza" class="v4-model-card"><span class="v4-model-symbol v4-symbol-openai"><PlatformIcon platform="openai" size="md" /></span><strong>GPT</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelPopular') }}</span></RouterLink>
+                      <RouterLink to="/model-plaza" class="v4-model-card"><span class="v4-model-symbol v4-symbol-grok"><PlatformIcon platform="grok" size="md" /></span><strong>Grok</strong><small>{{ t('home.v4.surface.modelAvailable') }}</small><span class="v4-model-price">{{ t('home.v4.surface.modelReasoning') }}</span></RouterLink>
+                    </div>
+                    <div class="v4-surface-footer"><span>{{ t('home.v4.surface.modelFooter') }}</span><RouterLink to="/model-plaza">{{ t('home.v4.surface.openPlaza') }}<Icon name="arrowRight" size="xs" /></RouterLink></div>
+                  </template>
+                  <template v-else-if="activeSurface === 'creation'">
+                    <div class="v4-creation-preview">
+                      <div class="v4-creation-grid" aria-hidden="true"><i></i><i></i><i></i></div>
+                      <span class="v4-creation-play"><Icon name="sparkles" size="sm" /></span>
+                      <div><p>{{ t('home.v4.surface.creationLabel') }}</p><strong>{{ t('home.v4.surface.creationHeadline') }}</strong></div>
+                    </div>
+                    <div class="v4-surface-footer"><span>{{ t('home.v4.surface.creationFooter') }}</span><RouterLink :to="memberPath('/creation')">{{ t('home.v4.surface.openCreation') }}<Icon name="arrowRight" size="xs" /></RouterLink></div>
+                  </template>
+                  <template v-else>
+                    <div class="v4-usage-preview"><div><span>{{ t('home.v4.surface.usageBalance') }}</span><strong>¥ 128.40</strong></div><div class="v4-usage-bars"><i style="height: 38%"></i><i style="height: 60%"></i><i style="height: 46%"></i><i style="height: 82%"></i><i style="height: 56%"></i><i style="height: 72%"></i><i style="height: 90%"></i></div></div>
+                    <div class="v4-surface-footer"><span>{{ t('home.v4.surface.usageFooter') }}</span><RouterLink :to="memberPath('/usage')">{{ t('home.v4.surface.openUsage') }}<Icon name="arrowRight" size="xs" /></RouterLink></div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="v4-proof-strip mt-14">
+          <div><Icon name="key" size="sm" /><span><strong>{{ t('home.v4.hero.proof1Title') }}</strong><small>{{ t('home.v4.hero.proof1Desc') }}</small></span></div>
+          <div><Icon name="swap" size="sm" /><span><strong>{{ t('home.v4.hero.proof2Title') }}</strong><small>{{ t('home.v4.hero.proof2Desc') }}</small></span></div>
+          <div><Icon name="chartBar" size="sm" /><span><strong>{{ t('home.v4.hero.proof3Title') }}</strong><small>{{ t('home.v4.hero.proof3Desc') }}</small></span></div>
         </div>
       </section>
 
-      <!-- 模型 -->
-      <section class="oi-models">
-        <div class="oi-wrap">
-          <div class="oi-models-head">
-            <p class="oi-label">{{ t('home.v4.models.label') }}</p>
-            <h2>{{ t('home.v4.models.title') }}</h2>
-            <p>{{ t('home.v4.models.note') }}</p>
+      <section id="api-access" class="v4-band border-y border-black/8 dark:border-white/8">
+        <div class="mx-auto grid max-w-[1280px] gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[.72fr_1.28fr] lg:gap-20 lg:px-10 lg:py-20">
+          <div>
+            <p class="v4-section-label">01 / {{ t('home.v4.access.label') }}</p>
+            <h2 class="v4-section-title mt-4">{{ t('home.v4.access.title') }}</h2>
+            <p class="mt-5 max-w-md text-sm leading-7 text-black/55 dark:text-white/55">{{ t('home.v4.access.description') }}</p>
           </div>
-          <div class="oi-rows">
-            <RouterLink v-for="model in models" :key="model.name" to="/model-plaza" class="oi-row">
-              <PlatformIcon :platform="model.platform" size="md" />
-              <strong>{{ model.name }}</strong>
-              <code>{{ model.protocol }}</code>
-              <span aria-hidden="true">→</span>
-            </RouterLink>
-          </div>
-          <RouterLink to="/model-plaza" class="oi-more">{{ t('home.v4.models.more') }} <span aria-hidden="true">→</span></RouterLink>
-        </div>
-      </section>
 
-      <!-- 接入（反色块） -->
-      <section class="oi-code">
-        <div class="oi-wrap oi-code-grid">
-          <div class="oi-code-copy">
-            <p class="oi-label">{{ t('home.v4.code.label') }}</p>
-            <h2>{{ t('home.v4.code.title') }}<em>{{ t('home.v4.code.accent') }}</em></h2>
-            <p>{{ t('home.v4.code.description') }}</p>
-            <div class="oi-base">
-              <span>{{ t('home.v4.code.baseLabel') }}</span>
-              <code>{{ baseUrl }}</code>
-              <button type="button" @click="copyBaseUrl">{{ copied ? t('home.v4.code.copied') : t('home.v4.code.copy') }}</button>
+          <div class="v4-flow" aria-label="AI request flow">
+            <div class="v4-flow-column">
+              <p>{{ t('home.v4.access.clientsLabel') }}</p>
+              <div class="v4-flow-list">
+                <span><Icon name="terminal" size="sm" />Codex CLI</span>
+                <span><Icon name="chat" size="sm" />Claude Code</span>
+                <span><Icon name="cube" size="sm" />OpenAI SDK</span>
+                <span><Icon name="sparkles" size="sm" />{{ t('home.v4.nav.creation') }}</span>
+              </div>
             </div>
-          </div>
-          <div class="oi-code-box">
-            <div class="oi-code-tabs" role="tablist">
-              <button v-for="tab in codeTabs" :key="tab.id" type="button" role="tab" :aria-selected="codeTab === tab.id" :class="{ 'is-active': codeTab === tab.id }" @click="codeTab = tab.id">{{ t(tab.label) }}</button>
-            </div>
-            <div class="oi-code-body">
-              <div v-for="(line, index) in codeLines" :key="codeTab + index" class="oi-line" :class="line.tone">{{ line.text }}</div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- 常见问题 -->
-      <section class="oi-faq">
-        <div class="oi-wrap">
-          <p class="oi-label">{{ t('home.v4.faq.label') }}</p>
-          <dl>
-            <div v-for="n in 3" :key="n">
-              <dt>{{ t(`home.v4.faq.q${n}`) }}</dt>
-              <dd>{{ t(`home.v4.faq.a${n}`) }}</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
+            <div class="v4-flow-arrow"><span></span><em>HTTPS</em><Icon name="arrowRight" size="sm" /></div>
 
-      <!-- CTA -->
-      <section class="oi-cta">
-        <div class="oi-wrap">
-          <div class="oi-cta-in">
-            <h2>{{ t('home.v4.cta.title') }}</h2>
-            <div class="oi-cta-side">
-              <p>{{ t('home.v4.cta.description') }}</p>
-              <div class="oi-actions">
-                <RouterLink to="/model-plaza" class="oi-btn oi-btn-fill">{{ t('home.v4.cta.action') }}</RouterLink>
-                <RouterLink :to="accountPath" class="oi-btn">{{ t('home.v4.hero.secondary') }}</RouterLink>
+            <div class="v4-gateway">
+              <div class="v4-gateway-mark"><Icon name="server" size="md" /></div>
+              <p>{{ t('home.v4.access.gatewayLabel') }}</p>
+              <strong>{{ t('home.v4.access.gatewayTitle') }}</strong>
+              <small>{{ t('home.v4.access.gatewayDesc') }}</small>
+              <ul>
+                <li><Icon name="check" size="xs" />{{ t('home.v4.access.gatewayKey') }}</li>
+                <li><Icon name="check" size="xs" />{{ t('home.v4.access.gatewayRoute') }}</li>
+                <li><Icon name="check" size="xs" />{{ t('home.v4.access.gatewayBilling') }}</li>
+              </ul>
+            </div>
+
+            <div class="v4-flow-arrow"><span></span><em>API</em><Icon name="arrowRight" size="sm" /></div>
+
+            <div class="v4-flow-column">
+              <p>{{ t('home.v4.access.modelsLabel') }}</p>
+              <div class="v4-flow-list v4-flow-models">
+                <span><b class="v4-provider-dot v4-provider-orange"></b>Claude</span>
+                <span><b class="v4-provider-dot v4-provider-green"></b>GPT</span>
+                <span><b class="v4-provider-dot v4-provider-grok"></b>Grok</span>
+                <span><b class="v4-provider-dot v4-provider-gray"></b>{{ t('home.v4.access.moreModels') }}</span>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      <section class="mx-auto max-w-[1280px] px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <div class="max-w-2xl">
+          <p class="v4-section-label">02 / {{ t('home.v4.compat.label') }}</p>
+          <h2 class="v4-section-title mt-4">{{ t('home.v4.compat.title') }}</h2>
+          <p class="mt-5 text-sm leading-7 text-black/55 dark:text-white/55">{{ t('home.v4.compat.description') }}</p>
+        </div>
+
+        <div class="v4-protocol-grid mt-10">
+          <div class="v4-protocol-card"><span class="v4-protocol-icon"><Icon name="chat" size="sm" /></span><strong>{{ t('home.v4.compat.openaiTitle') }}</strong><p>{{ t('home.v4.compat.openaiDesc') }}</p><code>/v1/chat/completions</code></div>
+          <div class="v4-protocol-card"><span class="v4-protocol-icon"><Icon name="bolt" size="sm" /></span><strong>{{ t('home.v4.compat.responsesTitle') }}</strong><p>{{ t('home.v4.compat.responsesDesc') }}</p><code>/v1/responses</code></div>
+          <div class="v4-protocol-card"><span class="v4-protocol-icon"><Icon name="terminal" size="sm" /></span><strong>{{ t('home.v4.compat.anthropicTitle') }}</strong><p>{{ t('home.v4.compat.anthropicDesc') }}</p><code>/v1/messages</code></div>
+          <div class="v4-protocol-card"><span class="v4-protocol-icon"><Icon name="sparkles" size="sm" /></span><strong>{{ t('home.v4.compat.geminiTitle') }}</strong><p>{{ t('home.v4.compat.geminiDesc') }}</p><code>generateContent</code></div>
+        </div>
+      </section>
+
+      <section class="v4-band border-y border-black/8 dark:border-white/8">
+        <div class="mx-auto grid max-w-[1280px] gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[.72fr_1.28fr] lg:gap-20 lg:px-10 lg:py-20">
+          <div><p class="v4-section-label">03 / {{ t('home.v4.path.label') }}</p><h2 class="v4-section-title mt-4">{{ t('home.v4.path.title') }}</h2><p class="mt-5 max-w-sm text-sm leading-7 text-black/55 dark:text-white/55">{{ t('home.v4.path.description') }}</p></div>
+          <div class="v4-path-list">
+            <RouterLink to="/model-plaza" class="v4-path-row"><span>01</span><div><strong>{{ t('home.v4.path.modelsTitle') }}</strong><p>{{ t('home.v4.path.modelsDesc') }}</p></div><Icon name="arrowUp" size="sm" /></RouterLink>
+            <RouterLink :to="memberPath('/creation')" class="v4-path-row"><span>02</span><div><strong>{{ t('home.v4.path.creationTitle') }}</strong><p>{{ t('home.v4.path.creationDesc') }}</p></div><Icon name="arrowUp" size="sm" /></RouterLink>
+            <RouterLink :to="memberPath('/purchase')" class="v4-path-row"><span>03</span><div><strong>{{ t('home.v4.path.pricingTitle') }}</strong><p>{{ t('home.v4.path.pricingDesc') }}</p></div><Icon name="arrowUp" size="sm" /></RouterLink>
+          </div>
+        </div>
+      </section>
+
+      <section class="v4-trust-section">
+        <div class="mx-auto max-w-[1280px] px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+          <div class="grid gap-8 lg:grid-cols-[.8fr_1.2fr] lg:items-end">
+            <div><p class="v4-section-label v4-section-label-light">04 / {{ t('home.v4.trust.label') }}</p><h2 class="v4-section-title mt-4 text-white">{{ t('home.v4.trust.title') }}</h2><p class="mt-5 max-w-md text-sm leading-7 text-white/58">{{ t('home.v4.trust.description') }}</p></div>
+            <div class="v4-trust-grid">
+              <div><Icon name="creditCard" size="md" /><strong>{{ t('home.v4.trust.item1Title') }}</strong><p>{{ t('home.v4.trust.item1Desc') }}</p></div>
+              <div><Icon name="chartBar" size="md" /><strong>{{ t('home.v4.trust.item2Title') }}</strong><p>{{ t('home.v4.trust.item2Desc') }}</p></div>
+              <div><Icon name="shield" size="md" /><strong>{{ t('home.v4.trust.item3Title') }}</strong><p>{{ t('home.v4.trust.item3Desc') }}</p></div>
+            </div>
+          </div>
+
+          <div class="v4-final-cta mt-14">
+            <div><strong>{{ t('home.v4.cta.title') }}</strong><p>{{ t('home.v4.cta.description') }}</p></div>
+            <RouterLink to="/model-plaza" class="v4-light-button">{{ t('home.v4.cta.action') }}<Icon name="arrowRight" size="sm" /></RouterLink>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <footer class="oi-footer">
-      <div class="oi-wrap">
-        <span>© {{ currentYear }} {{ siteName }} · {{ t('home.v4.footer') }}</span>
-        <nav>
-          <RouterLink to="/model-plaza">{{ t('home.v4.nav.models') }}</RouterLink>
-          <RouterLink :to="memberPath('/creation')">{{ t('home.v4.nav.creation') }}</RouterLink>
-          <RouterLink to="/key-usage">{{ t('home.v4.footerUsage') }}</RouterLink>
-          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">{{ t('home.docs') }}</a>
-        </nav>
+    <footer class="border-t border-black/8 px-5 py-8 text-xs text-black/45 dark:border-white/8 dark:text-white/45 sm:px-8 lg:px-10">
+      <div class="mx-auto max-w-[1280px]">
+        <div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+          <span>© {{ currentYear }} {{ siteName }}</span>
+          <nav class="flex flex-wrap items-center justify-center gap-4" :aria-label="t('home.v4.footerNavLabel')">
+            <RouterLink to="/model-plaza" class="v4-footer-link">{{ t('home.v4.nav.models') }} ↗</RouterLink>
+            <RouterLink to="/key-usage" class="v4-footer-link">{{ t('home.v4.footerUsage') }} ↗</RouterLink>
+            <a v-if="docUrl" :href="docUrl" class="v4-footer-link">{{ t('home.docs') }} ↗</a>
+          </nav>
+        </div>
+        <div class="mt-5 border-t border-black/8 pt-4 text-center dark:border-white/8">
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" class="v4-footer-link inline-flex">闽ICP备2026032371号-2</a>
+        </div>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import HomeView from '@/views/HomeView.vue'
@@ -169,360 +224,232 @@ import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 
-type CodeTab = 'curl' | 'python' | 'node'
-interface CodeLine { text: string; tone?: string }
-
-const { t, locale } = useI18n()
+type Surface = 'models' | 'creation' | 'usage'
+const { t } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
+const activeSurface = ref<Surface>('models')
 const isDark = ref(document.documentElement.classList.contains('dark'))
-const copied = ref(false)
-const codeTab = ref<CodeTab>('curl')
-let copiedTimer: ReturnType<typeof setTimeout> | undefined
-
-const models = [
-  { name: 'Claude', platform: 'anthropic' as const, protocol: 'Anthropic Messages · Chat Completions' },
-  { name: 'GPT', platform: 'openai' as const, protocol: 'Responses · Chat Completions' },
-  { name: 'Gemini', platform: 'gemini' as const, protocol: 'generateContent · Chat Completions' },
-  { name: 'Grok', platform: 'grok' as const, protocol: 'Chat Completions' },
-]
-const tickerBase = ['Claude', 'GPT', 'Gemini', 'Grok', 'Chat Completions', 'Responses API', 'Anthropic Messages', 'generateContent', 'Codex CLI', 'Claude Code', 'OpenAI SDK', '/v1']
-const tickerItems = [...tickerBase, ...tickerBase, ...tickerBase, ...tickerBase]
-const codeTabs: { id: CodeTab; label: string }[] = [
-  { id: 'curl', label: 'home.v4.code.tabCurl' },
-  { id: 'python', label: 'home.v4.code.tabPython' },
-  { id: 'node', label: 'home.v4.code.tabNode' },
-]
-
-const isLatin = computed(() => !String(locale.value).toLowerCase().startsWith('zh'))
-const siteName = computed(() => {
-  const configured = appStore.cachedPublicSettings?.site_name || appStore.siteName || ''
-  const normalized = configured.trim().toLowerCase()
-  return configured.trim() && normalized !== 'anytoken' && normalized !== 'sub2api' ? configured : 'oioio'
-})
-const siteLogo = computed(() => {
-  const configured = sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true })
-  return configured && !configured.toLowerCase().includes('anytoken') ? configured : '/oioio-logo.svg'
-})
+const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'anytoken')
+const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
 const hasHomeContent = computed(() => (appStore.cachedPublicSettings?.home_content || '').trim().length > 0)
 const compactHomeEnabled = computed(() => appStore.cachedPublicSettings?.compact_home_enabled === true)
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
-const accountPath = computed(() => (isAuthenticated.value ? dashboardPath.value : '/login'))
+const userInitial = computed(() => authStore.user?.email?.charAt(0).toUpperCase() || '')
 const currentYear = computed(() => new Date().getFullYear())
-const API_BASE_HOST = 'api.oioio.chat/v1'
-const baseUrl = computed(() => `https://${API_BASE_HOST}`)
-const baseHost = computed(() => API_BASE_HOST)
-
-const codeLines = computed<CodeLine[]>(() => {
-  const prompt = t('home.v4.code.prompt')
-  if (codeTab.value === 'python') {
-    return [
-      { text: 'from openai import OpenAI', tone: 'is-dim' },
-      { text: '' },
-      { text: 'client = OpenAI(' },
-      { text: `    base_url="${baseUrl.value}",`, tone: 'is-hi' },
-      { text: '    api_key="sk-oioio-••••••••",' },
-      { text: ')' },
-      { text: 'reply = client.chat.completions.create(' },
-      { text: '    model="claude-sonnet",' },
-      { text: `    messages=[{"role": "user", "content": "${prompt}"}],` },
-      { text: ')' },
-      { text: 'print(reply.choices[0].message.content)' },
-    ]
-  }
-  if (codeTab.value === 'node') {
-    return [
-      { text: 'import OpenAI from "openai"', tone: 'is-dim' },
-      { text: '' },
-      { text: 'const client = new OpenAI({' },
-      { text: `  baseURL: "${baseUrl.value}",`, tone: 'is-hi' },
-      { text: '  apiKey: process.env.OIOIO_API_KEY,' },
-      { text: '})' },
-      { text: 'const reply = await client.chat.completions.create({' },
-      { text: '  model: "claude-sonnet",' },
-      { text: `  messages: [{ role: "user", content: "${prompt}" }],` },
-      { text: '})' },
-      { text: 'console.log(reply.choices[0].message.content)' },
-    ]
-  }
-  return [
-    { text: `curl ${baseUrl.value}/chat/completions \\`, tone: 'is-hi' },
-    { text: '  -H "Authorization: Bearer $OIOIO_API_KEY" \\' },
-    { text: '  -H "Content-Type: application/json" \\' },
-    { text: '  -d \'{' },
-    { text: '    "model": "claude-sonnet",' },
-    { text: `    "messages": [{ "role": "user", "content": "${prompt}" }]` },
-    { text: '  }\'' },
-  ]
-})
+const activeSurfaceTitle = computed(() => t(`home.v4.surface.${activeSurface.value}Title`))
 
 function memberPath(path: string) { return isAuthenticated.value ? path : '/login' }
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
-}
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  }
-}
-async function copyBaseUrl() {
-  try {
-    await navigator.clipboard.writeText(baseUrl.value)
-    copied.value = true
-    if (copiedTimer) clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => { copied.value = false }, 1600)
-  } catch {
-    copied.value = false
-  }
-}
-onMounted(() => {
-  initTheme()
-  authStore.checkAuth()
-  if (!appStore.publicSettingsLoaded) appStore.fetchPublicSettings()
-})
-onBeforeUnmount(() => { if (copiedTimer) clearTimeout(copiedTimer) })
+function toggleTheme() { isDark.value = !isDark.value; document.documentElement.classList.toggle('dark', isDark.value); localStorage.setItem('theme', isDark.value ? 'dark' : 'light') }
+function initTheme() { const savedTheme = localStorage.getItem('theme'); if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) { isDark.value = true; document.documentElement.classList.add('dark') } }
+onMounted(() => { initTheme(); authStore.checkAuth(); if (!appStore.publicSettingsLoaded) appStore.fetchPublicSettings() })
 </script>
 
 <style scoped>
-/* ---- 纸 / 墨 / 朱红 ---- */
-.oi-page {
-  --paper: #f3efe6;
-  --ink: #121212;
-  --muted: #6d6a63;
-  --line: rgba(18, 18, 18, .16);
-  --red: #ff3d00;
-  --red-ink: #121212;
-  --block: #121212;
-  --block-ink: #f3efe6;
-  --block-muted: #9b978e;
-  --block-line: rgba(243, 239, 230, .18);
-  --sans: "Helvetica Neue", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
-  --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, "Times New Roman", serif;
-  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  --gutter: 48px;
-  min-height: 100vh;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.7;
-  -webkit-font-smoothing: antialiased;
+.v4-page { position: relative; isolation: isolate; overflow: hidden; }
+.v4-nav { border: 1px solid rgba(23, 23, 23, .09); border-radius: 14px; background: rgba(255, 255, 255, .72); box-shadow: 0 10px 35px rgba(23, 23, 23, .06); backdrop-filter: blur(22px) saturate(145%); }
+html.dark .v4-nav { border-color: rgba(255, 255, 255, .11); background: rgba(25, 26, 28, .72); box-shadow: 0 10px 35px rgba(0, 0, 0, .14); }
+.v4-logo { display: inline-flex; height: 29px; width: 29px; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; background: white; padding: 4px; }
+html.dark .v4-logo { border-color: rgba(255, 255, 255, .13); background: #111214; }
+.v4-nav-link, .v4-footer-link { transition: color 180ms ease-out; }
+.v4-nav-link:hover, .v4-footer-link:hover { color: #4e8d37; }
+.v4-icon-button { display: inline-flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 8px; color: rgba(23, 23, 23, .55); transition: color 160ms ease-out, background 160ms ease-out, transform 160ms ease-out; }
+.v4-icon-button:hover { background: rgba(23, 23, 23, .06); color: #1d1d1f; }
+.v4-icon-button:active, .v4-account-link:active, .v4-primary-button:active, .v4-secondary-button:active, .v4-light-button:active { transform: scale(.97); }
+html.dark .v4-icon-button { color: rgba(255, 255, 255, .62); }
+html.dark .v4-icon-button:hover { background: rgba(255, 255, 255, .08); color: white; }
+.v4-account-link { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; background: #1d1d1f; padding: 8px 11px 8px 13px; color: white; font-size: 11px; font-weight: 700; transition: transform 160ms ease-out, background 180ms ease-out; }
+.v4-account-link:hover { background: #4e8d37; }
+html.dark .v4-account-link { background: #b5ef82; color: #14200f; }
+html.dark .v4-account-link:hover { background: #c7f69d; }
+.v4-entry { animation: v4-enter 620ms cubic-bezier(.23, 1, .32, 1) both; }
+@keyframes v4-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.v4-eyebrow { display: inline-flex; align-items: center; gap: 8px; color: rgba(23, 23, 23, .52); font-size: 11px; font-weight: 600; letter-spacing: 0; }
+.v4-eyebrow span { height: 7px; width: 7px; border-radius: 999px; background: #5c9e3c; box-shadow: 0 0 0 5px rgba(92, 158, 60, .12); }
+html.dark .v4-eyebrow { color: rgba(255, 255, 255, .54); }
+.v4-title { max-width: 520px; font-size: 2.25rem; font-weight: 560; letter-spacing: 0; line-height: 1.16; }
+.v4-title em { display: block; margin-top: 4px; color: #5c9e3c; font-style: normal; }
+html.dark .v4-title em { color: #b5ef82; }
+.v4-primary-button, .v4-secondary-button, .v4-light-button { display: inline-flex; align-items: center; gap: 9px; border-radius: 999px; font-size: 13px; font-weight: 700; transition: transform 160ms ease-out, background 180ms ease-out, box-shadow 180ms ease-out; }
+.v4-primary-button { background: #1d1d1f; padding: 13px 16px 13px 19px; color: white; box-shadow: 0 12px 24px rgba(23, 23, 23, .14); }
+.v4-primary-button:hover { background: #4e8d37; box-shadow: 0 16px 28px rgba(78, 141, 55, .2); }
+html.dark .v4-primary-button { background: #b5ef82; color: #14200f; box-shadow: 0 12px 26px rgba(181, 239, 130, .1); }
+.v4-secondary-button { border: 1px solid rgba(23, 23, 23, .12); padding: 12px 17px; color: rgba(23, 23, 23, .72); }
+.v4-secondary-button:hover { background: rgba(23, 23, 23, .06); }
+html.dark .v4-secondary-button { border-color: rgba(255, 255, 255, .15); color: rgba(255, 255, 255, .75); }
+html.dark .v4-secondary-button:hover { background: rgba(255, 255, 255, .08); }
+.v4-product-window { position: relative; overflow: hidden; border: 1px solid rgba(23, 23, 23, .12); border-radius: 18px; background: rgba(255, 255, 255, .82); box-shadow: 0 28px 65px rgba(23, 23, 23, .12), inset 0 1px rgba(255, 255, 255, .9); backdrop-filter: blur(24px) saturate(120%); }
+html.dark .v4-product-window { border-color: rgba(255, 255, 255, .12); background: rgba(25, 26, 28, .82); box-shadow: 0 30px 70px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .09); }
+.v4-window-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid rgba(23, 23, 23, .08); padding: 13px 17px; color: rgba(23, 23, 23, .45); font-family: inherit; font-size: 9px; letter-spacing: 0; text-transform: uppercase; }
+html.dark .v4-window-toolbar { border-color: rgba(255, 255, 255, .09); color: rgba(255, 255, 255, .44); }
+.v4-window-toolbar > span:nth-child(2) { justify-self: center; }
+.v4-live-indicator { display: inline-flex; align-items: center; justify-self: end; gap: 6px; }
+.v4-live-indicator b, .v4-surface-chip b { display: block; height: 6px; width: 6px; border-radius: 999px; background: #79bf4e; box-shadow: 0 0 0 4px rgba(121, 191, 78, .12); }
+.v4-dot { display: block; height: 7px; width: 7px; border-radius: 999px; }
+.v4-dot-red { background: #ff766b; }
+.v4-dot-yellow { background: #f2c75c; }
+.v4-dot-green { background: #6fcf83; }
+.v4-window-sidebar { position: relative; min-height: 330px; }
+.v4-sidebar-label, .v4-overline { color: rgba(23, 23, 23, .4); font-family: inherit; font-size: 9px; letter-spacing: 0; text-transform: uppercase; }
+html.dark .v4-sidebar-label, html.dark .v4-overline { color: rgba(255, 255, 255, .4); }
+.v4-sidebar-item { display: flex; width: 100%; align-items: center; gap: 9px; border-radius: 8px; padding: 9px 10px; color: rgba(23, 23, 23, .5); font-size: 12px; text-align: left; transition: color 160ms ease-out, background 160ms ease-out, transform 160ms ease-out; }
+.v4-sidebar-item:hover { background: rgba(23, 23, 23, .05); color: #1d1d1f; }
+.v4-sidebar-item:active { transform: scale(.98); }
+.v4-sidebar-item-active { background: rgba(132, 195, 92, .14); color: #4e8d37; font-weight: 600; }
+html.dark .v4-sidebar-item { color: rgba(255, 255, 255, .52); }
+html.dark .v4-sidebar-item:hover { color: white; background: rgba(255, 255, 255, .06); }
+html.dark .v4-sidebar-item-active { color: #b5ef82; background: rgba(181, 239, 130, .11); }
+.v4-sidebar-bottom { position: absolute; right: 20px; bottom: 20px; left: 20px; display: flex; align-items: center; gap: 8px; color: rgba(23, 23, 23, .48); font-size: 10px; }
+.v4-sidebar-bottom svg { margin-left: auto; }
+html.dark .v4-sidebar-bottom { color: rgba(255, 255, 255, .48); }
+.v4-avatar { display: inline-flex; height: 25px; width: 25px; align-items: center; justify-content: center; border-radius: 8px; background: #b5ef82; color: #18220f; font-size: 9px; font-weight: 800; }
+.v4-surface-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(121, 191, 78, .2); border-radius: 999px; background: rgba(121, 191, 78, .08); padding: 6px 9px; color: #5c9e3c; font-size: 10px; font-weight: 600; }
+.v4-mobile-tabs { display: flex; gap: 5px; overflow-x: auto; border-bottom: 1px solid rgba(23, 23, 23, .08); padding-bottom: 7px; }
+.v4-mobile-tabs button { flex: 0 0 auto; border-radius: 8px; padding: 7px 9px; color: rgba(23, 23, 23, .5); font-size: 11px; }
+.v4-mobile-tab-active { background: rgba(132, 195, 92, .14); color: #4e8d37 !important; font-weight: 600; }
+html.dark .v4-mobile-tabs { border-color: rgba(255, 255, 255, .1); }
+html.dark .v4-mobile-tabs button { color: rgba(255, 255, 255, .5); }
+html.dark .v4-mobile-tab-active { background: rgba(181, 239, 130, .11); color: #b5ef82 !important; }
+.v4-surface-content { animation: v4-surface-in 220ms cubic-bezier(.23, 1, .32, 1) both; }
+@keyframes v4-surface-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.v4-model-card { position: relative; display: flex; min-height: 148px; flex-direction: column; border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; padding: 14px; transition: transform 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out; }
+.v4-model-card:hover { border-color: rgba(92, 158, 60, .55); box-shadow: 0 12px 24px rgba(23, 23, 23, .07); transform: translateY(-2px); }
+.v4-model-card:active { transform: scale(.98); }
+.v4-model-card-active { border-color: rgba(92, 158, 60, .42); background: rgba(132, 195, 92, .08); }
+html.dark .v4-model-card { border-color: rgba(255, 255, 255, .11); }
+html.dark .v4-model-card-active { border-color: rgba(181, 239, 130, .38); background: rgba(181, 239, 130, .07); }
+html.dark .v4-model-card:hover { border-color: rgba(181, 239, 130, .55); box-shadow: 0 12px 24px rgba(0, 0, 0, .16); }
+.v4-model-symbol { display: inline-flex; height: 29px; width: 29px; align-items: center; justify-content: center; border-radius: 8px; color: white; font-size: 11px; font-weight: 800; }
+.v4-symbol-claude { background: #d97757; }
+.v4-symbol-openai { background: #10a37f; }
+.v4-symbol-grok { background: #111; }
+.v4-model-card strong { margin-top: 15px; font-size: 14px; font-weight: 600; letter-spacing: 0; }
+.v4-model-card small { margin-top: 4px; color: rgba(23, 23, 23, .46); font-size: 10px; }
+.v4-model-price { margin-top: auto; color: #5c9e3c; font-size: 10px; font-weight: 600; }
+html.dark .v4-model-card small { color: rgba(255, 255, 255, .48); }
+.v4-surface-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid rgba(23, 23, 23, .08); margin-top: 20px; padding-top: 16px; color: rgba(23, 23, 23, .44); font-size: 10px; }
+.v4-surface-footer a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; color: #5c9e3c; font-weight: 600; }
+.v4-surface-footer a:hover { color: #3f7c2a; }
+html.dark .v4-surface-footer { border-color: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .45); }
+.v4-creation-preview { position: relative; display: flex; min-height: 148px; align-items: flex-end; overflow: hidden; border-radius: 8px; background: #202225; padding: 18px; color: white; }
+.v4-creation-grid { position: absolute; top: 16px; right: 16px; display: grid; width: 55%; grid-template-columns: 1fr 1fr; gap: 6px; }
+.v4-creation-grid i { display: block; height: 48px; border-radius: 6px; background: #5c9e3c; opacity: .9; }
+.v4-creation-grid i:nth-child(2) { background: #d9b46f; }
+.v4-creation-grid i:nth-child(3) { grid-column: span 2; height: 30px; background: #7186a6; }
+.v4-creation-play { position: absolute; top: 18px; left: 18px; display: inline-flex; height: 30px; width: 30px; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, .2); border-radius: 999px; background: rgba(255, 255, 255, .1); color: #c8f69b; }
+.v4-creation-preview p { position: relative; color: rgba(255, 255, 255, .55); font-size: 10px; }
+.v4-creation-preview strong { position: relative; display: block; margin-top: 5px; font-size: 18px; letter-spacing: 0; }
+.v4-usage-preview { display: flex; min-height: 148px; flex-direction: column; justify-content: space-between; border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; background: rgba(132, 195, 92, .08); padding: 17px; }
+.v4-usage-preview span { color: rgba(23, 23, 23, .45); font-size: 10px; }
+.v4-usage-preview strong { display: block; margin-top: 8px; font-size: 26px; font-weight: 600; letter-spacing: 0; }
+.v4-usage-bars { display: flex; height: 42px; align-items: end; gap: 7px; }
+.v4-usage-bars i { display: block; flex: 1; border-radius: 4px 4px 2px 2px; background: #84c35c; }
+html.dark .v4-usage-preview { border-color: rgba(255, 255, 255, .1); background: rgba(181, 239, 130, .08); }
+html.dark .v4-usage-preview span { color: rgba(255, 255, 255, .48); }
+.v4-proof-strip { display: grid; border-top: 1px solid rgba(23, 23, 23, .1); border-bottom: 1px solid rgba(23, 23, 23, .1); }
+.v4-proof-strip > div { display: flex; align-items: center; gap: 12px; padding: 17px 2px; }
+.v4-proof-strip > div + div { border-top: 1px solid rgba(23, 23, 23, .1); }
+.v4-proof-strip svg { color: #5c9e3c; }
+.v4-proof-strip span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.v4-proof-strip strong { font-size: 12px; font-weight: 650; }
+.v4-proof-strip small { color: rgba(23, 23, 23, .48); font-size: 10px; line-height: 1.5; }
+html.dark .v4-proof-strip, html.dark .v4-proof-strip > div + div { border-color: rgba(255, 255, 255, .1); }
+html.dark .v4-proof-strip small { color: rgba(255, 255, 255, .48); }
+.v4-band { background: rgba(255, 255, 255, .36); }
+html.dark .v4-band { background: rgba(255, 255, 255, .025); }
+.v4-section-label { color: #5c9e3c; font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+.v4-section-title { max-width: 550px; font-size: 1.75rem; font-weight: 600; letter-spacing: 0; line-height: 1.2; }
+.v4-flow { display: grid; align-items: stretch; gap: 12px; }
+.v4-flow-column { border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; background: rgba(255, 255, 255, .56); padding: 14px; }
+.v4-flow-column > p, .v4-gateway > p { color: rgba(23, 23, 23, .42); font-family: inherit; font-size: 9px; text-transform: uppercase; }
+.v4-flow-list { display: grid; gap: 7px; margin-top: 12px; }
+.v4-flow-list span { display: flex; min-height: 34px; align-items: center; gap: 8px; border-radius: 7px; background: rgba(23, 23, 23, .045); padding: 8px 9px; color: rgba(23, 23, 23, .7); font-size: 11px; }
+.v4-flow-list svg { color: #5c9e3c; }
+.v4-flow-arrow { display: flex; min-height: 36px; align-items: center; justify-content: center; gap: 7px; color: #5c9e3c; }
+.v4-flow-arrow span { display: none; }
+.v4-flow-arrow em { color: rgba(23, 23, 23, .38); font-family: inherit; font-size: 8px; font-style: normal; }
+.v4-gateway { position: relative; border: 1px solid rgba(92, 158, 60, .36); border-radius: 8px; background: rgba(132, 195, 92, .1); padding: 16px; }
+.v4-gateway-mark { display: inline-flex; height: 34px; width: 34px; align-items: center; justify-content: center; border-radius: 8px; background: #5c9e3c; color: white; }
+.v4-gateway > p { margin-top: 18px; color: #5c9e3c; }
+.v4-gateway > strong { display: block; margin-top: 4px; font-size: 15px; }
+.v4-gateway > small { display: block; margin-top: 6px; color: rgba(23, 23, 23, .5); font-size: 10px; line-height: 1.6; }
+.v4-gateway ul { display: grid; gap: 6px; margin-top: 14px; }
+.v4-gateway li { display: flex; align-items: center; gap: 6px; color: rgba(23, 23, 23, .66); font-size: 10px; }
+.v4-gateway li svg { color: #5c9e3c; }
+.v4-provider-dot { display: block; height: 8px; width: 8px; border-radius: 999px; }
+.v4-provider-orange { background: #d66c2f; }
+.v4-provider-green { background: #34885a; }
+.v4-provider-grok { background: #111; }
+.v4-provider-gray { background: #8b8d90; }
+html.dark .v4-flow-column { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .035); }
+html.dark .v4-flow-column > p, html.dark .v4-gateway > p, html.dark .v4-flow-arrow em { color: rgba(255, 255, 255, .42); }
+html.dark .v4-flow-list span { background: rgba(255, 255, 255, .055); color: rgba(255, 255, 255, .7); }
+html.dark .v4-gateway { border-color: rgba(181, 239, 130, .3); background: rgba(181, 239, 130, .075); }
+html.dark .v4-gateway > p { color: #b5ef82; }
+html.dark .v4-gateway > small, html.dark .v4-gateway li { color: rgba(255, 255, 255, .54); }
+.v4-protocol-grid { display: grid; gap: 10px; }
+.v4-protocol-card { display: flex; min-height: 190px; flex-direction: column; border: 1px solid rgba(23, 23, 23, .1); border-radius: 8px; background: rgba(255, 255, 255, .52); padding: 16px; transition: border-color 180ms ease-out, transform 180ms ease-out, box-shadow 180ms ease-out; }
+.v4-protocol-card:hover { border-color: rgba(92, 158, 60, .45); box-shadow: 0 12px 30px rgba(23, 23, 23, .06); transform: translateY(-2px); }
+.v4-protocol-icon { display: inline-flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 8px; background: rgba(92, 158, 60, .1); color: #5c9e3c; }
+.v4-protocol-card strong { margin-top: 20px; font-size: 14px; font-weight: 650; }
+.v4-protocol-card p { margin-top: 7px; color: rgba(23, 23, 23, .5); font-size: 11px; line-height: 1.65; }
+.v4-protocol-card code { display: block; overflow: hidden; margin-top: auto; padding-top: 16px; color: #5c9e3c; font-family: inherit; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+html.dark .v4-protocol-card { border-color: rgba(255, 255, 255, .1); background: rgba(255, 255, 255, .035); }
+html.dark .v4-protocol-card:hover { border-color: rgba(181, 239, 130, .42); box-shadow: 0 12px 30px rgba(0, 0, 0, .16); }
+html.dark .v4-protocol-card p { color: rgba(255, 255, 255, .5); }
+html.dark .v4-protocol-card code { color: #b5ef82; }
+.v4-path-list { border-top: 1px solid rgba(23, 23, 23, .1); }
+.v4-path-row { display: grid; grid-template-columns: 36px 1fr auto; align-items: start; gap: 14px; border-bottom: 1px solid rgba(23, 23, 23, .1); padding: 21px 0; color: inherit; transition: padding 180ms ease-out, color 180ms ease-out; }
+.v4-path-row:hover { padding-left: 8px; color: #5c9e3c; }
+.v4-path-row > span { color: #5c9e3c; font-family: inherit; font-size: 10px; }
+.v4-path-row strong { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+.v4-path-row p { margin-top: 5px; color: rgba(23, 23, 23, .5); font-size: 12px; line-height: 1.6; }
+.v4-path-row > svg { opacity: 0; transition: opacity 180ms ease-out, transform 180ms ease-out; }
+.v4-path-row:hover > svg { opacity: 1; transform: translateY(-2px); }
+html.dark .v4-path-row { border-color: rgba(255, 255, 255, .1); }
+html.dark .v4-path-row p { color: rgba(255, 255, 255, .5); }
+.v4-trust-section { background: #1d1d1f; color: white; }
+.v4-section-label-light { color: #9ed273; }
+.v4-trust-grid { display: grid; border-top: 1px solid rgba(255, 255, 255, .12); }
+.v4-trust-grid > div { display: flex; min-height: 150px; flex-direction: column; border-bottom: 1px solid rgba(255, 255, 255, .12); padding: 20px 0; }
+.v4-trust-grid svg { color: #b5ef82; }
+.v4-trust-grid strong { margin-top: 28px; font-size: 13px; }
+.v4-trust-grid p { margin-top: 7px; color: rgba(255, 255, 255, .52); font-size: 11px; line-height: 1.65; }
+.v4-final-cta { display: flex; flex-direction: column; gap: 22px; border-top: 1px solid rgba(255, 255, 255, .13); padding-top: 30px; }
+.v4-final-cta strong { font-size: 19px; font-weight: 600; }
+.v4-final-cta p { margin-top: 6px; color: rgba(255, 255, 255, .5); font-size: 12px; line-height: 1.6; }
+.v4-light-button { align-self: flex-start; background: #b5ef82; padding: 12px 16px 12px 18px; color: #14200f; }
+.v4-light-button:hover { background: #c7f69d; }
+@media (min-width: 640px) {
+  .v4-title { font-size: 2.625rem; }
+  .v4-proof-strip { grid-template-columns: repeat(3, 1fr); }
+  .v4-proof-strip > div { padding: 17px 18px; }
+  .v4-proof-strip > div + div { border-top: 0; border-left: 1px solid rgba(23, 23, 23, .1); }
+  html.dark .v4-proof-strip > div + div { border-left-color: rgba(255, 255, 255, .1); }
+  .v4-protocol-grid { grid-template-columns: repeat(2, 1fr); }
+  .v4-trust-grid { grid-template-columns: repeat(3, 1fr); }
+  .v4-trust-grid > div { border-right: 1px solid rgba(255, 255, 255, .12); padding: 20px; }
+  .v4-trust-grid > div:first-child { padding-left: 0; }
+  .v4-trust-grid > div:last-child { border-right: 0; padding-right: 0; }
+  .v4-final-cta { flex-direction: row; align-items: center; justify-content: space-between; }
+  .v4-light-button { align-self: center; }
 }
-.dark .oi-page {
-  --paper: #0f0f0f;
-  --ink: #f1ede4;
-  --muted: #9a968e;
-  --line: rgba(241, 237, 228, .16);
-  --block: #f1ede4;
-  --block-ink: #121212;
-  --block-muted: #6d6a63;
-  --block-line: rgba(18, 18, 18, .16);
+@media (min-width: 1024px) {
+  .v4-flow { grid-template-columns: minmax(120px, .9fr) 42px minmax(175px, 1.12fr) 42px minmax(120px, .9fr); }
+  .v4-flow-arrow { align-self: center; }
+  .v4-flow-arrow span { display: block; height: 1px; flex: 1; background: rgba(92, 158, 60, .3); }
+  .v4-flow-arrow em { display: none; }
+  .v4-protocol-grid { grid-template-columns: repeat(4, 1fr); }
 }
-:where(.oi-page a) { color: inherit; text-decoration: none; }
-.oi-page :is(a, button):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-.oi-page svg { flex: none; }
-.oi-wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
-
-/* ---- 通用 ---- */
-.oi-label { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--muted); font-family: var(--mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
-.oi-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-.oi-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 22px; border: 1.5px solid currentColor; border-radius: 999px; font-size: 14.5px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease; }
-.oi-btn:hover { transform: translateY(-1px); }
-.oi-btn-sm { min-height: 36px; padding: 0 16px; font-size: 13px; }
-.oi-btn-fill { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.oi-btn-fill:hover { background: transparent; color: var(--ink); }
-.oi-hero .oi-btn-fill { background: var(--red-ink); border-color: var(--red-ink); color: var(--red); }
-.oi-hero .oi-btn-fill:hover { background: transparent; color: var(--red-ink); }
-.oi-hero .oi-btn:not(.oi-btn-fill):hover { background: var(--red-ink); color: var(--red); }
-.oi-btn:not(.oi-btn-fill):hover { background: var(--ink); color: var(--paper); }
-.oi-actions { display: flex; flex-wrap: wrap; gap: 12px; }
-
-/* ---- 首屏 ---- */
-.oi-hero { background: var(--red); color: var(--red-ink); }
-.oi-top { display: flex; align-items: center; gap: 24px; padding: 20px 0; }
-.oi-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
-.oi-brand img { width: 30px; height: 30px; border-radius: 9px; }
-.oi-nav { display: flex; gap: 24px; margin-left: 24px; font-size: 14px; font-weight: 500; }
-.oi-nav a { border-bottom: 1.5px solid transparent; transition: border-color .15s ease; }
-.oi-nav a:hover { border-bottom-color: currentColor; }
-.oi-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.oi-tool { display: grid; place-items: center; width: 36px; height: 36px; border: 1.5px solid transparent; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; transition: border-color .15s ease; }
-.oi-tool:hover { border-color: currentColor; }
-.oi-tools :deep(.relative > button) { color: inherit; font-weight: 600; }
-.oi-tools :deep(.relative > button:hover) { background: rgba(18, 18, 18, .1); }
-.oi-tools :deep(.relative > button svg) { color: inherit; opacity: .7; }
-
-.oi-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 72px 0 0; }
-.oi-meta { grid-column: 1; margin: 0; font-family: var(--mono); font-size: 12.5px; letter-spacing: .04em; }
-.oi-meta-right { grid-column: 2; text-align: right; }
-.oi-meta code { font-family: inherit; }
-.oi-hero h1 { grid-column: 1 / -1; margin: 28px 0 0; font-size: clamp(56px, 8.6vw, 128px); font-weight: 700; line-height: .98; letter-spacing: -.04em; white-space: pre-line; }
-.is-latin .oi-hero h1 { letter-spacing: -.045em; }
-.oi-accent { grid-column: 1 / -1; margin: 22px 0 0; font-family: var(--serif); font-size: clamp(24px, 3vw, 40px); font-weight: 400; line-height: 1.25; }
-.is-latin .oi-accent { font-style: italic; }
-.oi-lede { grid-column: 1; max-width: 560px; margin: 32px 0 0; font-size: 17px; line-height: 1.7; }
-.oi-hero .oi-actions { grid-column: 2; align-self: end; justify-content: flex-end; margin-top: 32px; }
-
-/* o i o i o */
-.oi-io { --u: clamp(64px, 11vw, 160px); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 32px; padding: 72px 0 56px; }
-.oi-io-cap { padding-bottom: 4px; font-family: var(--mono); font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; }
-.oi-io-row { display: grid; grid-template-columns: var(--u) calc(var(--u) * .3) var(--u) calc(var(--u) * .3) var(--u); justify-content: space-between; align-items: end; }
-.oi-io-row i { position: relative; display: block; }
-.oi-o { height: var(--u); border: 3px solid var(--red-ink); border-radius: 50%; }
-.oi-o::after { content: ''; position: absolute; inset: 18%; border-radius: 50%; background: var(--red-ink); transform: scale(0); animation: oi-pulse 3s ease-in-out infinite; }
-.oi-i { height: calc(var(--u) * .62); background: var(--red-ink); border-radius: 2px; }
-.oi-i::before { content: ''; position: absolute; left: 0; right: 0; bottom: calc(100% + var(--u) * .1); aspect-ratio: 1; border-radius: 50%; background: var(--red-ink); }
-.oi-i::after { content: ''; position: absolute; inset: 0; border-radius: 2px; background: var(--red); opacity: 0; animation: oi-blink 3s ease-in-out infinite; }
-.oi-io-row i:nth-child(1)::after { animation-delay: 0s; }
-.oi-io-row i:nth-child(2)::after { animation-delay: .3s; }
-.oi-io-row i:nth-child(3)::after { animation-delay: .6s; }
-.oi-io-row i:nth-child(4)::after { animation-delay: .9s; }
-.oi-io-row i:nth-child(5)::after { animation-delay: 1.2s; }
-@keyframes oi-pulse { 0%, 55%, 100% { transform: scale(0); } 12%, 32% { transform: scale(1); } }
-@keyframes oi-blink { 0%, 55%, 100% { opacity: 0; } 12%, 32% { opacity: .4; } }
-
-/* ---- 跑马灯 ---- */
-.oi-ticker { overflow: hidden; padding: 14px 0; background: var(--block); color: var(--block-ink); }
-.oi-ticker-track { display: flex; width: max-content; animation: oi-marquee 48s linear infinite; }
-.oi-ticker:hover .oi-ticker-track { animation-play-state: paused; }
-.oi-ticker-track span { display: inline-flex; align-items: center; padding: 0 28px; font-family: var(--mono); font-size: 13px; letter-spacing: .04em; white-space: nowrap; }
-.oi-ticker-track span::after { content: ''; width: 6px; height: 6px; margin-left: 56px; border-radius: 50%; background: var(--red); }
-@keyframes oi-marquee { to { transform: translateX(-50%); } }
-
-/* ---- 三件事 ---- */
-.oi-three { padding: 96px 0 88px; }
-.oi-three-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px; margin-top: 48px; }
-.oi-three-grid b { display: block; color: transparent; -webkit-text-stroke: 1px var(--ink); font-family: var(--serif); font-size: clamp(88px, 9vw, 136px); font-weight: 400; line-height: .9; letter-spacing: -.04em; }
-.oi-three-grid h2 { margin: 28px 0 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
-.oi-three-grid p { max-width: 340px; margin: 14px 0 0; color: var(--muted); font-size: 14.5px; line-height: 1.75; }
-
-/* ---- 模型行 ---- */
-.oi-models { padding: 0 0 96px; }
-.oi-models-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 24px 48px; }
-.oi-models-head .oi-label { grid-column: 1 / -1; }
-.oi-models-head h2 { margin: 24px 0 0; font-size: clamp(36px, 4vw, 56px); font-weight: 700; letter-spacing: -.03em; line-height: 1.05; }
-.oi-models-head > p:not(.oi-label) { max-width: 420px; margin: 0; padding-bottom: 6px; color: var(--muted); font-size: 14.5px; }
-.oi-rows { margin-top: 40px; border-top: 1.5px solid var(--ink); }
-.oi-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto 32px; align-items: center; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--line); transition: background .18s ease, color .18s ease, padding .18s ease; }
-.oi-row svg { width: 28px; height: 28px; }
-.oi-row strong { font-size: clamp(30px, 3vw, 44px); font-weight: 700; letter-spacing: -.03em; line-height: 1; }
-.oi-row code { color: var(--muted); font-family: var(--mono); font-size: 13px; text-align: right; transition: color .18s ease; }
-.oi-row span { font-size: 24px; line-height: 1; text-align: right; transition: transform .18s ease; }
-.oi-row:hover { background: var(--red); color: var(--red-ink); padding-left: 16px; padding-right: 16px; }
-.oi-row:hover code { color: var(--red-ink); }
-.oi-row:hover span { transform: translateX(6px); }
-.oi-more { display: inline-flex; align-items: center; gap: 8px; margin-top: 28px; padding-bottom: 2px; border-bottom: 1.5px solid currentColor; font-size: 15px; font-weight: 600; transition: color .15s ease; }
-.oi-more:hover { color: var(--red); }
-
-/* ---- 接入（反色块） ---- */
-.oi-code { padding: 96px 0; background: var(--block); color: var(--block-ink); }
-.oi-code .oi-label { color: var(--block-muted); }
-.oi-code .oi-label::after { background: var(--block-line); }
-.oi-code-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; align-items: start; }
-.oi-code-copy h2 { margin: 28px 0 0; font-size: clamp(34px, 3.4vw, 48px); font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
-.oi-code-copy h2 em { display: block; font-family: var(--serif); font-style: normal; font-weight: 400; color: var(--red); }
-.is-latin .oi-code-copy h2 em { font-style: italic; }
-.oi-code-copy > p:not(.oi-label) { max-width: 420px; margin: 20px 0 0; color: var(--block-muted); font-size: 15px; line-height: 1.75; }
-.oi-base { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 16px; margin-top: 40px; padding: 16px 18px; border: 1px solid var(--block-line); border-radius: 12px; }
-.oi-base span { grid-column: 1; color: var(--block-muted); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-.oi-base code { grid-column: 1; overflow: hidden; font-family: var(--mono); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.oi-base button { grid-column: 2; grid-row: 1 / 3; padding: 8px 14px; border: 1.5px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .15s ease, color .15s ease; }
-.oi-base button:hover { background: var(--block-ink); color: var(--block); }
-.oi-code-box { border: 1px solid var(--block-line); border-radius: 14px; overflow: hidden; }
-.oi-code-tabs { display: flex; gap: 4px; padding: 10px 10px 0; border-bottom: 1px solid var(--block-line); }
-.oi-code-tabs button { padding: 8px 16px 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; color: var(--block-muted); font-family: var(--mono); font-size: 13px; cursor: pointer; transition: color .15s ease, border-color .15s ease; }
-.oi-code-tabs button:hover { color: var(--block-ink); }
-.oi-code-tabs button.is-active { color: var(--block-ink); border-bottom-color: var(--red); }
-.oi-code-body { min-height: 282px; padding: 22px 22px 20px; overflow-x: auto; }
-.oi-line { color: var(--block-ink); opacity: .82; font-family: var(--mono); font-size: 13px; line-height: 1.75; white-space: pre; }
-.oi-line.is-hi { opacity: 1; color: var(--red); }
-.oi-line.is-dim { opacity: .5; }
-
-/* ---- 常见问题 ---- */
-.oi-faq { padding: 96px 0 80px; }
-.oi-faq dl { display: grid; gap: 0; margin: 32px 0 0; }
-.oi-faq dl > div { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px 64px; padding: 28px 0; border-bottom: 1px solid var(--line); }
-.oi-faq dl > div:first-child { border-top: 1.5px solid var(--ink); }
-.oi-faq dt { font-size: 20px; font-weight: 700; letter-spacing: -.01em; line-height: 1.35; }
-.oi-faq dd { margin: 0; max-width: 620px; color: var(--muted); font-size: 15px; line-height: 1.8; }
-
-/* ---- CTA ---- */
-.oi-cta { padding: 40px 0 112px; }
-.oi-cta-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 32px 64px; padding-top: 48px; border-top: 1.5px solid var(--ink); }
-.oi-cta h2 { margin: 0; font-family: var(--serif); font-size: clamp(64px, 10vw, 152px); font-weight: 400; line-height: .95; letter-spacing: -.04em; }
-.is-latin .oi-cta h2 { font-style: italic; }
-.oi-cta-side { display: grid; gap: 20px; justify-items: end; text-align: right; }
-.oi-cta-side p { max-width: 360px; margin: 0; color: var(--muted); font-size: 15px; }
-
-/* ---- 页脚 ---- */
-.oi-footer { padding: 24px 0 32px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
-.oi-footer .oi-wrap { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.oi-footer nav { display: flex; flex-wrap: wrap; gap: 20px; }
-.oi-footer a:hover { color: var(--ink); }
-
 @media (prefers-reduced-motion: reduce) {
-  .oi-page *, .oi-page *::before, .oi-page *::after { animation: none !important; transition: none !important; }
-  .oi-o::after { transform: scale(1); }
+  .v4-entry, .v4-surface-content { animation: none; }
+  .v4-nav-link, .v4-icon-button, .v4-account-link, .v4-primary-button, .v4-secondary-button, .v4-light-button, .v4-sidebar-item, .v4-model-card, .v4-protocol-card, .v4-path-row, .v4-path-row > svg { transition: color 160ms ease, background 160ms ease, border-color 160ms ease !important; transform: none !important; }
 }
-@media (max-width: 1024px) {
-  .oi-page { --gutter: 32px; }
-  .oi-hero-grid { grid-template-columns: minmax(0, 1fr); padding-top: 56px; }
-  .oi-meta-right { display: none; }
-  .oi-hero .oi-actions { grid-column: 1; justify-content: flex-start; }
-  .oi-io { padding: 56px 0 44px; }
-  .oi-three { padding: 72px 0; }
-  .oi-three-grid { gap: 40px 32px; }
-  .oi-models-head { grid-template-columns: minmax(0, 1fr); }
-  .oi-models-head > p:not(.oi-label) { padding-bottom: 0; }
-  .oi-code-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
-  .oi-code { padding: 72px 0; }
-  .oi-faq dl > div { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .oi-cta-in { grid-template-columns: minmax(0, 1fr); }
-  .oi-cta-side { justify-items: start; text-align: left; }
-}
-@media (max-width: 720px) {
-  .oi-page { --gutter: 20px; font-size: 14px; }
-  .oi-top { gap: 10px; padding: 14px 0; }
-  .oi-nav { display: none; }
-  .oi-tools { gap: 4px; }
-  .oi-hero-grid { padding-top: 40px; }
-  .oi-hero h1 { margin-top: 20px; font-size: clamp(44px, 13vw, 60px); }
-  .oi-accent { margin-top: 16px; font-size: 20px; }
-  .oi-lede { margin-top: 22px; font-size: 15.5px; }
-  .oi-hero .oi-actions { margin-top: 26px; }
-  .oi-btn { min-height: 44px; padding: 0 18px; font-size: 14px; }
-  .oi-io { --u: 52px; gap: 14px; padding: 44px 0 36px; }
-  .oi-o { border-width: 2px; }
-  .oi-ticker { padding: 11px 0; }
-  .oi-ticker-track span { padding: 0 16px; font-size: 12px; }
-  .oi-ticker-track span::after { margin-left: 32px; }
-  .oi-three { padding: 56px 0; }
-  .oi-three-grid { grid-template-columns: minmax(0, 1fr); gap: 36px; margin-top: 32px; }
-  .oi-three-grid b { font-size: 72px; }
-  .oi-three-grid h2 { margin-top: 14px; font-size: 24px; }
-  .oi-models { padding-bottom: 64px; }
-  .oi-rows { margin-top: 28px; }
-  .oi-row { grid-template-columns: 28px minmax(0, 1fr) 24px; grid-template-rows: auto auto; gap: 6px 14px; padding: 18px 0; }
-  .oi-row:hover { padding-left: 10px; padding-right: 10px; }
-  .oi-row svg { width: 22px; height: 22px; }
-  .oi-row strong { font-size: 28px; }
-  .oi-row code { grid-column: 2; grid-row: 2; text-align: left; font-size: 12px; }
-  .oi-row span { grid-column: 3; grid-row: 1; font-size: 20px; }
-  .oi-code { padding: 56px 0; }
-  .oi-base { margin-top: 28px; }
-  .oi-code-body { min-height: 0; padding: 16px; }
-  .oi-line { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .oi-faq { padding: 56px 0 48px; }
-  .oi-faq dt { font-size: 17px; }
-  .oi-cta { padding: 16px 0 72px; }
-  .oi-cta-in { padding-top: 32px; }
-  .oi-footer .oi-wrap { flex-direction: column; align-items: flex-start; }
+@media (prefers-reduced-transparency: reduce) {
+  .v4-nav, .v4-product-window { background: #fff; backdrop-filter: none; }
+  html.dark .v4-nav, html.dark .v4-product-window { background: #191a1c; }
 }
 </style>
