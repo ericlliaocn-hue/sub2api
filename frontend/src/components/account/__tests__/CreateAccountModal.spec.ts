@@ -105,13 +105,22 @@ const GroupSelectorStub = defineComponent({
   },
   emits: ['update:modelValue'],
   template: `
-    <button
-      type="button"
-      data-testid="select-pricing-groups"
-      @click="$emit('update:modelValue', [1, 2])"
-    >
-      groups
-    </button>
+    <div>
+      <button
+        type="button"
+        data-testid="select-pricing-groups"
+        @click="$emit('update:modelValue', [1, 2])"
+      >
+        groups
+      </button>
+      <button
+        type="button"
+        data-testid="select-sub-pool-groups"
+        @click="$emit('update:modelValue', [19])"
+      >
+        subpools
+      </button>
+    </div>
   `,
 })
 
@@ -710,5 +719,47 @@ describe('CreateAccountModal OpenAI long-context billing', () => {
     await flushPromises()
 
     expect(createOpenAICodexPATMock.mock.calls[0]?.[0]?.extra?.openai_long_context_billing_enabled).toBe(false)
+  })
+})
+
+describe('CreateAccountModal sub-pool attach on create', () => {
+  const subPoolGroups = [
+    { id: 19, name: 'pro号池', platform: 'openai', sub_pool_enabled: true },
+  ]
+
+  beforeEach(() => {
+    authIsSimpleMode.value = true
+    createAccountMock.mockReset().mockResolvedValue({ id: 42, platform: 'openai', type: 'apikey' })
+    probeUpstreamBillingMock.mockReset().mockResolvedValue({})
+    syncUpstreamModelsMock.mockReset().mockResolvedValue({ models: [], metadata: {} })
+  })
+
+  it('sends attach_sub_pools=both when a sub-pool group is selected', async () => {
+    const wrapper = mountModal(subPoolGroups)
+    await selectButtonByText(wrapper, 'OpenAI')
+    await selectButtonByText(wrapper, 'API Key')
+    await wrapper.get('[data-testid="select-sub-pool-groups"]').trigger('click')
+    expect(wrapper.find('[data-testid="attach-sub-pools"]').exists()).toBe(true)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('donna')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-test')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock.mock.calls[0]?.[0]?.attach_sub_pools).toBe('both')
+    expect(createAccountMock.mock.calls[0]?.[0]?.group_ids).toEqual([19])
+  })
+
+  it('omits attach_sub_pools when the operator unchecks the box', async () => {
+    const wrapper = mountModal(subPoolGroups)
+    await selectButtonByText(wrapper, 'OpenAI')
+    await selectButtonByText(wrapper, 'API Key')
+    await wrapper.get('[data-testid="select-sub-pool-groups"]').trigger('click')
+    await wrapper.get('[data-testid="attach-sub-pools"] input').setValue(false)
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('zbj main')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-test')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock.mock.calls[0]?.[0]?.attach_sub_pools).toBeUndefined()
   })
 })

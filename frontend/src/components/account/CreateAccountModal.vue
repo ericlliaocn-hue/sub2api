@@ -3685,6 +3685,25 @@
           :mixed-scheduling="mixedScheduling"
           data-tour="account-form-groups"
         />
+        <label
+          v-if="selectedGroupsHaveSubPools"
+          class="mt-3 flex cursor-pointer items-start gap-2"
+          data-testid="attach-sub-pools"
+        >
+          <input
+            v-model="attachToFormalAndObservation"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500 dark:border-dark-500"
+          />
+          <span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.accounts.attachSubPools') }}
+            </span>
+            <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.attachSubPoolsHint') }}
+            </span>
+          </span>
+        </label>
       </div>
 
     </form>
@@ -4978,6 +4997,18 @@ const form = reactive({
   expires_at: null as number | null
 })
 
+const attachToFormalAndObservation = ref(true)
+const selectedGroupsHaveSubPools = computed(() =>
+  (props.groups ?? []).some((group) => form.group_ids.includes(group.id) && group.sub_pool_enabled)
+)
+
+function withAttachSubPools<T extends object>(payload: T): T {
+  if (!attachToFormalAndObservation.value || !selectedGroupsHaveSubPools.value) {
+    return payload
+  }
+  return { ...payload, attach_sub_pools: 'both' }
+}
+
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
   // Antigravity upstream 类型不需要 OAuth 流程
@@ -5504,7 +5535,7 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
         delete payload.rate_multiplier
       }
     }
-    const account = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    const account = await adminAPI.accounts.create(withAttachSubPools(withAntigravityConfirmFlag(payload)))
     const modelMapping = payload.credentials.model_mapping
     const hasConcreteMappedTarget = payload.type === 'apikey' &&
       typeof modelMapping === 'object' &&
@@ -5571,6 +5602,7 @@ const resetForm = () => {
   rateMultiplierTouched.value = false
   form.group_ids = []
   form.expires_at = null
+  attachToFormalAndObservation.value = true
   accountCategory.value = 'oauth-based'
   addMethod.value = 'oauth'
   accountMode.value = 'payg'
@@ -6320,7 +6352,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await adminAPI.accounts.create(withAttachSubPools({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -6335,7 +6367,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           group_ids: form.group_ids,
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
-        })
+        }))
         successCount++
       } catch (error: any) {
         failedCount++
@@ -6389,7 +6421,7 @@ const handleGrokImportSSO = async (ssoInput: string) => {
   }
 
   try {
-    const result = await adminAPI.grok.createFromSSO({
+    const result = await adminAPI.grok.createFromSSO(withAttachSubPools({
       sso_tokens: ssoTokens,
       name: form.name || undefined,
       notes: form.notes || undefined,
@@ -6402,7 +6434,7 @@ const handleGrokImportSSO = async (ssoInput: string) => {
       rate_multiplier: form.rate_multiplier,
       expires_at: form.expires_at,
       auto_pause_on_expired: autoPauseOnExpired.value
-    })
+    }))
 
     const successCount = result.created?.length || 0
     const failedCount = result.failed?.length || 0
@@ -6497,7 +6529,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await adminAPI.accounts.create(withAttachSubPools({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -6512,7 +6544,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
           group_ids: form.group_ids,
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
-        })
+        }))
         successCount++
       } catch (error: any) {
         failedCount++
@@ -6596,7 +6628,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
-      await adminAPI.accounts.create({
+      await adminAPI.accounts.create(withAttachSubPools({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
@@ -6611,7 +6643,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         group_ids: form.group_ids,
         expires_at: form.expires_at,
         auto_pause_on_expired: autoPauseOnExpired.value
-      })
+      }))
       appStore.showSuccess(t('admin.accounts.accountCreated'))
     }
 
@@ -6704,7 +6736,7 @@ const handleOpenAIImportCodexSession = async (content: string) => {
 
   try {
     const extra = buildOpenAICodexImportExtra()
-    const result = await adminAPI.accounts.importCodexSession({
+    const result = await adminAPI.accounts.importCodexSession(withAttachSubPools({
       content: trimmed,
       name: form.name,
       notes: form.notes || null,
@@ -6719,7 +6751,7 @@ const handleOpenAIImportCodexSession = async (content: string) => {
       credential_extras: Object.keys(credentialExtras).length > 0 ? credentialExtras : undefined,
       extra: withUpstreamRequestIdHeader(extra),
       update_existing: true
-    })
+    }))
 
     const successCount = result.created + result.updated
     const params = {
@@ -6782,7 +6814,7 @@ const handleOpenAIImportCodexPAT = async (accessToken: string) => {
 
   try {
     const extra = buildOpenAICodexImportExtra()
-    await adminAPI.accounts.createOpenAICodexPAT({
+    await adminAPI.accounts.createOpenAICodexPAT(withAttachSubPools({
       access_token: trimmed,
       name: form.name,
       notes: form.notes || null,
@@ -6796,7 +6828,7 @@ const handleOpenAIImportCodexPAT = async (accessToken: string) => {
       auto_pause_on_expired: autoPauseOnExpired.value,
       credential_extras: Object.keys(credentialExtras).length > 0 ? credentialExtras : undefined,
       extra: withUpstreamRequestIdHeader(extra)
-    })
+    }))
 
     appStore.showSuccess(t('admin.accounts.accountCreated'))
     emit('created')
@@ -6877,7 +6909,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
-          await adminAPI.accounts.create({
+          await adminAPI.accounts.create(withAttachSubPools({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
@@ -6892,7 +6924,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
             group_ids: form.group_ids,
             expires_at: form.expires_at,
             auto_pause_on_expired: autoPauseOnExpired.value
-          })
+          }))
         }
 
         successCount++
@@ -6992,7 +7024,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        await adminAPI.accounts.create(withAttachSubPools(createPayload))
         successCount++
       } catch (error: any) {
         failedCount++
@@ -7357,7 +7389,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await adminAPI.accounts.create(withAttachSubPools({
           name: accountName,
           notes: form.notes,
           platform: form.platform,
@@ -7372,7 +7404,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           group_ids: form.group_ids,
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
-        })
+        }))
 
         successCount++
       } catch (error: any) {

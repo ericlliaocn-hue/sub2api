@@ -130,6 +130,7 @@ type CreateAccountRequest struct {
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ProbeEnabled            *bool          `json:"upstream_billing_probe_enabled"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+	AttachSubPools          string         `json:"attach_sub_pools"`
 	// 上游成本配置独立字段（仅 OpenAI 账号；计划 Phase 3）
 	UpstreamCostEnabled  *bool                              `json:"upstream_cost_enabled"`
 	UpstreamCostProfiles []service.UpstreamCostProfileInput `json:"upstream_cost_profiles"`
@@ -1047,6 +1048,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			UpstreamCostProfiles:  req.UpstreamCostProfiles,
 			CreatedBy:             financeOperatorID(c),
 			SkipMixedChannelCheck: skipCheck,
+			AttachSubPools:        req.AttachSubPools,
 		})
 		if execErr != nil {
 			return nil, execErr
@@ -2128,6 +2130,7 @@ func (h *AccountHandler) BatchCreate(c *gin.Context) {
 				ExpiresAt:             item.ExpiresAt,
 				AutoPauseOnExpired:    item.AutoPauseOnExpired,
 				SkipMixedChannelCheck: skipCheck,
+				AttachSubPools:        item.AttachSubPools,
 			})
 			if err != nil {
 				failed++

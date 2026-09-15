@@ -1085,6 +1085,8 @@ export default {
       allowOverages: '允许超量请求 (AI Credits)',
       allowOveragesTooltip:
         '仅在免费配额被明确判定为耗尽后才会使用 AI Credits。普通并发 429 限流不会切换到超量请求。',
+      attachSubPools: '同时挂到正式池和观察池',
+      attachSubPoolsHint: '导入后这个号会同时出现在所选分组的正式池和观察池，两边的 Key 都能打到。主号只进正式池时请取消勾选。',
       creating: '创建中...',
       updating: '更新中...',
       accountCreated: '账号创建成功',

@@ -248,7 +248,7 @@ func injectRouteSEO(baseHTML []byte, page seoPage, settingsJSON []byte, frontend
 		head.WriteString(`    <meta property="og:description" content="` + htmlpkg.EscapeString(page.Description) + `" />` + "\n")
 		if page.Canonical != "" {
 			head.WriteString(`    <meta property="og:url" content="` + htmlpkg.EscapeString(page.Canonical) + `" />` + "\n")
-			imageURL := canonicalURL(canonicalBaseURL(frontendURL), "/anytoken-logo.png")
+			imageURL := seoShareImageURL(settings, frontendURL)
 			if imageURL != "" {
 				head.WriteString(`    <meta property="og:image" content="` + htmlpkg.EscapeString(imageURL) + `" />` + "\n")
 			}
@@ -308,7 +308,7 @@ func seoStructuredData(page seoPage, settings seoSiteSettings, frontendURL strin
 		organization := map[string]any{
 			"@type": "Organization", "@id": page.Canonical + "#organization", "name": settings.SiteName, "url": page.Canonical,
 		}
-		if imageURL := canonicalURL(canonicalBaseURL(frontendURL), "/anytoken-logo.png"); imageURL != "" {
+		if imageURL := seoShareImageURL(settings, frontendURL); imageURL != "" {
 			organization["logo"] = imageURL
 		}
 		payload = map[string]any{
@@ -328,6 +328,18 @@ func seoStructuredData(page seoPage, settings seoSiteSettings, frontendURL strin
 		return ""
 	}
 	return string(encoded)
+}
+
+func seoShareImageURL(settings seoSiteSettings, frontendURL string) string {
+	logo := strings.TrimSpace(settings.SiteLogo)
+	if strings.HasPrefix(logo, "https://") || strings.HasPrefix(logo, "http://") {
+		return logo
+	}
+	path := "/anytoken-logo.png"
+	if strings.HasPrefix(logo, "/") && !strings.HasPrefix(logo, "//") {
+		path = logo
+	}
+	return canonicalURL(canonicalBaseURL(frontendURL), path)
 }
 
 func routeETag(baseETag, requestPath string, status int) string {

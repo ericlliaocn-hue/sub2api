@@ -39,6 +39,7 @@ type CodexSessionImportRequest struct {
 	UpdateExisting          *bool          `json:"update_existing"`
 	SkipDefaultGroupBind    *bool          `json:"skip_default_group_bind"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
+	AttachSubPools          string         `json:"attach_sub_pools"`
 }
 
 type CodexSessionImportResult struct {
@@ -345,6 +346,7 @@ func (h *AccountHandler) importCodexSessions(ctx context.Context, req CodexSessi
 			AutoPauseOnExpired:    autoPauseOnExpired,
 			SkipDefaultGroupBind:  skipDefaultGroupBind,
 			SkipMixedChannelCheck: skipMixedChannelCheck,
+			AttachSubPools:        req.AttachSubPools,
 		})
 		if createErr != nil {
 			result.Failed++

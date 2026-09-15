@@ -1015,6 +1015,8 @@ export default {
       allowOverages: 'Allow Overages (AI Credits)',
       allowOveragesTooltip:
         'Only use AI Credits after free quota is explicitly exhausted. Ordinary concurrent 429 rate limits will not switch to overages.',
+      attachSubPools: 'Also attach to formal and observation pools',
+      attachSubPoolsHint: 'After import, this account is added to both the formal and observation pools of the selected group so keys in either pool can reach it. Uncheck for a formal-only main account.',
       creating: 'Creating...',
       updating: 'Updating...',
       accountCreated: 'Account created successfully',
