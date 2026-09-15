@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+forbid="$repo_root/deploy/forbid-oioio-on-online.sh"
+
+while read -r local_ref _local_sha remote_ref _remote_sha; do
+  [ -n "${local_ref:-}" ] || continue
+  "$forbid" check-push "$local_ref" "$remote_ref"
+done
