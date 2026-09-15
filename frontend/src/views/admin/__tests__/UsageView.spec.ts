@@ -724,6 +724,11 @@ describe('admin UsageView ranking tab', () => {
     await tabs[2].trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-test="ranking"]').exists()).toBe(true)
+    expect((wrapper.vm as any).rankingLimit).toBe(50)
+    expect(wrapper.find('.usage-page-frame').exists()).toBe(true)
+    expect(wrapper.find('.usage-page-frame').classes()).toEqual(expect.arrayContaining([
+      '-mx-4', 'md:-mx-6', 'lg:-mx-8', 'rounded-2xl',
+    ]))
 
     // 下钻:设置 user_id、切回用量明细 tab 并按新筛选重新拉取列表
     list.mockClear()

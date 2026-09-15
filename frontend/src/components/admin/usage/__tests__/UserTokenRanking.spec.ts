@@ -56,7 +56,7 @@ describe('UserTokenRanking', () => {
       model: 'claude-fable-5',
       start_date: '2026-07-01',
       end_date: '2026-07-08',
-      sort_by: 'total_tokens',
+      sort_by: 'actual_cost',
       limit: 50,
     }))
 
@@ -65,6 +65,20 @@ describe('UserTokenRanking', () => {
 
     await rows[0].trigger('click')
     expect(wrapper.emitted('select-user')![0]).toEqual([1, 'u1@test.com'])
+  })
+
+  it('defaults to actual_cost descending and emits user count', async () => {
+    const wrapper = mountRanking()
+    await flushPromises()
+
+    expect(getUserBreakdown).toHaveBeenCalledWith(expect.objectContaining({
+      sort_by: 'actual_cost',
+      limit: 50,
+    }))
+    expect(wrapper.text()).toContain('admin.usage.tokenRanking.columns.cost')
+    expect(wrapper.html()).toContain('↓')
+    expect(wrapper.find('[data-testid="ranking-sort-actual_cost"]').text()).toContain('↓')
+    expect(wrapper.emitted('update:userCount')?.[0]).toEqual([2])
   })
 
   it('reloads when shared filters change', async () => {

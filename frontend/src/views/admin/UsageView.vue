@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="usage-page-frame -mx-4 space-y-6 rounded-2xl border border-gray-200/60 p-4 dark:border-dark-700/60 md:-mx-6 md:p-6 lg:-mx-8">
       <UsageStatsCards :stats="usageStats" />
       <!-- Charts Section -->
       <div class="space-y-4">
@@ -66,7 +66,7 @@
       </div>
       <!-- 明细区：tab 栏 + 筛选 + 内容收进同一张卡片，消除割裂感 -->
       <div class="card">
-        <div class="flex flex-wrap items-center border-b border-gray-200 px-2 dark:border-dark-700 sm:px-4">
+        <div class="flex flex-wrap items-center border-b border-gray-200 px-4 dark:border-dark-700 sm:px-6">
           <button
             v-for="tab in detailTabs"
             :key="tab.key"
@@ -85,7 +85,15 @@
 
         <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
-            <div v-if="activeTab !== 'ranking'" class="relative" ref="columnDropdownRef">
+            <div v-if="activeTab === 'ranking'" class="flex items-center gap-3">
+              <span v-if="rankingUserCount > 0" class="text-xs text-gray-400 dark:text-gray-500">
+                {{ t('admin.usage.tokenRanking.userCount', { count: rankingUserCount }) }}
+              </span>
+              <div class="w-28">
+                <Select v-model="rankingLimit" :options="rankingLimitOptions" />
+              </div>
+            </div>
+            <div v-else class="relative" ref="columnDropdownRef">
               <button
                 data-testid="usage-column-settings"
                 @click="showColumnDropdown = !showColumnDropdown"
@@ -155,10 +163,12 @@
         <div v-if="rankingMounted" v-show="activeTab === 'ranking'" class="overflow-hidden rounded-b-2xl">
           <UserTokenRanking
             ref="rankingRef"
+            v-model:limit="rankingLimit"
             :start-date="startDate"
             :end-date="endDate"
             :filters="breakdownFilters"
             :model="filters.model"
+            @update:user-count="rankingUserCount = $event"
             @select-user="handleRankingSelectUser"
           />
         </div>
@@ -795,6 +805,14 @@ const detailTabs = computed(() => [
 const usageFiltersRef = ref<InstanceType<typeof UsageFilters> | null>(null)
 const rankingMounted = ref(false)
 const rankingRef = ref<InstanceType<typeof UserTokenRanking> | null>(null)
+const rankingLimit = ref(50)
+const rankingUserCount = ref(0)
+const rankingLimitOptions = [
+  { value: 20, label: 'Top 20' },
+  { value: 50, label: 'Top 50' },
+  { value: 100, label: 'Top 100' },
+  { value: 200, label: 'Top 200' },
+]
 
 const switchTab = (tab: DetailTab) => {
   activeTab.value = tab
