@@ -43,6 +43,7 @@ func ProvideAdminHandlers(
 	channelMonitorHandler *admin.ChannelMonitorHandler,
 	channelMonitorTemplateHandler *admin.ChannelMonitorRequestTemplateHandler,
 	contentModerationHandler *admin.ContentModerationHandler,
+	watchedTrafficHandler *admin.WatchedTrafficHandler,
 	promptAuditHandler *securityaudit.PromptAdminHandler,
 	paymentHandler *admin.PaymentHandler,
 	affiliateHandler *admin.AffiliateHandler,
@@ -90,6 +91,7 @@ func ProvideAdminHandlers(
 		ChannelMonitor:         channelMonitorHandler,
 		ChannelMonitorTemplate: channelMonitorTemplateHandler,
 		ContentModeration:      contentModerationHandler,
+		WatchedTraffic:         watchedTrafficHandler,
 		PromptAudit:            promptAuditHandler,
 		Payment:                paymentHandler,
 		Affiliate:              affiliateHandler,
@@ -208,6 +210,7 @@ func ProvideHandlers(
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
 	creationHistoryHandler *CreationHistoryHandler,
+	watchedTrafficService *service.WatchedTrafficService,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -236,6 +239,7 @@ func ProvideHandlers(
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 		Creation:         creationHistoryHandler,
+		WatchedTraffic:   watchedTrafficService,
 	}
 }
 
@@ -302,6 +306,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewPromotionHandler,
 	admin.NewUpstreamConnectionHandler,
 	admin.NewContentModerationHandler,
+	admin.NewWatchedTrafficHandler,
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,
 	admin.NewComplianceHandler,

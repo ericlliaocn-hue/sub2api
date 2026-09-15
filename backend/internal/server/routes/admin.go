@@ -132,6 +132,8 @@ func RegisterAdminRoutes(
 
 		// 风控中心
 		registerContentModerationRoutes(admin, h)
+		registerWatchedTrafficRoutes(admin, h)
+
 		// 独立提示词输入审计
 		registerPromptAuditRoutes(admin, h)
 
@@ -223,6 +225,15 @@ func registerAdminComplianceRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 	{
 		compliance.GET("", h.Admin.Compliance.GetStatus)
 		compliance.POST("/accept", h.Admin.Compliance.Accept)
+	}
+}
+
+func registerWatchedTrafficRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	watched := admin.Group("/watched-traffic")
+	{
+		watched.GET("/config", h.Admin.WatchedTraffic.GetConfig)
+		watched.PUT("/config", h.Admin.WatchedTraffic.UpdateConfig)
+		watched.GET("/logs", h.Admin.WatchedTraffic.ListLogs)
 	}
 }
 
