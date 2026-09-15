@@ -124,6 +124,7 @@ const (
 	SubPoolBindReasonProbeGraduation  = "probe_graduation"
 	SubPoolBindReasonCoolingMigration = "cooling_migration"
 	SubPoolBindReasonAdminManual      = "admin_manual"
+	SubPoolBindReasonUserDefault      = "user_default"
 	SubPoolBindReasonPoolRemoved      = "pool_removed"
 	// SubPoolBindReasonPunishDemotion records a key pushed back into a probe pool
 	// as a sanction, which is distinct from a cooling migration: the key is the

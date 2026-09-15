@@ -132,7 +132,6 @@ func RegisterAdminRoutes(
 
 		// 风控中心
 		registerContentModerationRoutes(admin, h)
-
 		// 独立提示词输入审计
 		registerPromptAuditRoutes(admin, h)
 
@@ -413,6 +412,11 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.DELETE("/:id/rpm-overrides", h.Admin.Group.ClearGroupRPMOverrides)
 		groups.GET("/:id/api-keys", h.Admin.Group.GetGroupAPIKeys)
 		groups.GET("/:id/sub-pools", h.Admin.SubPool.List)
+		groups.GET("/:id/sub-pool-keys", h.Admin.SubPool.ListGroupKeys)
+		groups.GET("/:id/sub-pool-policy", h.Admin.SubPool.GetPlacementPolicy)
+		groups.PUT("/:id/default-sub-pool", h.Admin.SubPool.SetGroupDefaultPool)
+		groups.PUT("/:id/sub-pool-users", h.Admin.SubPool.SetUserDefaultPool)
+		groups.DELETE("/:id/sub-pool-users/:user_id", h.Admin.SubPool.ClearUserDefaultPool)
 		groups.POST("/:id/sub-pools", h.Admin.SubPool.Create)
 	}
 }

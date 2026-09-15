@@ -148,6 +148,163 @@ func (h *SubPoolHandler) List(c *gin.Context) {
 	response.Success(c, out)
 }
 
+type SubPoolGroupKeyResponse struct {
+	APIKeyID             int64  `json:"api_key_id"`
+	Name                 string `json:"name"`
+	UserID               int64  `json:"user_id"`
+	UserEmail            string `json:"user_email"`
+	UserUsername         string `json:"user_username"`
+	Status               string `json:"status"`
+	SubPoolID            *int64 `json:"sub_pool_id"`
+	UserDefaultSubPoolID *int64 `json:"user_default_sub_pool_id"`
+}
+
+// ListGroupKeys is the admin routing board for one group.
+// GET /admin/groups/:id/sub-pool-keys
+func (h *SubPoolHandler) ListGroupKeys(c *gin.Context) {
+	groupID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	keys, err := h.subPoolService.ListGroupKeys(c.Request.Context(), groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]SubPoolGroupKeyResponse, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, SubPoolGroupKeyResponse{
+			APIKeyID:             key.APIKeyID,
+			Name:                 key.Name,
+			UserID:               key.UserID,
+			UserEmail:            key.UserEmail,
+			UserUsername:         key.UserUsername,
+			Status:               key.Status,
+			SubPoolID:            key.SubPoolID,
+			UserDefaultSubPoolID: key.UserDefaultSubPoolID,
+		})
+	}
+	response.Success(c, out)
+}
+
+type setGroupDefaultSubPoolRequest struct {
+	SubPoolID *int64 `json:"sub_pool_id"`
+}
+
+type setUserSubPoolRequest struct {
+	UserID    int64   `json:"user_id" binding:"required"`
+	SubPoolID int64   `json:"sub_pool_id" binding:"required"`
+	Note      *string `json:"note"`
+}
+
+type userSubPoolDefaultResponse struct {
+	UserID       int64   `json:"user_id"`
+	UserEmail    string  `json:"user_email"`
+	UserUsername string  `json:"user_username"`
+	SubPoolID    int64   `json:"sub_pool_id"`
+	Operator     string  `json:"operator"`
+	Note         *string `json:"note"`
+	UpdatedAt    string  `json:"updated_at"`
+}
+
+// GetPlacementPolicy returns the group default pool and per-user pins.
+// GET /admin/groups/:id/sub-pool-policy
+func (h *SubPoolHandler) GetPlacementPolicy(c *gin.Context) {
+	groupID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	defaultID, err := h.subPoolService.GetGroupDefaultPool(c.Request.Context(), groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	users, err := h.subPoolService.ListUserDefaults(c.Request.Context(), groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]userSubPoolDefaultResponse, 0, len(users))
+	for _, user := range users {
+		out = append(out, userSubPoolDefaultResponse{
+			UserID:       user.UserID,
+			UserEmail:    user.UserEmail,
+			UserUsername: user.UserUsername,
+			SubPoolID:    user.SubPoolID,
+			Operator:     user.Operator,
+			Note:         user.Note,
+			UpdatedAt:    user.UpdatedAt.Format(time.RFC3339),
+		})
+	}
+	response.Success(c, gin.H{
+		"default_sub_pool_id": defaultID,
+		"users":               out,
+	})
+}
+
+// SetGroupDefaultPool sets where unpinned users' new keys land.
+// PUT /admin/groups/:id/default-sub-pool
+func (h *SubPoolHandler) SetGroupDefaultPool(c *gin.Context) {
+	groupID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req setGroupDefaultSubPoolRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if req.SubPoolID == nil {
+		if err := h.subPoolService.ClearGroupDefaultPool(c.Request.Context(), groupID); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	} else if err := h.subPoolService.SetGroupDefaultPool(c.Request.Context(), groupID, *req.SubPoolID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"default_sub_pool_id": req.SubPoolID})
+}
+
+// SetUserDefaultPool pins a user to a pool and moves all their keys in the group.
+// PUT /admin/groups/:id/sub-pool-users
+func (h *SubPoolHandler) SetUserDefaultPool(c *gin.Context) {
+	groupID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req setUserSubPoolRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.subPoolService.SetUserDefaultPool(
+		c.Request.Context(), req.UserID, groupID, req.SubPoolID, subPoolAdminOperator(c), req.Note,
+	); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"bound": true})
+}
+
+// ClearUserDefaultPool removes the pin. Existing key bindings stay put.
+// DELETE /admin/groups/:id/sub-pool-users/:user_id
+func (h *SubPoolHandler) ClearUserDefaultPool(c *gin.Context) {
+	groupID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	userID, ok := parseIDParam(c, "user_id")
+	if !ok {
+		return
+	}
+	if err := h.subPoolService.ClearUserDefaultPool(c.Request.Context(), userID, groupID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"cleared": true})
+}
+
 // Create adds a pool to a group.
 // POST /admin/groups/:id/sub-pools
 func (h *SubPoolHandler) Create(c *gin.Context) {

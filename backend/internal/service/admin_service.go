@@ -423,6 +423,10 @@ type CreateAccountInput struct {
 	// SkipMixedChannelCheck skips the mixed channel risk check when binding groups.
 	// This should only be set when the caller has explicitly confirmed the risk.
 	SkipMixedChannelCheck bool
+	// AttachSubPools optionally hangs the new account on the selected group's
+	// formal and/or observation sub-pools. Empty means leave pool membership
+	// untouched (the historical create behavior).
+	AttachSubPools string
 }
 
 // ShadowOptions is the input for CreateShadow.
@@ -726,6 +730,13 @@ type adminServiceImpl struct {
 	compositeResolver    *CompositeRouteResolver
 	// 分组平台变更后用来失效渠道缓存；可为 nil（缓存会在 TTL 到期后自然重建）
 	channelCacheInvalidator ChannelCacheInvalidator
+	// Optional: import-time hang onto formal/observation pools. Wired after
+	// construction so NewAdminService stays compatible with official upstream.
+	subPoolAttacher accountSubPoolAttacher
+}
+
+type accountSubPoolAttacher interface {
+	AttachAccountOnCreate(ctx context.Context, accountID int64, groupIDs []int64, mode string) error
 }
 
 // ChannelCacheInvalidator 失效渠道缓存。
@@ -798,4 +809,13 @@ func NewAdminService(
 
 		channelCacheInvalidator: channelCacheInvalidator,
 	}
+}
+
+// SetSubPoolAttacher registers the import-time sub-pool hang. Tests leave it
+// nil; create then only attaches when AttachSubPools is set.
+func (s *adminServiceImpl) SetSubPoolAttacher(attacher accountSubPoolAttacher) {
+	if s == nil {
+		return
+	}
+	s.subPoolAttacher = attacher
 }

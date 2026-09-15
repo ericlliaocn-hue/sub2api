@@ -31,6 +31,23 @@ func TestAPIKeyFromService_MapsLastUsedAt(t *testing.T) {
 	require.Equal(t, 3, out.CurrentConcurrency)
 }
 
+func TestAPIKeyFromService_MapsSubPoolID(t *testing.T) {
+	poolID := int64(12)
+	src := &service.APIKey{
+		ID:        1,
+		UserID:    2,
+		Key:       "sk-map-sub-pool",
+		Name:      "MapperPool",
+		Status:    service.StatusActive,
+		SubPoolID: &poolID,
+	}
+
+	out := APIKeyFromService(src)
+	require.NotNil(t, out)
+	require.NotNil(t, out.SubPoolID)
+	require.Equal(t, poolID, *out.SubPoolID)
+}
+
 func TestAPIKeyFromService_MapsNilLastUsedAt(t *testing.T) {
 	src := &service.APIKey{
 		ID:     1,

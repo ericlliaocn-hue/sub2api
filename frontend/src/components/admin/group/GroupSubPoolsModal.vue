@@ -44,6 +44,118 @@
         {{ t('admin.groups.subPools.disabledHint') }}
       </p>
 
+      <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.groups.subPools.routing.title') }}
+        </h4>
+        <p class="mb-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.groups.subPools.routing.hint') }}
+        </p>
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <label class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.subPools.groupDefault') }}
+          </label>
+          <select
+            v-model.number="groupDefaultId"
+            class="input w-56"
+            :disabled="savingPolicy"
+            @change="saveGroupDefault"
+          >
+            <option :value="0">{{ t('admin.groups.subPools.groupDefaultNone') }}</option>
+            <option v-for="pool in pools" :key="pool.id" :value="pool.id">
+              {{ pool.name }}
+            </option>
+          </select>
+          <span class="text-xs text-gray-400">{{ t('admin.groups.subPools.groupDefaultHint') }}</span>
+        </div>
+        <div v-if="userRows.length === 0" class="py-2 text-sm text-gray-400">
+          {{ t('admin.groups.subPools.routing.empty') }}
+        </div>
+        <div v-else class="max-h-64 overflow-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 text-left dark:border-dark-600">
+                <th class="px-2 py-1.5 font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.subPools.routing.user') }}
+                </th>
+                <th class="px-2 py-1.5 font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.subPools.routing.keys') }}
+                </th>
+                <th class="px-2 py-1.5 font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.subPools.routing.pool') }}
+                </th>
+                <th class="px-2 py-1.5 font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.subPools.routing.reachable') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in userRows"
+                :key="row.user_id"
+                class="border-b border-gray-100 last:border-0 dark:border-dark-700"
+              >
+                <td class="px-2 py-1.5 text-gray-900 dark:text-white">
+                  {{ row.user_label }}
+                  <span class="text-xs text-gray-400">#{{ row.user_id }}</span>
+                </td>
+                <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300">
+                  {{ row.key_count }}
+                  <div v-if="row.keys.length" class="text-xs text-gray-400">
+                    {{ row.keys.map((key) => key.name).join('、') }}
+                  </div>
+                </td>
+                <td class="px-2 py-1.5">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <select
+                      v-model.number="userPoolDraft[row.user_id]"
+                      class="input w-40"
+                      :disabled="savingUserId === row.user_id"
+                      @change="placeUser(row.user_id, userPoolDraft[row.user_id])"
+                    >
+                      <option v-for="pool in pools" :key="pool.id" :value="pool.id">
+                        {{ pool.name }}
+                      </option>
+                    </select>
+                    <span
+                      class="badge"
+                      :class="row.pinned ? 'badge-warning' : 'badge-gray'"
+                    >
+                      {{
+                        row.pinned
+                          ? t('admin.groups.subPools.routing.pinned')
+                          : t('admin.groups.subPools.routing.inherit')
+                      }}
+                    </span>
+                    <span
+                      v-if="row.mixed"
+                      class="badge badge-danger"
+                    >
+                      {{ t('admin.groups.subPools.mixedKeys') }}
+                    </span>
+                    <button
+                      v-if="row.pinned"
+                      type="button"
+                      class="btn btn-sm btn-secondary"
+                      :disabled="savingUserId === row.user_id"
+                      @click="unpinUser(row)"
+                    >
+                      {{ t('admin.groups.subPools.clearUserPin') }}
+                    </button>
+                  </div>
+                </td>
+                <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300">
+                  <span v-if="row.reachable_names.length === 0" class="text-amber-600 dark:text-amber-400">
+                    {{ t('admin.groups.subPools.routing.none') }}
+                  </span>
+                  <span v-else>{{ row.reachable_names.join('、') }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 观察期毕业规则（全局，非本分组） -->
       <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
         <div class="mb-2 flex items-center justify-between gap-2">
@@ -369,6 +481,129 @@
             {{ pool.cooling_reason }}
           </p>
 
+          <div class="mt-3 space-y-2 border-t border-gray-100 pt-3 dark:border-dark-600">
+            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>{{ t('admin.groups.subPools.reachableNow') }}:</span>
+              <span
+                v-if="reachableNamesForPool(pool).length === 0"
+                class="text-amber-600 dark:text-amber-400"
+              >
+                {{ t('admin.groups.subPools.routing.none') }}
+              </span>
+              <span
+                v-for="name in reachableNamesForPool(pool)"
+                :key="name"
+                class="badge badge-success"
+              >
+                {{ name }}
+              </span>
+            </div>
+
+            <div class="space-y-1">
+              <div
+                v-for="account in accountsInPool(pool)"
+                :key="account.id"
+                class="flex flex-wrap items-center gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-dark-700"
+              >
+                <span class="text-gray-900 dark:text-white">{{ account.name }}</span>
+                <span class="text-xs text-gray-400">#{{ account.id }}</span>
+                <span
+                  class="badge"
+                  :class="isAccountReachable(account) ? 'badge-success' : 'badge-gray'"
+                >
+                  {{
+                    account.schedulable
+                      ? t('admin.groups.subPools.schedulableOn')
+                      : t('admin.groups.subPools.schedulableOff')
+                  }}
+                </span>
+                <span v-if="account.status !== 'active'" class="badge badge-danger">
+                  {{ account.status }}
+                </span>
+                <span v-if="account.last_used_at" class="text-xs text-gray-400">
+                  {{ t('admin.groups.subPools.lastUsed') }}
+                  {{ formatDateTime(account.last_used_at) }}
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary ml-auto"
+                  @click="openPing(account)"
+                >
+                  {{ t('admin.groups.subPools.ping') }}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h5 class="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.groups.subPools.boundUsers') }}
+              </h5>
+              <div v-if="usersForPool(pool.id).length === 0" class="text-xs text-gray-400">
+                {{ t('admin.groups.subPools.noBoundUsers') }}
+              </div>
+              <ul v-else class="space-y-0.5 text-sm text-gray-800 dark:text-gray-200">
+                <li v-for="item in usersForPool(pool.id)" :key="item.user_id">
+                  {{ item.user_label }}
+                  <span class="text-xs text-gray-400">· {{ item.key_count }} Key</span>
+                </li>
+              </ul>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <select v-model.number="userDraft[pool.id]" class="input w-72">
+                  <option :value="0">
+                    {{ t('admin.groups.subPools.placeUserPlaceholder') }}
+                  </option>
+                  <option v-for="item in userRows" :key="item.user_id" :value="item.user_id">
+                    {{ item.user_label }} #{{ item.user_id }}
+                  </option>
+                </select>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  :disabled="savingPoolId === pool.id || !userDraft[pool.id]"
+                  @click="placeSelectedUser(pool)"
+                >
+                  {{ t('admin.groups.subPools.placeUser') }}
+                </button>
+              </div>
+              <details class="mt-3">
+                <summary class="cursor-pointer text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.subPools.overrideKey') }}
+                </summary>
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.groups.subPools.overrideKeyHint') }}
+                </p>
+                <div v-if="keysInPool(pool.id).length === 0" class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.groups.subPools.noBoundKeys') }}
+                </div>
+                <ul v-else class="mt-1 space-y-0.5 text-xs text-gray-600 dark:text-gray-300">
+                  <li v-for="item in keysInPool(pool.id)" :key="item.api_key_id">
+                    {{ keyUserLabel(item) }}
+                    · {{ item.name }}
+                    <span class="text-gray-400">#{{ item.api_key_id }}</span>
+                  </li>
+                </ul>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <select v-model.number="bindDraft[pool.id]" class="input w-72">
+                    <option :value="0">
+                      {{ t('admin.groups.subPools.bindKeyPlaceholder') }}
+                    </option>
+                    <option v-for="item in groupKeys" :key="item.api_key_id" :value="item.api_key_id">
+                      {{ keyUserLabel(item) }} · {{ item.name }} #{{ item.api_key_id }}
+                    </option>
+                  </select>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-secondary"
+                    :disabled="savingPoolId === pool.id || !bindDraft[pool.id]"
+                    @click="bindSelectedKey(pool)"
+                  >
+                    {{ t('admin.groups.subPools.bindKey') }}
+                  </button>
+                </div>
+              </details>
+            </div>
+          </div>
+
           <!-- 账号编辑 -->
           <div
             v-if="accountEditorPoolId === pool.id"
@@ -388,22 +623,37 @@
                 v-for="account in groupAccounts"
                 :key="account.id"
                 class="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-dark-700"
-                :class="{ 'opacity-50': isAccountTakenElsewhere(account.id, pool.id) }"
               >
                 <input
                   type="checkbox"
                   :value="account.id"
                   v-model="accountDraft"
-                  :disabled="isAccountTakenElsewhere(account.id, pool.id)"
                 />
                 <span class="text-gray-900 dark:text-white">{{ account.name }}</span>
                 <span class="text-xs text-gray-400">#{{ account.id }}</span>
                 <span
-                  v-if="isAccountTakenElsewhere(account.id, pool.id)"
-                  class="text-xs text-gray-400"
+                  class="badge"
+                  :class="isAccountReachable(account) ? 'badge-success' : 'badge-gray'"
                 >
-                  {{ t('admin.groups.subPools.accountTaken') }}
+                  {{
+                    account.schedulable
+                      ? t('admin.groups.subPools.schedulableOn')
+                      : t('admin.groups.subPools.schedulableOff')
+                  }}
                 </span>
+                <span
+                  v-if="isAccountShared(account.id, pool.id)"
+                  class="text-xs text-amber-600 dark:text-amber-400"
+                >
+                  {{ t('admin.groups.subPools.accountShared') }}
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary ml-auto"
+                  @click.prevent="openPing(account)"
+                >
+                  {{ t('admin.groups.subPools.ping') }}
+                </button>
               </label>
             </div>
             <div class="mt-2 flex justify-end gap-2">
@@ -599,6 +849,8 @@
       @cancel="deleteTarget = null"
     />
   </BaseDialog>
+
+  <AccountTestModal :show="testingAccount !== null" :account="testingAccount" @close="testingAccount = null" />
 </template>
 
 <script setup lang="ts">
@@ -612,7 +864,9 @@ import type {
   SubPoolGraduationPolicy,
   ReputationPolicy,
   APIKeyReputation,
-  SubPoolKind
+  SubPoolKind,
+  SubPoolGroupKey,
+  SubPoolUserDefault
 } from '@/api/admin/subPools'
 import { formatDateTime } from '@/utils/format'
 import type { Account, AdminGroup } from '@/types'
@@ -620,6 +874,16 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
+import {
+  accountsInPool as accountsForPool,
+  buildRoutingRows,
+  buildUserRoutingRows,
+  isAccountReachable,
+  keyUserLabel,
+  reachableAccounts,
+  usersInPool
+} from './subPoolRouting'
 
 const props = defineProps<{
   show: boolean
@@ -641,6 +905,15 @@ const pools = ref<SubPool[]>([])
 
 const accountsLoading = ref(false)
 const groupAccounts = ref<Account[]>([])
+const groupKeys = ref<SubPoolGroupKey[]>([])
+const placementUsers = ref<SubPoolUserDefault[]>([])
+const groupDefaultId = ref(0)
+const savingPolicy = ref(false)
+const savingUserId = ref<number | null>(null)
+const userPoolDraft = ref<Record<number, number>>({})
+const userDraft = ref<Record<number, number>>({})
+const bindDraft = ref<Record<number, number>>({})
+const testingAccount = ref<Account | null>(null)
 const accountEditorPoolId = ref<number | null>(null)
 const accountDraft = ref<number[]>([])
 
@@ -689,6 +962,52 @@ const kindOptions = computed(() => [
 
 const groupAccountCount = computed(() => groupAccounts.value.length)
 
+const routingRows = computed(() =>
+  buildRoutingRows(
+    groupKeys.value,
+    pools.value,
+    groupAccounts.value,
+    t('admin.groups.subPools.routing.wholeGroup')
+  )
+)
+
+const userRows = computed(() => {
+  const rows = buildUserRoutingRows(routingRows.value)
+  const seen = new Set(rows.map((row) => row.user_id))
+  for (const user of placementUsers.value) {
+    if (seen.has(user.user_id)) continue
+    const pool = pools.value.find((item) => item.id === user.sub_pool_id)
+    rows.push({
+      user_id: user.user_id,
+      user_label: user.user_email || user.user_username || `u${user.user_id}`,
+      pool_id: user.sub_pool_id,
+      pool_name: pool?.name ?? t('admin.groups.subPools.routing.wholeGroup'),
+      pinned: true,
+      mixed: false,
+      key_count: 0,
+      reachable_names: pool
+        ? reachableAccounts(pool, groupAccounts.value).map((account) => account.name)
+        : [],
+      keys: []
+    })
+  }
+  return rows
+})
+
+const accountsInPool = (pool: SubPool) => accountsForPool(pool, groupAccounts.value)
+const reachableNamesForPool = (pool: SubPool) =>
+  reachableAccounts(pool, groupAccounts.value).map((account) => account.name)
+const keysInPool = (poolId: number) => groupKeys.value.filter((key) => key.sub_pool_id === poolId)
+const usersForPool = (poolId: number) => usersInPool(userRows.value, poolId)
+
+const syncUserDrafts = () => {
+  const next = { ...userPoolDraft.value }
+  for (const row of userRows.value) {
+    next[row.user_id] = row.pool_id ?? groupDefaultId.value
+  }
+  userPoolDraft.value = next
+}
+
 const hoursOptions = computed(() => [
   { value: 1, label: t('admin.groups.subPools.attribution.lastHours', { hours: 1 }) },
   { value: 6, label: t('admin.groups.subPools.attribution.lastHours', { hours: 6 }) },
@@ -711,8 +1030,8 @@ const statusBadgeClass = (status: SubPool['status']) => {
   }
 }
 
-// 一个账号在同一分组内只能属于一个子池，否则两个池共享爆炸半径、归因就糊了。
-const isAccountTakenElsewhere = (accountId: number, poolId: number) =>
+// 同一账号可以挂多个子池；标出来方便看见共享半径。
+const isAccountShared = (accountId: number, poolId: number) =>
   pools.value.some((pool) => pool.id !== poolId && pool.account_ids.includes(accountId))
 
 const loadPools = async () => {
@@ -720,6 +1039,14 @@ const loadPools = async () => {
   loading.value = true
   try {
     pools.value = await adminAPI.subPools.listByGroup(props.group.id)
+    for (const pool of pools.value) {
+      if (bindDraft.value[pool.id] == null) {
+        bindDraft.value[pool.id] = 0
+      }
+      if (userDraft.value[pool.id] == null) {
+        userDraft.value[pool.id] = 0
+      }
+    }
   } catch (error) {
     appStore.showError(t('admin.groups.subPools.loadFailed'))
     console.error('Error loading sub-pools:', error)
@@ -844,7 +1171,7 @@ const triggerGraduation = async () => {
     appStore.showSuccess(
       t('admin.groups.subPools.graduation.runSuccess', { count: result.graduated })
     )
-    await loadPools()
+    await reloadPlacement()
   } catch (error) {
     appStore.showError(t('admin.groups.subPools.graduation.runFailed'))
     console.error('Error running graduation:', error)
@@ -867,6 +1194,128 @@ const loadGroupAccounts = async () => {
     console.error('Error loading group accounts:', error)
   } finally {
     accountsLoading.value = false
+  }
+}
+
+const loadGroupKeys = async () => {
+  if (!props.group) return
+  try {
+    groupKeys.value = await adminAPI.subPools.listGroupKeys(props.group.id)
+    syncUserDrafts()
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.loadFailed'))
+    console.error('Error loading sub-pool keys:', error)
+  }
+}
+
+const loadPlacementPolicy = async () => {
+  if (!props.group) return
+  try {
+    const policy = await adminAPI.subPools.getPlacementPolicy(props.group.id)
+    groupDefaultId.value = policy.default_sub_pool_id ?? 0
+    placementUsers.value = policy.users ?? []
+    syncUserDrafts()
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.loadFailed'))
+    console.error('Error loading sub-pool policy:', error)
+  }
+}
+
+const reloadPlacement = async () => {
+  await Promise.all([loadPools(), loadGroupKeys(), loadPlacementPolicy()])
+}
+
+const saveGroupDefault = async () => {
+  if (!props.group) return
+  savingPolicy.value = true
+  try {
+    await adminAPI.subPools.setGroupDefaultPool(
+      props.group.id,
+      groupDefaultId.value > 0 ? groupDefaultId.value : null
+    )
+    appStore.showSuccess(t('common.saved'))
+    await loadPlacementPolicy()
+    emit('success')
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.saveGroupDefaultFailed'))
+    console.error('Error saving group default pool:', error)
+  } finally {
+    savingPolicy.value = false
+  }
+}
+
+const placeUser = async (userId: number, subPoolId: number) => {
+  if (!props.group || !userId || !subPoolId) return
+  const pool = pools.value.find((item) => item.id === subPoolId)
+  const user = userRows.value.find((item) => item.user_id === userId)
+  savingUserId.value = userId
+  savingPoolId.value = subPoolId
+  try {
+    await adminAPI.subPools.setUserDefaultPool(props.group.id, userId, subPoolId)
+    appStore.showSuccess(
+      t('admin.groups.subPools.placeUserSuccess', {
+        user: user?.user_label ?? userId,
+        pool: pool?.name ?? subPoolId
+      })
+    )
+    await reloadPlacement()
+    emit('success')
+  } catch (error) {
+    userPoolDraft.value[userId] = user?.pool_id ?? groupDefaultId.value
+    appStore.showError(t('admin.groups.subPools.placeUserFailed'))
+    console.error('Error placing user into sub-pool:', error)
+  } finally {
+    savingUserId.value = null
+    savingPoolId.value = null
+  }
+}
+
+const placeSelectedUser = async (pool: SubPool) => {
+  const userId = userDraft.value[pool.id]
+  if (!userId) return
+  await placeUser(userId, pool.id)
+  userDraft.value[pool.id] = 0
+}
+
+const unpinUser = async (row: { user_id: number; user_label: string }) => {
+  if (!props.group) return
+  savingUserId.value = row.user_id
+  try {
+    await adminAPI.subPools.clearUserDefaultPool(props.group.id, row.user_id)
+    appStore.showSuccess(
+      t('admin.groups.subPools.clearUserPinSuccess', { user: row.user_label })
+    )
+    await reloadPlacement()
+    emit('success')
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.clearUserPinFailed'))
+    console.error('Error clearing user default pool:', error)
+  } finally {
+    savingUserId.value = null
+  }
+}
+
+const openPing = (account: Account) => {
+  testingAccount.value = account
+}
+
+const bindSelectedKey = async (pool: SubPool) => {
+  const apiKeyId = bindDraft.value[pool.id]
+  if (!apiKeyId) return
+  savingPoolId.value = pool.id
+  try {
+    await adminAPI.subPools.bindKey(pool.id, apiKeyId)
+    bindDraft.value[pool.id] = 0
+    appStore.showSuccess(
+      t('admin.groups.subPools.bindKeySuccess', { id: apiKeyId, pool: pool.name })
+    )
+    await reloadPlacement()
+    emit('success')
+  } catch (error) {
+    appStore.showError(t('admin.groups.subPools.bindKeyFailed'))
+    console.error('Error binding key to sub-pool:', error)
+  } finally {
+    savingPoolId.value = null
   }
 }
 
@@ -944,7 +1393,7 @@ const demoteKey = async (pool: SubPool, keyId: number) => {
   try {
     await adminAPI.subPools.demoteKey(keyId)
     appStore.showSuccess(t('admin.groups.subPools.attribution.demoteSuccess', { id: keyId }))
-    await Promise.all([loadPools(), loadAttribution(pool.id)])
+    await Promise.all([loadPools(), loadGroupKeys(), loadAttribution(pool.id)])
     emit('success')
   } catch (error) {
     appStore.showError(t('admin.groups.subPools.attribution.demoteFailed'))
@@ -1002,7 +1451,7 @@ const runMigrate = async (pool: SubPool) => {
     )
     appStore.showSuccess(t('admin.groups.subPools.migrateSuccess', { count: result.moved }))
     migratePoolId.value = null
-    await loadPools()
+    await reloadPlacement()
     emit('success')
   } catch (error) {
     appStore.showError(t('admin.groups.subPools.migrateFailed'))
@@ -1059,6 +1508,7 @@ const handleClose = () => {
   migratePoolId.value = null
   attributionPoolId.value = null
   attribution.value = null
+  testingAccount.value = null
   emit('close')
 }
 
@@ -1068,11 +1518,20 @@ watch(
     if (visible && props.group) {
       pools.value = []
       groupAccounts.value = []
+      groupKeys.value = []
+      placementUsers.value = []
+      groupDefaultId.value = 0
+      bindDraft.value = {}
+      userDraft.value = {}
+      userPoolDraft.value = {}
+      testingAccount.value = null
       newPool.name = ''
       newPool.kind = 'formal'
       newPool.key_soft_limit = 8
       loadPools()
       loadGroupAccounts()
+      loadGroupKeys()
+      loadPlacementPolicy()
       loadGraduation()
       loadReputation()
     }

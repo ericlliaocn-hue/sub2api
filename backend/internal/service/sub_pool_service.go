@@ -141,6 +141,79 @@ func NewSubPoolService(
 
 // ── Pool lifecycle ────────────────────────────────────────────────────────
 
+func (s *SubPoolService) ListGroupKeys(ctx context.Context, groupID int64) ([]SubPoolGroupKey, error) {
+	return s.repo.ListGroupKeys(ctx, groupID)
+}
+
+func (s *SubPoolService) GetGroupDefaultPool(ctx context.Context, groupID int64) (*int64, error) {
+	return s.repo.GetGroupDefaultPool(ctx, groupID)
+}
+
+func (s *SubPoolService) SetGroupDefaultPool(ctx context.Context, groupID, subPoolID int64) error {
+	if _, err := s.requirePoolInGroup(ctx, subPoolID, groupID); err != nil {
+		return err
+	}
+	return s.repo.SetGroupDefaultPool(ctx, groupID, &subPoolID)
+}
+
+func (s *SubPoolService) ClearGroupDefaultPool(ctx context.Context, groupID int64) error {
+	return s.repo.SetGroupDefaultPool(ctx, groupID, nil)
+}
+
+func (s *SubPoolService) ListUserDefaults(ctx context.Context, groupID int64) ([]UserSubPoolDefault, error) {
+	return s.repo.ListUserDefaults(ctx, groupID)
+}
+
+// SetUserDefaultPool pins a user to a pool and moves every one of their keys
+// in this group. New keys inherit the same pin through EnsureBinding.
+func (s *SubPoolService) SetUserDefaultPool(ctx context.Context, userID, groupID, subPoolID int64, operator string, note *string) error {
+	if _, err := s.requirePoolInGroup(ctx, subPoolID, groupID); err != nil {
+		return err
+	}
+	if err := s.repo.SetUserDefaultPool(ctx, UserSubPoolDefault{
+		UserID:    userID,
+		GroupID:   groupID,
+		SubPoolID: subPoolID,
+		Operator:  operator,
+		Note:      note,
+	}); err != nil {
+		return err
+	}
+	keyIDs, err := s.repo.ListKeyIDsByUserGroup(ctx, userID, groupID)
+	if err != nil {
+		return err
+	}
+	for _, keyID := range keyIDs {
+		if err := s.repo.BindKey(ctx, SubPoolBindInput{
+			APIKeyID:  keyID,
+			SubPoolID: subPoolID,
+			GroupID:   groupID,
+			Reason:    domain.SubPoolBindReasonUserDefault,
+			Operator:  operator,
+			Note:      note,
+		}); err != nil {
+			return err
+		}
+	}
+	s.invalidateAuthByGroup(ctx, groupID)
+	return nil
+}
+
+func (s *SubPoolService) ClearUserDefaultPool(ctx context.Context, userID, groupID int64) error {
+	return s.repo.ClearUserDefaultPool(ctx, userID, groupID)
+}
+
+func (s *SubPoolService) requirePoolInGroup(ctx context.Context, subPoolID, groupID int64) (*SubPool, error) {
+	pool, err := s.repo.GetByID(ctx, subPoolID)
+	if err != nil {
+		return nil, err
+	}
+	if pool.GroupID != groupID {
+		return nil, ErrSubPoolGroupMismatch
+	}
+	return pool, nil
+}
+
 func (s *SubPoolService) ListByGroup(ctx context.Context, groupID int64) ([]SubPool, error) {
 	return s.repo.ListByGroup(ctx, groupID)
 }
@@ -271,9 +344,9 @@ func (s *SubPoolService) BindKey(ctx context.Context, apiKeyID, subPoolID int64,
 // EnsureBinding places a key that has no pool yet. It is called after key
 // creation and after an admin moves a key between groups.
 //
-// New keys land in a probe pool when the group has one: an unknown key is
-// exactly the kind of traffic that should burn disposable accounts rather than
-// production ones.
+// Placement is user pin, then group default, then sort_order among healthy
+// pools (probe first). A pinned high-risk user keeps landing on disposable
+// accounts; everyone else can inherit the formal pool without a per-key click.
 func (s *SubPoolService) EnsureBinding(ctx context.Context, apiKeyID int64) error {
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, apiKeyID)
 	if err != nil {
@@ -303,7 +376,15 @@ func (s *SubPoolService) EnsureBinding(ctx context.Context, apiKeyID int64) erro
 			}
 		}
 	}
-	target := pickPoolForNewKey(pools)
+	userDefault, err := s.repo.GetUserDefaultPool(ctx, apiKey.UserID, group.ID)
+	if err != nil {
+		return err
+	}
+	groupDefault, err := s.repo.GetGroupDefaultPool(ctx, group.ID)
+	if err != nil {
+		return err
+	}
+	target := resolvePoolForNewKey(pools, userDefault, groupDefault)
 	if target == nil {
 		return ErrSubPoolNoCapacity
 	}
@@ -320,10 +401,39 @@ func (s *SubPoolService) EnsureBinding(ctx context.Context, apiKeyID int64) erro
 	return nil
 }
 
-// pickPoolForNewKey prefers a probe pool, then the emptiest healthy pool. Only
-// pools that still have capacity and at least one upstream account qualify:
-// binding into an account-less pool would hand the user a key that cannot make
-// a single call.
+func findPoolByID(pools []SubPool, id int64) *SubPool {
+	for i := range pools {
+		if pools[i].ID == id {
+			return &pools[i]
+		}
+	}
+	return nil
+}
+
+// resolvePoolForNewKey is the inheritance order: user pin, then group default,
+// then pickPoolForNewKey. A pin still requires the pool to exist and be
+// healthy; the soft key cap is ignored so an admin placement cannot be bounced
+// by a counter.
+func resolvePoolForNewKey(pools []SubPool, userDefault, groupDefault *int64) *SubPool {
+	for _, pinned := range []*int64{userDefault, groupDefault} {
+		if pinned == nil || *pinned <= 0 {
+			continue
+		}
+		if pool := findPoolByID(pools, *pinned); pool != nil && pool.Status == domain.SubPoolStatusHealthy {
+			return pool
+		}
+	}
+	return pickPoolForNewKey(pools)
+}
+
+// pickPoolForNewKey prefers a probe pool, then the lowest sort_order healthy
+// pool. Manual isolation pools (观察池) should sit at a higher sort_order so
+// ordinary new keys keep landing in the main formal pool even when the
+// isolation pool is emptier and has no people cap.
+//
+// Only pools that still have capacity and at least one upstream account
+// qualify: binding into an account-less pool would hand the user a key that
+// cannot make a single call.
 func pickPoolForNewKey(pools []SubPool) *SubPool {
 	candidates := make([]*SubPool, 0, len(pools))
 	for i := range pools {
@@ -340,10 +450,10 @@ func pickPoolForNewKey(pools []SubPool) *SubPool {
 		if candidates[i].IsProbe() != candidates[j].IsProbe() {
 			return candidates[i].IsProbe()
 		}
-		if candidates[i].BoundKeys != candidates[j].BoundKeys {
-			return candidates[i].BoundKeys < candidates[j].BoundKeys
+		if candidates[i].SortOrder != candidates[j].SortOrder {
+			return candidates[i].SortOrder < candidates[j].SortOrder
 		}
-		return candidates[i].SortOrder < candidates[j].SortOrder
+		return candidates[i].BoundKeys < candidates[j].BoundKeys
 	})
 	return candidates[0]
 }

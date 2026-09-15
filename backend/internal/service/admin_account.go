@@ -581,6 +581,10 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		}
 	}
 
+	if err := s.attachCreatedAccountToSubPools(ctx, account.ID, groupIDs, input.AttachSubPools); err != nil {
+		return account, err
+	}
+
 	// OAuth 账号：创建后异步设置隐私。
 	// 使用 Ensure（幂等）而非 Force：新建账号 Extra 为空时效果相同，但更安全。
 	if account.Type == AccountTypeOAuth {
@@ -607,6 +611,23 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 
 	return account, nil
+}
+
+func (s *adminServiceImpl) attachCreatedAccountToSubPools(ctx context.Context, accountID int64, groupIDs []int64, mode string) error {
+	normalized, err := NormalizeAttachSubPools(mode)
+	if err != nil {
+		return err
+	}
+	if normalized == "" {
+		return nil
+	}
+	if s.subPoolAttacher == nil {
+		return fmt.Errorf("account %d created but sub-pool attacher is not configured", accountID)
+	}
+	if err := s.subPoolAttacher.AttachAccountOnCreate(ctx, accountID, groupIDs, normalized); err != nil {
+		return fmt.Errorf("account %d created but sub-pool attach failed: %w", accountID, err)
+	}
+	return nil
 }
 
 // prepareUpstreamCostConfigForUpdate validates the dedicated upstream cost

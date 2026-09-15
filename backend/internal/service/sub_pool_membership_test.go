@@ -159,3 +159,18 @@ func TestFilterAccountsBySubPoolStillServesClosedPool(t *testing.T) {
 		t.Fatalf("expected the pool's own accounts, got %v", subPoolAccountIDs(got))
 	}
 }
+
+func TestPickPoolForNewKeyPrefersMainFormalOverEmptyIsolation(t *testing.T) {
+	main := SubPool{
+		ID: 6, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 0, BoundKeys: 122, KeySoftLimit: 0, AccountIDs: []int64{1, 2},
+	}
+	watch := SubPool{
+		ID: 7, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 10, BoundKeys: 1, KeySoftLimit: 0, AccountIDs: []int64{3},
+	}
+	got := pickPoolForNewKey([]SubPool{watch, main})
+	if got == nil || got.ID != 6 {
+		t.Fatalf("expected main formal pool 6, got %+v", got)
+	}
+}

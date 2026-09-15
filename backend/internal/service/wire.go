@@ -301,10 +301,14 @@ func ProvideSubPoolService(
 	usageRepo SubPoolUsageRepository,
 	membership *SubPoolMembership,
 	apiKeyService *APIKeyService,
+	adminService AdminService,
 ) *SubPoolService {
 	svc := NewSubPoolService(repo, groupRepo, apiKeyRepo, usageRepo, membership)
 	svc.SetAuthCacheInvalidator(apiKeyService)
 	apiKeyService.SetSubPoolBinder(svc)
+	if impl, ok := adminService.(*adminServiceImpl); ok {
+		impl.SetSubPoolAttacher(svc)
+	}
 	return svc
 }
 

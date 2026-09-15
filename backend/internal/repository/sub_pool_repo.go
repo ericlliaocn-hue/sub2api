@@ -12,6 +12,7 @@ import (
 	dbbinding "github.com/Wei-Shaw/sub2api/ent/apikeysubpoolbinding"
 	dbsubpool "github.com/Wei-Shaw/sub2api/ent/subpool"
 	dbsubpoolaccount "github.com/Wei-Shaw/sub2api/ent/subpoolaccount"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
@@ -255,6 +256,179 @@ func (r *subPoolRepository) ListByGroup(ctx context.Context, groupID int64) ([]s
 	return pools, nil
 }
 
+const subPoolGroupKeyListLimit = 500
+
+func (r *subPoolRepository) ListGroupKeys(ctx context.Context, groupID int64) ([]service.SubPoolGroupKey, error) {
+	rows, err := r.client.APIKey.Query().
+		Where(dbapikey.GroupIDEQ(groupID), dbapikey.DeletedAtIsNil()).
+		WithUser(func(q *dbent.UserQuery) {
+			q.Select(dbuser.FieldID, dbuser.FieldEmail, dbuser.FieldUsername)
+		}).
+		Order(dbent.Asc(dbapikey.FieldUserID), dbent.Asc(dbapikey.FieldID)).
+		Limit(subPoolGroupKeyListLimit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defaults, err := r.userDefaultByUser(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]service.SubPoolGroupKey, 0, len(rows))
+	for _, row := range rows {
+		item := service.SubPoolGroupKey{
+			APIKeyID:  row.ID,
+			Name:      row.Name,
+			UserID:    row.UserID,
+			Status:    row.Status,
+			SubPoolID: row.SubPoolID,
+		}
+		if u := row.Edges.User; u != nil {
+			item.UserEmail = u.Email
+			item.UserUsername = u.Username
+		}
+		if poolID, ok := defaults[row.UserID]; ok {
+			id := poolID
+			item.UserDefaultSubPoolID = &id
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (r *subPoolRepository) userDefaultByUser(ctx context.Context, groupID int64) (map[int64]int64, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT user_id, sub_pool_id
+		FROM user_sub_pool_defaults
+		WHERE group_id = $1`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[int64]int64)
+	for rows.Next() {
+		var userID, poolID int64
+		if err := rows.Scan(&userID, &poolID); err != nil {
+			return nil, err
+		}
+		out[userID] = poolID
+	}
+	return out, rows.Err()
+}
+
+func (r *subPoolRepository) GetGroupDefaultPool(ctx context.Context, groupID int64) (*int64, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT sub_pool_id FROM group_sub_pool_defaults WHERE group_id = $1`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		return nil, rows.Err()
+	}
+	var id int64
+	if err := rows.Scan(&id); err != nil {
+		return nil, err
+	}
+	return &id, rows.Err()
+}
+
+func (r *subPoolRepository) SetGroupDefaultPool(ctx context.Context, groupID int64, subPoolID *int64) error {
+	if subPoolID == nil {
+		_, err := r.sql.ExecContext(ctx, `DELETE FROM group_sub_pool_defaults WHERE group_id = $1`, groupID)
+		return err
+	}
+	_, err := r.sql.ExecContext(ctx, `
+		INSERT INTO group_sub_pool_defaults (group_id, sub_pool_id, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (group_id) DO UPDATE SET sub_pool_id = EXCLUDED.sub_pool_id, updated_at = NOW()`,
+		groupID, *subPoolID)
+	return err
+}
+
+func (r *subPoolRepository) GetUserDefaultPool(ctx context.Context, userID, groupID int64) (*int64, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT sub_pool_id FROM user_sub_pool_defaults WHERE user_id = $1 AND group_id = $2`,
+		userID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		return nil, rows.Err()
+	}
+	var id int64
+	if err := rows.Scan(&id); err != nil {
+		return nil, err
+	}
+	return &id, rows.Err()
+}
+
+func (r *subPoolRepository) ListUserDefaults(ctx context.Context, groupID int64) ([]service.UserSubPoolDefault, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT d.user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
+		       d.group_id, d.sub_pool_id, d.operator, d.note, d.updated_at
+		FROM user_sub_pool_defaults d
+		JOIN users u ON u.id = d.user_id
+		WHERE d.group_id = $1
+		ORDER BY u.email, d.user_id`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]service.UserSubPoolDefault, 0)
+	for rows.Next() {
+		var row service.UserSubPoolDefault
+		if err := rows.Scan(
+			&row.UserID, &row.UserEmail, &row.UserUsername,
+			&row.GroupID, &row.SubPoolID, &row.Operator, &row.Note, &row.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func (r *subPoolRepository) SetUserDefaultPool(ctx context.Context, in service.UserSubPoolDefault) error {
+	_, err := r.sql.ExecContext(ctx, `
+		INSERT INTO user_sub_pool_defaults (user_id, group_id, sub_pool_id, operator, note, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		ON CONFLICT (user_id, group_id) DO UPDATE
+		SET sub_pool_id = EXCLUDED.sub_pool_id,
+		    operator = EXCLUDED.operator,
+		    note = EXCLUDED.note,
+		    updated_at = NOW()`,
+		in.UserID, in.GroupID, in.SubPoolID, in.Operator, in.Note)
+	return err
+}
+
+func (r *subPoolRepository) ClearUserDefaultPool(ctx context.Context, userID, groupID int64) error {
+	_, err := r.sql.ExecContext(ctx, `
+		DELETE FROM user_sub_pool_defaults WHERE user_id = $1 AND group_id = $2`, userID, groupID)
+	return err
+}
+
+func (r *subPoolRepository) ListKeyIDsByUserGroup(ctx context.Context, userID, groupID int64) ([]int64, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT id FROM api_keys
+		WHERE user_id = $1 AND group_id = $2 AND deleted_at IS NULL
+		ORDER BY id`, userID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
 func (r *subPoolRepository) ExistsByName(ctx context.Context, groupID int64, name string, excludeID int64) (bool, error) {
 	query := r.client.SubPool.Query().
 		Where(dbsubpool.GroupIDEQ(groupID), dbsubpool.NameEQ(name))
@@ -353,6 +527,17 @@ func (r *subPoolRepository) BindKey(ctx context.Context, in service.SubPoolBindI
 	}
 	if in.Operator == "" {
 		in.Operator = domain.SubPoolBindOperatorSystem
+	}
+
+	current, err := r.client.APIKey.Get(ctx, in.APIKeyID)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return service.ErrAPIKeyNotFound
+		}
+		return err
+	}
+	if current.SubPoolID != nil && *current.SubPoolID == in.SubPoolID {
+		return nil
 	}
 
 	tx, err := r.client.Tx(ctx)
@@ -492,6 +677,10 @@ func (r *subPoolRepository) ListProbationCandidates(ctx context.Context, boundBe
 		  AND p.kind = $2
 		  AND g.sub_pool_enabled
 		  AND k.status = $3
+		  AND NOT EXISTS (
+		      SELECT 1 FROM user_sub_pool_defaults d
+		      WHERE d.user_id = k.user_id AND d.group_id = b.group_id
+		  )
 		ORDER BY b.bound_at
 		LIMIT $4`
 

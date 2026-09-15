@@ -116,6 +116,16 @@ type SubPoolRepository interface {
 	// ListByGroup returns the pools of a group ordered by sort_order then id,
 	// with BoundKeys and AccountIDs populated.
 	ListByGroup(ctx context.Context, groupID int64) ([]SubPool, error)
+	// ListGroupKeys is the admin board: which key (and whose) sits in which pool.
+	// It never returns the key secret.
+	ListGroupKeys(ctx context.Context, groupID int64) ([]SubPoolGroupKey, error)
+	GetGroupDefaultPool(ctx context.Context, groupID int64) (*int64, error)
+	SetGroupDefaultPool(ctx context.Context, groupID int64, subPoolID *int64) error
+	GetUserDefaultPool(ctx context.Context, userID, groupID int64) (*int64, error)
+	ListUserDefaults(ctx context.Context, groupID int64) ([]UserSubPoolDefault, error)
+	SetUserDefaultPool(ctx context.Context, in UserSubPoolDefault) error
+	ClearUserDefaultPool(ctx context.Context, userID, groupID int64) error
+	ListKeyIDsByUserGroup(ctx context.Context, userID, groupID int64) ([]int64, error)
 	ExistsByName(ctx context.Context, groupID int64, name string, excludeID int64) (bool, error)
 
 	// SetAccounts replaces the pool's account membership atomically.
@@ -153,4 +163,29 @@ type SubPoolRepository interface {
 type SubPoolSchedulingState struct {
 	Status     string
 	AccountIDs []int64
+}
+
+// SubPoolGroupKey is one group key on the admin routing board. The secret is
+// omitted so the board can be loaded without putting credentials in the browser.
+type SubPoolGroupKey struct {
+	APIKeyID             int64
+	Name                 string
+	UserID               int64
+	UserEmail            string
+	UserUsername         string
+	Status               string
+	SubPoolID            *int64
+	UserDefaultSubPoolID *int64
+}
+
+// UserSubPoolDefault is the admin-owned placement for one user inside a group.
+type UserSubPoolDefault struct {
+	UserID       int64
+	UserEmail    string
+	UserUsername string
+	GroupID      int64
+	SubPoolID    int64
+	Operator     string
+	Note         *string
+	UpdatedAt    time.Time
 }

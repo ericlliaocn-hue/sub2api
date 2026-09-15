@@ -15,8 +15,8 @@ import (
 )
 
 // SubPoolAccount holds the edge schema for the sub_pool_accounts relationship.
-// group_id is denormalised so an account can be constrained to at most one
-// sub-pool per group.
+// group_id is denormalised for listing; the same account may join more than
+// one sub-pool in a group when an admin wants it shared.
 type SubPoolAccount struct {
 	ent.Schema
 }
@@ -60,8 +60,7 @@ func (SubPoolAccount) Edges() []ent.Edge {
 
 func (SubPoolAccount) Indexes() []ent.Index {
 	return []ent.Index{
-		// 一个账号在同一分组内最多归属一个子池。
-		index.Fields("group_id", "account_id").Unique(),
+		index.Fields("group_id", "account_id"),
 		index.Fields("account_id"),
 	}
 }

@@ -735,6 +735,7 @@ export interface ApiKey {
   key: string
   name: string
   group_id: number | null
+  sub_pool_id?: number | null
   status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
@@ -1502,6 +1503,7 @@ export interface CreateAccountRequest {
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
   confirm_mixed_channel_risk?: boolean
+  attach_sub_pools?: 'both' | 'formal'
   // 上游成本配置独立字段（仅 OpenAI 账号；计划 Phase 3）
   upstream_cost_enabled?: boolean
   upstream_cost_profiles?: UpstreamCostProfileInput[]
@@ -1657,6 +1659,7 @@ export interface CodexSessionImportRequest {
   update_existing?: boolean
   skip_default_group_bind?: boolean
   confirm_mixed_channel_risk?: boolean
+  attach_sub_pools?: 'both' | 'formal'
 }
 
 export interface OpenAICodexPATCreateRequest {
@@ -1675,6 +1678,7 @@ export interface OpenAICodexPATCreateRequest {
   extra?: Record<string, unknown>
   skip_default_group_bind?: boolean
   confirm_mixed_channel_risk?: boolean
+  attach_sub_pools?: 'both' | 'formal'
 }
 
 export interface CodexSessionImportMessage {

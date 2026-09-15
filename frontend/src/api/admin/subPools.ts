@@ -11,6 +11,32 @@ import { apiClient } from '../client'
 export type SubPoolKind = 'formal' | 'probe'
 export type SubPoolStatus = 'healthy' | 'cooling' | 'closed'
 
+export interface SubPoolGroupKey {
+  api_key_id: number
+  name: string
+  user_id: number
+  user_email: string
+  user_username: string
+  status: string
+  sub_pool_id: number | null
+  user_default_sub_pool_id: number | null
+}
+
+export interface SubPoolUserDefault {
+  user_id: number
+  user_email: string
+  user_username: string
+  sub_pool_id: number
+  operator: string
+  note: string | null
+  updated_at: string
+}
+
+export interface SubPoolPlacementPolicy {
+  default_sub_pool_id: number | null
+  users: SubPoolUserDefault[]
+}
+
 export interface SubPool {
   id: number
   group_id: number
@@ -67,6 +93,53 @@ export interface AccountTopKeysResponse {
 /** List the sub-pools of a group. */
 export async function listByGroup(groupId: number): Promise<SubPool[]> {
   const { data } = await apiClient.get<SubPool[]>(`/admin/groups/${groupId}/sub-pools`)
+  return data
+}
+
+/** Admin routing board: user/key → pool. Never includes the key secret. */
+export async function listGroupKeys(groupId: number): Promise<SubPoolGroupKey[]> {
+  const { data } = await apiClient.get<SubPoolGroupKey[]>(`/admin/groups/${groupId}/sub-pool-keys`)
+  return data
+}
+
+export async function getPlacementPolicy(groupId: number): Promise<SubPoolPlacementPolicy> {
+  const { data } = await apiClient.get<SubPoolPlacementPolicy>(
+    `/admin/groups/${groupId}/sub-pool-policy`
+  )
+  return data
+}
+
+export async function setGroupDefaultPool(
+  groupId: number,
+  subPoolId: number | null
+): Promise<{ default_sub_pool_id: number | null }> {
+  const { data } = await apiClient.put<{ default_sub_pool_id: number | null }>(
+    `/admin/groups/${groupId}/default-sub-pool`,
+    { sub_pool_id: subPoolId }
+  )
+  return data
+}
+
+export async function setUserDefaultPool(
+  groupId: number,
+  userId: number,
+  subPoolId: number,
+  note?: string
+): Promise<{ bound: boolean }> {
+  const { data } = await apiClient.put<{ bound: boolean }>(
+    `/admin/groups/${groupId}/sub-pool-users`,
+    { user_id: userId, sub_pool_id: subPoolId, note: note ?? null }
+  )
+  return data
+}
+
+export async function clearUserDefaultPool(
+  groupId: number,
+  userId: number
+): Promise<{ cleared: boolean }> {
+  const { data } = await apiClient.delete<{ cleared: boolean }>(
+    `/admin/groups/${groupId}/sub-pool-users/${userId}`
+  )
   return data
 }
 
@@ -293,6 +366,11 @@ export async function clearReputationSanction(keyId: number): Promise<{ cleared:
 }
 
 export const subPoolsAPI = {
+  listGroupKeys,
+  getPlacementPolicy,
+  setGroupDefaultPool,
+  setUserDefaultPool,
+  clearUserDefaultPool,
   getReputationPolicy,
   updateReputationPolicy,
   runReputation,
