@@ -518,7 +518,9 @@ export default {
       account: '账户',
       group: '分组',
       requestId: '请求ID',
+      upstreamRequestId: '上游ID',
       requestIdCopied: '请求ID已复制',
+      upstreamRequestIdCopied: '上游ID已复制',
       allModels: '全部模型',
       allAccounts: '全部账户',
       allGroups: '全部分组',
@@ -553,7 +555,7 @@ export default {
       failedToLoadUser: '加载用户信息失败',
       userDeletedBadge: '已删除',
       tokenRanking: {
-        subtitle: '按当前筛选与时间范围统计每个用户的 Token 用量',
+        subtitle: '按当前筛选与时间范围统计每个用户的费用',
         rowHint: '点击查看该用户的用量明细',
         userCount: '共 {count} 位用户',
         columns: {

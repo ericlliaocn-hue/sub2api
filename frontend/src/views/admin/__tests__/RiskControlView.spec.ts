@@ -26,6 +26,13 @@ const {
   showSuccess: vi.fn(),
 }))
 
+vi.mock('@/components/admin/risk/WatchedTrafficCard.vue', () => ({
+  default: {
+    name: 'WatchedTrafficCard',
+    template: '<div data-test="watched-traffic-card" />',
+  },
+}))
+
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     riskControl: {

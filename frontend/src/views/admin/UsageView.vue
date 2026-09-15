@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
+    <div class="usage-page-frame -mx-4 space-y-6 rounded-2xl border border-gray-200/60 p-4 dark:border-dark-700/60 md:-mx-6 md:p-6 lg:-mx-8">
       <UsageStatsCards :stats="usageStats" />
       <!-- Charts Section -->
       <div class="space-y-4">
@@ -66,7 +66,7 @@
       </div>
       <!-- 明细区：tab 栏 + 筛选 + 内容收进同一张卡片，消除割裂感 -->
       <div class="card">
-        <div class="flex flex-wrap items-center border-b border-gray-200 px-2 dark:border-dark-700 sm:px-4">
+        <div class="flex flex-wrap items-center border-b border-gray-200 px-4 dark:border-dark-700 sm:px-6">
           <button
             v-for="tab in detailTabs"
             :key="tab.key"
@@ -85,7 +85,15 @@
 
         <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
-            <div v-if="activeTab !== 'ranking'" class="relative" ref="columnDropdownRef">
+            <div v-if="activeTab === 'ranking'" class="flex items-center gap-3">
+              <span v-if="rankingUserCount > 0" class="text-xs text-gray-400 dark:text-gray-500">
+                {{ t('admin.usage.tokenRanking.userCount', { count: rankingUserCount }) }}
+              </span>
+              <div class="w-28">
+                <Select v-model="rankingLimit" :options="rankingLimitOptions" />
+              </div>
+            </div>
+            <div v-else class="relative" ref="columnDropdownRef">
               <button
                 data-testid="usage-column-settings"
                 @click="showColumnDropdown = !showColumnDropdown"
@@ -155,10 +163,12 @@
         <div v-if="rankingMounted" v-show="activeTab === 'ranking'" class="overflow-hidden rounded-b-2xl">
           <UserTokenRanking
             ref="rankingRef"
+            v-model:limit="rankingLimit"
             :start-date="startDate"
             :end-date="endDate"
             :filters="breakdownFilters"
             :model="filters.model"
+            @update:user-count="rankingUserCount = $event"
             @select-user="handleRankingSelectUser"
           />
         </div>
@@ -588,7 +598,7 @@ const exportToExcel = async () => {
       t('admin.usage.cacheReadCost'), t('admin.usage.cacheCreationCost'),
       t('usage.rate'), t('usage.accountMultiplier'), t('usage.original'), t('usage.userBilled'), t('usage.accountBilled'), t('usage.normalizedCostMultiplier'), t('usage.costVersion'),
       t('usage.firstToken'), t('usage.duration'),
-      t('admin.usage.requestId'), t('usage.userAgent'), t('admin.usage.ipAddress')
+      t('admin.usage.requestId'), t('admin.usage.upstreamRequestId'), t('usage.userAgent'), t('admin.usage.ipAddress')
     ]
     const ws = XLSX.utils.aoa_to_sheet([headers])
     while (true) {
@@ -610,7 +620,7 @@ const exportToExcel = async () => {
         typeof log.upstream_cost_snapshot?.normalized_multiplier === 'number' ? log.upstream_cost_snapshot.normalized_multiplier.toFixed(6) : '',
         typeof log.upstream_cost_snapshot?.version_id === 'number' ? log.upstream_cost_snapshot.version_id : '',
         log.first_token_ms ?? '', log.duration_ms,
-        log.request_id || '', log.user_agent || '', log.ip_address || ''
+        log.request_id || '', log.upstream_request_id || '', log.user_agent || '', log.ip_address || ''
       ])
       if (rows.length) {
         XLSX.utils.sheet_add_aoa(ws, rows, { origin: -1 })
@@ -632,10 +642,12 @@ const exportToExcel = async () => {
 
 // Column visibility
 const ALWAYS_VISIBLE = ['user', 'created_at']
-const DEFAULT_HIDDEN_COLUMNS = ['reasoning_effort', 'request_id', 'user_agent']
+const DEFAULT_HIDDEN_COLUMNS = ['reasoning_effort', 'request_id', 'upstream_request_id', 'user_agent']
 const HIDDEN_COLUMNS_KEY = 'usage-hidden-columns'
 const HIDDEN_COLUMNS_VERSION_KEY = 'usage-hidden-columns-version'
-const HIDDEN_COLUMNS_CURRENT_VERSION = 'request-id-hidden-by-default'
+// 隐藏列版本链：每级只把当级新增列加入隐藏集，不重置用户已显式打开的列。
+const HIDDEN_COLUMNS_PREV_VERSION = 'request-id-hidden-by-default'
+const HIDDEN_COLUMNS_CURRENT_VERSION = 'upstream-request-id-hidden-by-default'
 
 const allColumns = computed(() => [
   { key: 'user', label: t('admin.usage.user'), sortable: false },
@@ -652,6 +664,7 @@ const allColumns = computed(() => [
   { key: 'latency', label: t('usage.latency'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'request_id', label: t('admin.usage.requestId'), sortable: false },
+  { key: 'upstream_request_id', label: t('admin.usage.upstreamRequestId'), sortable: false },
   { key: 'user_agent', label: t('usage.userAgent'), sortable: false },
   { key: 'ip_address', label: t('admin.usage.ipAddress'), sortable: false }
 ])
@@ -759,8 +772,12 @@ const loadSavedColumns = () => {
       (JSON.parse(saved) as string[]).forEach((key) => {
         hiddenColumns.add(key)
       })
-      if (localStorage.getItem(HIDDEN_COLUMNS_VERSION_KEY) !== HIDDEN_COLUMNS_CURRENT_VERSION) {
-        hiddenColumns.add('request_id')
+      const savedVersion = localStorage.getItem(HIDDEN_COLUMNS_VERSION_KEY)
+      if (savedVersion !== HIDDEN_COLUMNS_CURRENT_VERSION) {
+        if (savedVersion !== HIDDEN_COLUMNS_PREV_VERSION) {
+          hiddenColumns.add('request_id')
+        }
+        hiddenColumns.add('upstream_request_id')
         localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
         localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
       }
@@ -788,6 +805,14 @@ const detailTabs = computed(() => [
 const usageFiltersRef = ref<InstanceType<typeof UsageFilters> | null>(null)
 const rankingMounted = ref(false)
 const rankingRef = ref<InstanceType<typeof UserTokenRanking> | null>(null)
+const rankingLimit = ref(50)
+const rankingUserCount = ref(0)
+const rankingLimitOptions = [
+  { value: 20, label: 'Top 20' },
+  { value: 50, label: 'Top 50' },
+  { value: 100, label: 'Top 100' },
+  { value: 200, label: 'Top 200' },
+]
 
 const switchTab = (tab: DetailTab) => {
   activeTab.value = tab

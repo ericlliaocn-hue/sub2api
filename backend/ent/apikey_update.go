@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
@@ -117,6 +118,26 @@ func (_u *APIKeyUpdate) SetNillableGroupID(v *int64) *APIKeyUpdate {
 // ClearGroupID clears the value of the "group_id" field.
 func (_u *APIKeyUpdate) ClearGroupID() *APIKeyUpdate {
 	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (_u *APIKeyUpdate) SetSubPoolID(v int64) *APIKeyUpdate {
+	_u.mutation.SetSubPoolID(v)
+	return _u
+}
+
+// SetNillableSubPoolID sets the "sub_pool_id" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableSubPoolID(v *int64) *APIKeyUpdate {
+	if v != nil {
+		_u.SetSubPoolID(*v)
+	}
+	return _u
+}
+
+// ClearSubPoolID clears the value of the "sub_pool_id" field.
+func (_u *APIKeyUpdate) ClearSubPoolID() *APIKeyUpdate {
+	_u.mutation.ClearSubPoolID()
 	return _u
 }
 
@@ -448,6 +469,11 @@ func (_u *APIKeyUpdate) SetGroup(v *Group) *APIKeyUpdate {
 	return _u.SetGroupID(v.ID)
 }
 
+// SetSubPool sets the "sub_pool" edge to the SubPool entity.
+func (_u *APIKeyUpdate) SetSubPool(v *SubPool) *APIKeyUpdate {
+	return _u.SetSubPoolID(v.ID)
+}
+
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
 func (_u *APIKeyUpdate) AddUsageLogIDs(ids ...int64) *APIKeyUpdate {
 	_u.mutation.AddUsageLogIDs(ids...)
@@ -477,6 +503,12 @@ func (_u *APIKeyUpdate) ClearUser() *APIKeyUpdate {
 // ClearGroup clears the "group" edge to the Group entity.
 func (_u *APIKeyUpdate) ClearGroup() *APIKeyUpdate {
 	_u.mutation.ClearGroup()
+	return _u
+}
+
+// ClearSubPool clears the "sub_pool" edge to the SubPool entity.
+func (_u *APIKeyUpdate) ClearSubPool() *APIKeyUpdate {
+	_u.mutation.ClearSubPool()
 	return _u
 }
 
@@ -754,6 +786,35 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SubPoolCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.SubPoolTable,
+			Columns: []string{apikey.SubPoolColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SubPoolIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.SubPoolTable,
+			Columns: []string{apikey.SubPoolColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.UsageLogsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -904,6 +965,26 @@ func (_u *APIKeyUpdateOne) SetNillableGroupID(v *int64) *APIKeyUpdateOne {
 // ClearGroupID clears the value of the "group_id" field.
 func (_u *APIKeyUpdateOne) ClearGroupID() *APIKeyUpdateOne {
 	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetSubPoolID sets the "sub_pool_id" field.
+func (_u *APIKeyUpdateOne) SetSubPoolID(v int64) *APIKeyUpdateOne {
+	_u.mutation.SetSubPoolID(v)
+	return _u
+}
+
+// SetNillableSubPoolID sets the "sub_pool_id" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableSubPoolID(v *int64) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetSubPoolID(*v)
+	}
+	return _u
+}
+
+// ClearSubPoolID clears the value of the "sub_pool_id" field.
+func (_u *APIKeyUpdateOne) ClearSubPoolID() *APIKeyUpdateOne {
+	_u.mutation.ClearSubPoolID()
 	return _u
 }
 
@@ -1235,6 +1316,11 @@ func (_u *APIKeyUpdateOne) SetGroup(v *Group) *APIKeyUpdateOne {
 	return _u.SetGroupID(v.ID)
 }
 
+// SetSubPool sets the "sub_pool" edge to the SubPool entity.
+func (_u *APIKeyUpdateOne) SetSubPool(v *SubPool) *APIKeyUpdateOne {
+	return _u.SetSubPoolID(v.ID)
+}
+
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
 func (_u *APIKeyUpdateOne) AddUsageLogIDs(ids ...int64) *APIKeyUpdateOne {
 	_u.mutation.AddUsageLogIDs(ids...)
@@ -1264,6 +1350,12 @@ func (_u *APIKeyUpdateOne) ClearUser() *APIKeyUpdateOne {
 // ClearGroup clears the "group" edge to the Group entity.
 func (_u *APIKeyUpdateOne) ClearGroup() *APIKeyUpdateOne {
 	_u.mutation.ClearGroup()
+	return _u
+}
+
+// ClearSubPool clears the "sub_pool" edge to the SubPool entity.
+func (_u *APIKeyUpdateOne) ClearSubPool() *APIKeyUpdateOne {
+	_u.mutation.ClearSubPool()
 	return _u
 }
 
@@ -1564,6 +1656,35 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SubPoolCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.SubPoolTable,
+			Columns: []string{apikey.SubPoolColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SubPoolIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.SubPoolTable,
+			Columns: []string{apikey.SubPoolColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

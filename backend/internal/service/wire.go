@@ -269,9 +269,92 @@ func ProvideAccountTestService(
 		tlsFPProfileService,
 	)
 	service.agentIdentityWS = openAIGatewayService
+	service.SetOpenAIGatewayService(openAIGatewayService)
 	service.SetSettingService(settingService)
 	service.SetPluginManager(pluginManager)
 	return service
+}
+
+// ProvideSubPoolMembership builds the sub-pool resolver and attaches it to the
+// three services that enumerate scheduling candidates. Attaching here rather
+// than through their constructors keeps the resolver optional: nothing else in
+// the graph changes if sub-pools are never enabled.
+func ProvideSubPoolMembership(
+	repo SubPoolRepository,
+	gatewayService *GatewayService,
+	openAIGatewayService *OpenAIGatewayService,
+	geminiCompatService *GeminiMessagesCompatService,
+) *SubPoolMembership {
+	membership := NewSubPoolMembership(repo)
+	gatewayService.SetSubPoolMembership(membership)
+	openAIGatewayService.SetSubPoolMembership(membership)
+	geminiCompatService.SetSubPoolMembership(membership)
+	return membership
+}
+
+// ProvideSubPoolService builds the sub-pool service and registers it as the
+// placement policy for newly created API keys.
+func ProvideSubPoolService(
+	repo SubPoolRepository,
+	groupRepo GroupRepository,
+	apiKeyRepo APIKeyRepository,
+	usageRepo SubPoolUsageRepository,
+	membership *SubPoolMembership,
+	apiKeyService *APIKeyService,
+	adminService AdminService,
+) *SubPoolService {
+	svc := NewSubPoolService(repo, groupRepo, apiKeyRepo, usageRepo, membership)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	apiKeyService.SetSubPoolBinder(svc)
+	if impl, ok := adminService.(*adminServiceImpl); ok {
+		impl.SetSubPoolAttacher(svc)
+	}
+	return svc
+}
+
+// ProvideAPIKeyReputationService starts the scoring sweep that turns moderation
+// history into key sanctions. The job is inert until key_reputation_enabled is
+// set.
+func ProvideAPIKeyReputationService(
+	repo APIKeyReputationRepository,
+	settingService *SettingService,
+	subPools *SubPoolService,
+	lockCache LeaderLockCache,
+) *APIKeyReputationService {
+	svc := NewAPIKeyReputationService(repo, settingService, subPools, lockCache)
+	svc.Start()
+	return svc
+}
+
+// ProvideSubPoolCoolingService starts the incident sweep that cools burned pools
+// and drains their bystander keys.
+func ProvideSubPoolCoolingService(
+	repo SubPoolRepository,
+	accountRepo AccountRepository,
+	subPools *SubPoolService,
+	membership *SubPoolMembership,
+	lockCache LeaderLockCache,
+	apiKeyService *APIKeyService,
+) *SubPoolCoolingService {
+	svc := NewSubPoolCoolingService(repo, accountRepo, subPools, membership, lockCache)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	svc.Start()
+	return svc
+}
+
+// ProvideSubPoolGraduationService starts the probation sweep that moves keys out
+// of the probe pool. The job is inert until sub_pool_graduation_enabled is set.
+func ProvideSubPoolGraduationService(
+	repo SubPoolRepository,
+	usageRepo SubPoolUsageRepository,
+	settingService *SettingService,
+	lockCache LeaderLockCache,
+	apiKeyService *APIKeyService,
+) *SubPoolGraduationService {
+	svc := NewSubPoolGraduationService(repo, usageRepo, settingService, lockCache)
+	svc.SetAuthCacheInvalidator(apiKeyService)
+	svc.Start()
+	return svc
 }
 
 func ProvideGrokQuotaService(
@@ -487,6 +570,7 @@ func ProvideRateLimitService(
 	openAI403CounterCache OpenAI403CounterCache,
 	settingService *SettingService,
 	tokenCacheInvalidator TokenCacheInvalidator,
+	ollamaCloudUsage *OllamaCloudUsageService,
 ) *RateLimitService {
 	svc := NewRateLimitService(accountRepo, usageRepo, cfg, geminiQuotaService, tempUnschedCache)
 	if healthCache, ok := tempUnschedCache.(OpenAIAPIKeyHealthCache); ok {
@@ -496,6 +580,7 @@ func ProvideRateLimitService(
 	svc.SetOpenAI403CounterCache(openAI403CounterCache)
 	svc.SetSettingService(settingService)
 	svc.SetTokenCacheInvalidator(tokenCacheInvalidator)
+	svc.SetOllamaCloudUsageProbeScheduler(ollamaCloudUsage)
 	return svc
 }
 
@@ -843,6 +928,11 @@ var ProviderSet = wire.NewSet(
 	NewAdminService,
 	NewGatewayService,
 	NewOpenAIGatewayService,
+	ProvideSubPoolMembership,
+	ProvideSubPoolService,
+	ProvideSubPoolGraduationService,
+	ProvideSubPoolCoolingService,
+	ProvideAPIKeyReputationService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
 	ProvideBatchImageModelPricingResolver,
@@ -940,6 +1030,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPricingResolver,
 	NewModelPlazaService,
 	NewContentModerationService,
+	NewWatchedTrafficService,
 	NewAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,

@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/subpool"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 )
 
@@ -448,6 +449,21 @@ func (_c *AccountCreate) AddGroups(v ...*Group) *AccountCreate {
 	return _c.AddGroupIDs(ids...)
 }
 
+// AddSubPoolIDs adds the "sub_pools" edge to the SubPool entity by IDs.
+func (_c *AccountCreate) AddSubPoolIDs(ids ...int64) *AccountCreate {
+	_c.mutation.AddSubPoolIDs(ids...)
+	return _c
+}
+
+// AddSubPools adds the "sub_pools" edges to the SubPool entity.
+func (_c *AccountCreate) AddSubPools(v ...*SubPool) *AccountCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSubPoolIDs(ids...)
+}
+
 // SetProxy sets the "proxy" edge to the Proxy entity.
 func (_c *AccountCreate) SetProxy(v *Proxy) *AccountCreate {
 	return _c.SetProxyID(v.ID)
@@ -834,6 +850,26 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		createE := &AccountGroupCreate{config: _c.config, mutation: newAccountGroupMutation(_c.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SubPoolsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   account.SubPoolsTable,
+			Columns: account.SubPoolsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(subpool.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &SubPoolAccountCreate{config: _c.config, mutation: newSubPoolAccountMutation(_c.config, OpCreate)}
 		createE.defaults()
 		_, specE := createE.createSpec()
 		edge.Target.Fields = specE.Fields

@@ -521,7 +521,9 @@ export default {
       account: 'Account',
       group: 'Group',
       requestId: 'Request ID',
+      upstreamRequestId: 'Upstream ID',
       requestIdCopied: 'Request ID copied',
+      upstreamRequestIdCopied: 'Upstream ID copied',
       allModels: 'All Models',
       allAccounts: 'All Accounts',
       allGroups: 'All Groups',
@@ -556,7 +558,7 @@ export default {
       failedToLoadUser: 'Failed to load user info',
       userDeletedBadge: 'Deleted',
       tokenRanking: {
-        subtitle: 'Per-user token usage for the current filters and time range',
+        subtitle: 'Per-user cost for the current filters and time range',
         rowHint: "Click to view this user's usage details",
         userCount: '{count} users',
         columns: {

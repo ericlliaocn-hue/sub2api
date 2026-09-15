@@ -111,6 +111,32 @@ export async function update(id: number, updates: UpdateApiKeyRequest): Promise<
   return data
 }
 
+export interface BulkUpdateApiKeysResult {
+  succeededIds: number[]
+  failures: Array<{ id: number; error: unknown }>
+}
+
+/** Reuse per-key validation and permissions, with at most five requests in flight. */
+export async function bulkUpdate(
+  ids: number[],
+  updates: UpdateApiKeyRequest
+): Promise<BulkUpdateApiKeysResult> {
+  const uniqueIds = [...new Set(ids)]
+  const result: BulkUpdateApiKeysResult = { succeededIds: [], failures: [] }
+  for (let offset = 0; offset < uniqueIds.length; offset += 5) {
+    const batch = uniqueIds.slice(offset, offset + 5)
+    const responses = await Promise.allSettled(batch.map((id) => update(id, updates)))
+    responses.forEach((response, index) => {
+      if (response.status === 'fulfilled') {
+        result.succeededIds.push(batch[index])
+      } else {
+        result.failures.push({ id: batch[index], error: response.reason })
+      }
+    })
+  }
+  return result
+}
+
 /**
  * Delete API key
  * @param id - API key ID
@@ -131,13 +157,43 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
   return update(id, { status })
 }
 
+/**
+ * One anonymised member of the sub-pool behind this key.
+ * Deliberately carries no identity: only a per-pool letter label.
+ */
+export interface PoolPeer {
+  label: string
+  is_self: boolean
+  first_call_at: string | null
+  last_call_at: string | null
+  today_calls: number
+  week_calls: number
+}
+
+export interface PoolPeerBoard {
+  member_count: number
+  peers: PoolPeer[]
+  week_window_hours: number
+}
+
+/**
+ * Who else shares the upstream accounts behind this key.
+ * Fails with SUB_POOL_NOT_ENABLED when the key's group does not use sub-pools.
+ */
+export async function getPoolPeers(id: number): Promise<PoolPeerBoard> {
+  const { data } = await apiClient.get<PoolPeerBoard>(`/keys/${id}/pool-peers`)
+  return data
+}
+
 export const keysAPI = {
   list,
   getById,
   create,
   update,
+  bulkUpdate,
   delete: deleteKey,
-  toggleStatus
+  toggleStatus,
+  getPoolPeers
 }
 
 export default keysAPI

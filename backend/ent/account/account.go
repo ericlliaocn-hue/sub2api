@@ -82,6 +82,8 @@ const (
 	FieldQuotaDimension = "quota_dimension"
 	// EdgeGroups holds the string denoting the groups edge name in mutations.
 	EdgeGroups = "groups"
+	// EdgeSubPools holds the string denoting the sub_pools edge name in mutations.
+	EdgeSubPools = "sub_pools"
 	// EdgeProxy holds the string denoting the proxy edge name in mutations.
 	EdgeProxy = "proxy"
 	// EdgeParent holds the string denoting the parent edge name in mutations.
@@ -92,6 +94,8 @@ const (
 	EdgeUsageLogs = "usage_logs"
 	// EdgeAccountGroups holds the string denoting the account_groups edge name in mutations.
 	EdgeAccountGroups = "account_groups"
+	// EdgeSubPoolAccounts holds the string denoting the sub_pool_accounts edge name in mutations.
+	EdgeSubPoolAccounts = "sub_pool_accounts"
 	// Table holds the table name of the account in the database.
 	Table = "accounts"
 	// GroupsTable is the table that holds the groups relation/edge. The primary key declared below.
@@ -99,6 +103,11 @@ const (
 	// GroupsInverseTable is the table name for the Group entity.
 	// It exists in this package in order to avoid circular dependency with the "group" package.
 	GroupsInverseTable = "groups"
+	// SubPoolsTable is the table that holds the sub_pools relation/edge. The primary key declared below.
+	SubPoolsTable = "sub_pool_accounts"
+	// SubPoolsInverseTable is the table name for the SubPool entity.
+	// It exists in this package in order to avoid circular dependency with the "subpool" package.
+	SubPoolsInverseTable = "sub_pools"
 	// ProxyTable is the table that holds the proxy relation/edge.
 	ProxyTable = "accounts"
 	// ProxyInverseTable is the table name for the Proxy entity.
@@ -128,6 +137,13 @@ const (
 	AccountGroupsInverseTable = "account_groups"
 	// AccountGroupsColumn is the table column denoting the account_groups relation/edge.
 	AccountGroupsColumn = "account_id"
+	// SubPoolAccountsTable is the table that holds the sub_pool_accounts relation/edge.
+	SubPoolAccountsTable = "sub_pool_accounts"
+	// SubPoolAccountsInverseTable is the table name for the SubPoolAccount entity.
+	// It exists in this package in order to avoid circular dependency with the "subpoolaccount" package.
+	SubPoolAccountsInverseTable = "sub_pool_accounts"
+	// SubPoolAccountsColumn is the table column denoting the sub_pool_accounts relation/edge.
+	SubPoolAccountsColumn = "account_id"
 )
 
 // Columns holds all SQL columns for account fields.
@@ -171,6 +187,9 @@ var (
 	// GroupsPrimaryKey and GroupsColumn2 are the table columns denoting the
 	// primary key for the groups relation (M2M).
 	GroupsPrimaryKey = []string{"account_id", "group_id"}
+	// SubPoolsPrimaryKey and SubPoolsColumn2 are the table columns denoting the
+	// primary key for the sub_pools relation (M2M).
+	SubPoolsPrimaryKey = []string{"sub_pool_id", "account_id"}
 )
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -423,6 +442,20 @@ func ByGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySubPoolsCount orders the results by sub_pools count.
+func BySubPoolsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSubPoolsStep(), opts...)
+	}
+}
+
+// BySubPools orders the results by sub_pools terms.
+func BySubPools(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSubPoolsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByProxyField orders the results by proxy field.
 func ByProxyField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -478,11 +511,32 @@ func ByAccountGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAccountGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// BySubPoolAccountsCount orders the results by sub_pool_accounts count.
+func BySubPoolAccountsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSubPoolAccountsStep(), opts...)
+	}
+}
+
+// BySubPoolAccounts orders the results by sub_pool_accounts terms.
+func BySubPoolAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSubPoolAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newGroupsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(GroupsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2M, false, GroupsTable, GroupsPrimaryKey...),
+	)
+}
+func newSubPoolsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SubPoolsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2M, true, SubPoolsTable, SubPoolsPrimaryKey...),
 	)
 }
 func newProxyStep() *sqlgraph.Step {
@@ -518,5 +572,12 @@ func newAccountGroupsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AccountGroupsInverseTable, AccountGroupsColumn),
 		sqlgraph.Edge(sqlgraph.O2M, true, AccountGroupsTable, AccountGroupsColumn),
+	)
+}
+func newSubPoolAccountsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SubPoolAccountsInverseTable, SubPoolAccountsColumn),
+		sqlgraph.Edge(sqlgraph.O2M, true, SubPoolAccountsTable, SubPoolAccountsColumn),
 	)
 }

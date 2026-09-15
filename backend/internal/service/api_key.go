@@ -28,11 +28,14 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Key         string
-	Name        string
-	GroupID     *int64
+	ID      int64
+	UserID  int64
+	Key     string
+	Name    string
+	GroupID *int64
+	// SubPoolID restricts scheduling to one sub-pool inside the group. NULL
+	// keeps the historical behaviour of scheduling across the whole group.
+	SubPoolID   *int64
 	Status      string
 	IPWhitelist []string
 	IPBlacklist []string

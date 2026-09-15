@@ -1,25 +1,11 @@
 <template>
-  <!-- 用量页"用户排行"tab 内容：无卡片外观，依赖父级统一卡片；筛选/时间范围复用页面级筛选栏 -->
+  <!-- 用量页"用户排行"tab 内容：无卡片外观，依赖父级统一卡片；筛选/条数与用量明细同一行 -->
   <div>
-    <!-- Toolbar -->
-    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-dark-700/50 sm:px-6">
-      <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('admin.usage.tokenRanking.subtitle') }}</p>
-      <div class="flex items-center gap-3">
-        <span v-if="!loading && items.length > 0" class="text-xs text-gray-400 dark:text-gray-500">
-          {{ t('admin.usage.tokenRanking.userCount', { count: items.length }) }}
-        </span>
-        <div class="w-28">
-          <Select v-model="limit" :options="limitOptions" @change="load" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Table -->
     <div class="overflow-x-auto">
       <table class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700">
         <thead class="bg-gray-50 dark:bg-dark-800">
           <tr>
-            <th class="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400 sm:px-6">#</th>
+            <th class="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">#</th>
             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
               {{ t('admin.usage.tokenRanking.columns.user') }}
             </th>
@@ -28,10 +14,17 @@
               :key="col.key"
               class="cursor-pointer select-none whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
               :class="sortBy === col.key ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-dark-400'"
+              :data-testid="`ranking-sort-${col.key}`"
               @click="setSort(col.key)"
             >
-              {{ t(col.label) }}
-              <span v-if="sortBy === col.key" aria-hidden="true">↓</span>
+              <span class="inline-flex items-center justify-end gap-1">
+                {{ t(col.label) }}
+                <span
+                  v-if="sortBy === col.key"
+                  class="text-[11px] font-bold leading-none"
+                  aria-hidden="true"
+                >↓</span>
+              </span>
             </th>
           </tr>
         </thead>
@@ -52,9 +45,9 @@
             :key="item.user_id"
             class="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-dark-700/40"
             :title="t('admin.usage.tokenRanking.rowHint')"
-            @click="$emit('select-user', item.user_id, item.email)"
+            @click="emit('select-user', item.user_id, item.email)"
           >
-            <td class="px-4 py-3 sm:px-6">
+            <td class="px-4 py-3">
               <span
                 v-if="index < 3"
                 class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
@@ -85,7 +78,6 @@ import { useI18n } from 'vue-i18n'
 import { getUserBreakdown, type UserBreakdownParams } from '@/api/admin/dashboard'
 import { formatCompactNumber, formatCostFixed } from '@/utils/format'
 import type { UserBreakdownItem } from '@/types'
-import Select from '@/components/common/Select.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
@@ -95,7 +87,12 @@ const props = defineProps<{
   model?: string
 }>()
 
-defineEmits<{ (e: 'select-user', userId: number, email: string): void }>()
+const limit = defineModel<number>('limit', { default: 50 })
+
+const emit = defineEmits<{
+  (e: 'select-user', userId: number, email: string): void
+  (e: 'update:userCount', count: number): void
+}>()
 
 const { t } = useI18n()
 
@@ -109,13 +106,6 @@ const sortableColumns: { key: SortKey; label: string }[] = [
   { key: 'actual_cost', label: 'admin.usage.tokenRanking.columns.cost' },
 ]
 
-const limitOptions = [
-  { value: 20, label: 'Top 20' },
-  { value: 50, label: 'Top 50' },
-  { value: 100, label: 'Top 100' },
-  { value: 200, label: 'Top 200' },
-]
-
 // 前三名金/银/铜徽章
 const RANK_BADGE_CLASSES = [
   'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
@@ -125,8 +115,7 @@ const RANK_BADGE_CLASSES = [
 
 const items = ref<UserBreakdownItem[]>([])
 const loading = ref(false)
-const sortBy = ref<SortKey>('total_tokens')
-const limit = ref(50)
+const sortBy = ref<SortKey>('actual_cost')
 let reqSeq = 0
 
 const fmtTokens = (v: number) => formatCompactNumber(v)
@@ -153,17 +142,19 @@ const load = async () => {
     const res = await getUserBreakdown(params)
     if (seq !== reqSeq) return
     items.value = res.users || []
+    emit('update:userCount', items.value.length)
   } catch {
     if (seq !== reqSeq) return
     items.value = []
+    emit('update:userCount', 0)
   } finally {
     if (seq === reqSeq) loading.value = false
   }
 }
 
-// Reload when the shared filters / date range / model change.
+// Reload when the shared filters / date range / model / top-N change.
 watch(
-  () => [props.startDate, props.endDate, props.model, JSON.stringify(props.filters)],
+  () => [props.startDate, props.endDate, props.model, JSON.stringify(props.filters), limit.value],
   () => load(),
   { immediate: true }
 )

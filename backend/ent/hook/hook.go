@@ -21,6 +21,30 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyMutation", m)
 }
 
+// The APIKeyReputationFunc type is an adapter to allow the use of ordinary
+// function as APIKeyReputation mutator.
+type APIKeyReputationFunc func(context.Context, *ent.APIKeyReputationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f APIKeyReputationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.APIKeyReputationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyReputationMutation", m)
+}
+
+// The APIKeySubPoolBindingFunc type is an adapter to allow the use of ordinary
+// function as APIKeySubPoolBinding mutator.
+type APIKeySubPoolBindingFunc func(context.Context, *ent.APIKeySubPoolBindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f APIKeySubPoolBindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.APIKeySubPoolBindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeySubPoolBindingMutation", m)
+}
+
 // The AccountFunc type is an adapter to allow the use of ordinary
 // function as Account mutator.
 type AccountFunc func(context.Context, *ent.AccountMutation) (ent.Value, error)
@@ -355,6 +379,30 @@ func (f SettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SettingMutation", m)
+}
+
+// The SubPoolFunc type is an adapter to allow the use of ordinary
+// function as SubPool mutator.
+type SubPoolFunc func(context.Context, *ent.SubPoolMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubPoolFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubPoolMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubPoolMutation", m)
+}
+
+// The SubPoolAccountFunc type is an adapter to allow the use of ordinary
+// function as SubPoolAccount mutator.
+type SubPoolAccountFunc func(context.Context, *ent.SubPoolAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubPoolAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubPoolAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubPoolAccountMutation", m)
 }
 
 // The SubscriptionPlanFunc type is an adapter to allow the use of ordinary
