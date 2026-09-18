@@ -2,25 +2,15 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"math"
 	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
-
-type promotionSourceContextKey struct{}
-
-func WithPromotionSource(ctx context.Context, source string) context.Context {
-	return context.WithValue(ctx, promotionSourceContextKey{}, strings.TrimSpace(source))
-}
-
-func promotionSourceFromContext(ctx context.Context) string {
-	if value, ok := ctx.Value(promotionSourceContextKey{}).(string); ok {
-		return value
-	}
-	return ""
-}
 
 type PromotionPromoter struct {
 	ID                   int64     `json:"id"`
@@ -42,6 +32,7 @@ type PromotionChannel struct {
 	PromoterName   string    `json:"promoter_name,omitempty"`
 	CommissionRate *float64  `json:"commission_rate,omitempty"`
 	Enabled        bool      `json:"enabled"`
+	System         bool      `json:"system"`
 	Notes          string    `json:"notes"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -64,12 +55,41 @@ type PromotionChannelInput struct {
 	Notes          string
 }
 type PromotionReportRow struct {
-	ChannelID      int64   `json:"channel_id"`
-	Code           string  `json:"code"`
-	Name           string  `json:"name"`
-	ChannelType    string  `json:"channel_type"`
-	PromoterName   string  `json:"promoter_name"`
+	ChannelID        int64   `json:"channel_id"`
+	Code             string  `json:"code"`
+	Name             string  `json:"name"`
+	ChannelType      string  `json:"channel_type"`
+	AcquisitionClass string  `json:"acquisition_class"`
+	System           bool    `json:"system"`
+	PromoterName     string  `json:"promoter_name"`
+	Visits           int64   `json:"visits"`
+	ConversionRate   float64 `json:"conversion_rate"`
+	NewUsers         int64   `json:"new_users"`
+	InvitedUsers     int64   `json:"invited_users"`
+	PayingUsers      int64   `json:"paying_users"`
+	ActiveUsers      int64   `json:"active_users"`
+	Recharge         float64 `json:"recharge"`
+	Revenue          float64 `json:"revenue"`
+	UpstreamCost     float64 `json:"upstream_cost"`
+	BonusCost        float64 `json:"bonus_cost"`
+	AffiliateCost    float64 `json:"affiliate_cost"`
+	CommissionCost   float64 `json:"commission_cost"`
+	PaymentFee       float64 `json:"payment_fee"`
+	MarketingCost    float64 `json:"marketing_cost"`
+	Profit           float64 `json:"profit"`
+	CAC              float64 `json:"cac"`
+	LTV              float64 `json:"ltv"`
+	ROI              float64 `json:"roi"`
+}
+
+// PromotionReportClassRow 四个获客分类之一的汇总（官网 / SEO / 邀请 / 其他）。
+type PromotionReportClassRow struct {
+	Class          string  `json:"class"`
+	Visits         int64   `json:"visits"`
+	ConversionRate float64 `json:"conversion_rate"`
 	NewUsers       int64   `json:"new_users"`
+	NewUsersShare  float64 `json:"new_users_share"`
+	InvitedUsers   int64   `json:"invited_users"`
 	PayingUsers    int64   `json:"paying_users"`
 	ActiveUsers    int64   `json:"active_users"`
 	Recharge       float64 `json:"recharge"`
@@ -85,12 +105,48 @@ type PromotionReportRow struct {
 	LTV            float64 `json:"ltv"`
 	ROI            float64 `json:"roi"`
 }
-type PromotionReport struct {
-	StartTime time.Time            `json:"start_time"`
-	EndTime   time.Time            `json:"end_time"`
-	Mode      string               `json:"mode"`
-	Rows      []PromotionReportRow `json:"rows"`
+
+// PromotionReportTotals 区间总览。UnattributedUsers > 0 说明归因漏人，前端要报警。
+type PromotionReportTotals struct {
+	Visits            int64   `json:"visits"`
+	ConversionRate    float64 `json:"conversion_rate"`
+	RegisteredUsers   int64   `json:"registered_users"`
+	NewUsers          int64   `json:"new_users"`
+	UnattributedUsers int64   `json:"unattributed_users"`
+	InvitedUsers      int64   `json:"invited_users"`
+	PayingUsers       int64   `json:"paying_users"`
+	ActiveUsers       int64   `json:"active_users"`
+	Recharge          float64 `json:"recharge"`
+	Revenue           float64 `json:"revenue"`
+	Profit            float64 `json:"profit"`
 }
+
+// PromotionBreakdownRow 下钻明细：SEO 引擎 / 落地页、邀请人、外站 host。
+type PromotionBreakdownRow struct {
+	Key         string  `json:"key"`
+	Label       string  `json:"label"`
+	Visits      int64   `json:"visits"`
+	NewUsers    int64   `json:"new_users"`
+	PayingUsers int64   `json:"paying_users"`
+	Revenue     float64 `json:"revenue"`
+	Extra       float64 `json:"extra"`
+}
+
+type PromotionReport struct {
+	StartTime       time.Time                 `json:"start_time"`
+	EndTime         time.Time                 `json:"end_time"`
+	Mode            string                    `json:"mode"`
+	Totals          PromotionReportTotals     `json:"totals"`
+	Classes         []PromotionReportClassRow `json:"classes"`
+	Rows            []PromotionReportRow      `json:"rows"`
+	SEOEngines      []PromotionBreakdownRow   `json:"seo_engines"`
+	SEOLandingPages []PromotionBreakdownRow   `json:"seo_landing_pages"`
+	Inviters        []PromotionBreakdownRow   `json:"inviters"`
+	ExternalHosts   []PromotionBreakdownRow   `json:"external_hosts"`
+}
+
+// AcquisitionClassOrder 报表固定顺序。
+var AcquisitionClassOrder = []string{AcquisitionClassOfficial, AcquisitionClassSEO, AcquisitionClassInvite, AcquisitionClassOther}
 
 const (
 	PromotionReportModeOperation   = "operation"
@@ -98,15 +154,48 @@ const (
 )
 
 type PromotionAttributionEvent struct {
-	ID            int64     `json:"id"`
-	UserID        int64     `json:"user_id"`
-	UserEmail     string    `json:"user_email"`
-	RequestedCode string    `json:"requested_code"`
-	ChannelID     *int64    `json:"channel_id,omitempty"`
-	ChannelName   string    `json:"channel_name"`
-	Outcome       string    `json:"outcome"`
-	Detail        string    `json:"detail"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID               int64     `json:"id"`
+	UserID           int64     `json:"user_id"`
+	UserEmail        string    `json:"user_email"`
+	RequestedCode    string    `json:"requested_code"`
+	ChannelID        *int64    `json:"channel_id,omitempty"`
+	ChannelName      string    `json:"channel_name"`
+	AcquisitionClass string    `json:"acquisition_class"`
+	Outcome          string    `json:"outcome"`
+	Detail           string    `json:"detail"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// PromotionAttributionInput 是写入归因行的结构化输入（服务端裁定后的结论）。
+type PromotionAttributionInput struct {
+	UserID       int64
+	ChannelCode  string
+	Class        string
+	LandingPath  string
+	ReferrerHost string
+	UTM          map[string]string
+	Evidence     map[string]any
+	FirstTouchAt time.Time
+}
+
+// PromotionAttributionEventInput 审计事件输入。
+type PromotionAttributionEventInput struct {
+	UserID        int64
+	RequestedCode string
+	ChannelID     *int64
+	Class         string
+	Outcome       string
+	Detail        string
+}
+
+// AcquisitionVisitInput 一次落地访问的聚合键。
+type AcquisitionVisitInput struct {
+	Day          time.Time
+	Class        string
+	ChannelCode  string
+	Engine       string
+	ReferrerHost string
+	LandingPath  string
 }
 
 type PromotionCommission struct {
@@ -154,7 +243,11 @@ type PromotionRepository interface {
 	ListChannels(context.Context) ([]PromotionChannel, error)
 	CreateChannel(context.Context, PromotionChannelInput) (*PromotionChannel, error)
 	UpdateChannel(context.Context, int64, PromotionChannelInput) (*PromotionChannel, error)
-	AttributeUser(context.Context, int64, string) error
+	GetChannelByCode(context.Context, string) (*PromotionChannel, error)
+	// AttributeUser 写入归因；已有归因时返回 false 且不覆盖（注册后不可变）。
+	AttributeUser(context.Context, PromotionAttributionInput) (bool, error)
+	RecordAttributionEvent(context.Context, PromotionAttributionEventInput) error
+	RecordVisit(context.Context, AcquisitionVisitInput) error
 	ListAttributionEvents(context.Context, int) ([]PromotionAttributionEvent, error)
 	ListCommissions(context.Context, int64, string, int) ([]PromotionCommission, error)
 	ListSettlements(context.Context, int64, int) ([]PromotionSettlement, error)
@@ -203,12 +296,143 @@ func (s *PromotionService) UpdateChannel(ctx context.Context, id int64, in Promo
 	}
 	return s.repo.UpdateChannel(ctx, id, in)
 }
+// AttributeUser 兼容旧调用：只带渠道编码，走完整裁定（空编码也会归因到官网）。
 func (s *PromotionService) AttributeUser(ctx context.Context, userID int64, code string) error {
-	code = normalizePromotionCode(code)
-	if code == "" {
+	touch := AcquisitionTouchFromContext(ctx)
+	if code = normalizePromotionCode(code); code != "" {
+		touch.Source = code
+	}
+	return s.AttributeAcquisition(ctx, userID, touch, 0)
+}
+
+// AttributeAcquisition 是注册成功后的唯一归因入口：每个新用户都要有一行，默认官网。
+// 失败只记日志，绝不影响注册。
+func (s *PromotionService) AttributeAcquisition(ctx context.Context, userID int64, touch AcquisitionTouch, actorUserID int64) error {
+	return s.attribute(ctx, userID, touch, AcquisitionResolveOptions{ActorUserID: actorUserID, AdminCreated: actorUserID > 0})
+}
+
+// AttributeManualCreation 管理员 / API 建号：不看任何落地证据，直接归 MANUAL（其他）。
+func (s *PromotionService) AttributeManualCreation(ctx context.Context, userID int64, actorUserID int64) error {
+	return s.attribute(ctx, userID, AcquisitionTouch{}, AcquisitionResolveOptions{ActorUserID: actorUserID, AdminCreated: true})
+}
+
+func (s *PromotionService) attribute(ctx context.Context, userID int64, touch AcquisitionTouch, opts AcquisitionResolveOptions) error {
+	if s == nil || s.repo == nil || userID <= 0 {
 		return nil
 	}
-	return s.repo.AttributeUser(ctx, userID, code)
+	actorUserID := opts.ActorUserID
+	if !opts.AdminCreated {
+		touch = touch.Merge(AcquisitionTouchFromContext(ctx))
+	}
+	touch.Source = normalizePromotionCode(touch.Source)
+	if host := acquisitionSiteHostFromContext(ctx); host != "" {
+		opts.SiteHosts = append(opts.SiteHosts, host)
+	}
+	if touch.Source != "" && !opts.AdminCreated {
+		channel, err := s.repo.GetChannelByCode(ctx, touch.Source)
+		switch {
+		case err == nil && channel != nil && channel.Enabled:
+			opts.SourceChannel = channel
+		case err == nil && channel != nil:
+			_ = s.repo.RecordAttributionEvent(ctx, PromotionAttributionEventInput{UserID: userID, RequestedCode: touch.Source, ChannelID: &channel.ID, Outcome: "channel_disabled", Detail: "channel is disabled; fell through to default rules"})
+		case errors.Is(err, sql.ErrNoRows):
+			_ = s.repo.RecordAttributionEvent(ctx, PromotionAttributionEventInput{UserID: userID, RequestedCode: touch.Source, Outcome: "invalid_code", Detail: "channel code does not exist; fell through to default rules"})
+		case err != nil:
+			logger.LegacyPrintf("service.promotion", "[Promotion] lookup channel %q failed: %v", touch.Source, err)
+		}
+	}
+	result := ResolveAcquisition(touch, opts)
+	created, err := s.repo.AttributeUser(ctx, PromotionAttributionInput{
+		UserID:       userID,
+		ChannelCode:  result.ChannelCode,
+		Class:        result.Class,
+		LandingPath:  touch.LandingPath,
+		ReferrerHost: touch.ReferrerHost,
+		UTM:          acquisitionUTMMap(touch),
+		Evidence:     acquisitionEvidence(result, actorUserID),
+		FirstTouchAt: touch.FirstTouchAt,
+	})
+	if err != nil {
+		logger.LegacyPrintf("service.promotion", "[Promotion] attribute user %d failed: %v", userID, err)
+		return err
+	}
+	outcome, detail := "resolved", result.Reason
+	if result.Reason == "default_official" || result.Reason == "invalid_source_default_official" {
+		outcome = "default_official"
+	}
+	if !created {
+		outcome, detail = "already_attributed", "existing attribution retained"
+	}
+	var channelID *int64
+	if opts.SourceChannel != nil && result.ChannelCode == opts.SourceChannel.Code {
+		channelID = &opts.SourceChannel.ID
+	}
+	_ = s.repo.RecordAttributionEvent(ctx, PromotionAttributionEventInput{UserID: userID, RequestedCode: touch.Source, ChannelID: channelID, Class: result.Class, Outcome: outcome, Detail: detail})
+	return nil
+}
+
+// RecordLandingVisit 信标端点：裁定分类并按天累加访问。
+func (s *PromotionService) RecordLandingVisit(ctx context.Context, touch AcquisitionTouch, now time.Time) (AcquisitionResult, error) {
+	touch.Source = normalizePromotionCode(touch.Source)
+	opts := AcquisitionResolveOptions{}
+	if host := acquisitionSiteHostFromContext(ctx); host != "" {
+		opts.SiteHosts = append(opts.SiteHosts, host)
+	}
+	if touch.Source != "" {
+		if channel, err := s.repo.GetChannelByCode(ctx, touch.Source); err == nil && channel != nil && channel.Enabled {
+			opts.SourceChannel = channel
+		}
+	}
+	result := ResolveAcquisition(touch, opts)
+	err := s.repo.RecordVisit(ctx, AcquisitionVisitInput{
+		Day:          now,
+		Class:        result.Class,
+		ChannelCode:  result.ChannelCode,
+		Engine:       result.Engine,
+		ReferrerHost: result.ReferrerHost,
+		LandingPath:  touch.LandingPath,
+	})
+	return result, err
+}
+
+func acquisitionUTMMap(touch AcquisitionTouch) map[string]string {
+	out := map[string]string{}
+	if touch.UTMSource != "" {
+		out["source"] = touch.UTMSource
+	}
+	if touch.UTMMedium != "" {
+		out["medium"] = touch.UTMMedium
+	}
+	if touch.UTMCampaign != "" {
+		out["campaign"] = touch.UTMCampaign
+	}
+	return out
+}
+
+func acquisitionEvidence(result AcquisitionResult, actorUserID int64) map[string]any {
+	evidence := map[string]any{"reason": result.Reason, "level": result.Level}
+	if result.Engine != "" {
+		evidence["engine"] = result.Engine
+	}
+	if result.ReferrerHost != "" {
+		evidence["referrer_host"] = result.ReferrerHost
+	}
+	if result.Paid {
+		evidence["paid"] = true
+	}
+	if result.Touch.Source != "" {
+		evidence["requested_source"] = result.Touch.Source
+	}
+	if result.Touch.AffCode != "" {
+		evidence["aff"] = result.Touch.AffCode
+	}
+	if !result.Touch.FirstTouchAt.IsZero() {
+		evidence["first_touch_at"] = result.Touch.FirstTouchAt.UTC().Format(time.RFC3339)
+	}
+	if actorUserID > 0 {
+		evidence["actor_user_id"] = actorUserID
+	}
+	return evidence
 }
 func (s *PromotionService) ListAttributionEvents(ctx context.Context, limit int) ([]PromotionAttributionEvent, error) {
 	return s.repo.ListAttributionEvents(ctx, clampPromotionLimit(limit))
@@ -264,10 +488,13 @@ func normalizePromotionPromoterInput(in *PromotionPromoterInput) error {
 func normalizePromotionChannelInput(in *PromotionChannelInput) error {
 	in.Code = normalizePromotionCode(in.Code)
 	in.Name = strings.TrimSpace(in.Name)
-	in.ChannelType = strings.TrimSpace(in.ChannelType)
+	in.ChannelType = strings.ToLower(strings.TrimSpace(in.ChannelType))
 	in.Notes = strings.TrimSpace(in.Notes)
 	if in.ChannelType == "" {
-		in.ChannelType = "other"
+		in.ChannelType = AcquisitionClassOther
+	}
+	if !isValidAcquisitionClass(in.ChannelType) {
+		return infraerrors.BadRequest("PROMOTION_CHANNEL_TYPE_INVALID", "channel type must be one of official, seo, invite, other")
 	}
 	if in.Code == "" || in.Name == "" || len(in.Code) > 64 || len(in.Name) > 128 {
 		return ErrInvalidInput

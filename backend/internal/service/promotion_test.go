@@ -12,15 +12,19 @@ func TestNormalizePromotionChannelInput(t *testing.T) {
 	input := PromotionChannelInput{
 		Code:           "  forum-cn_01 ",
 		Name:           "  中文论坛  ",
-		ChannelType:    " 论坛 ",
+		ChannelType:    " SEO ",
 		CommissionRate: &rate,
 		Notes:          "  note  ",
 	}
 	require.NoError(t, normalizePromotionChannelInput(&input))
 	require.Equal(t, "FORUM-CN_01", input.Code)
 	require.Equal(t, "中文论坛", input.Name)
-	require.Equal(t, "论坛", input.ChannelType)
+	require.Equal(t, "seo", input.ChannelType)
 	require.Equal(t, "note", input.Notes)
+
+	empty := PromotionChannelInput{Code: "TG1", Name: "TG 群"}
+	require.NoError(t, normalizePromotionChannelInput(&empty))
+	require.Equal(t, AcquisitionClassOther, empty.ChannelType, "空类型默认其他")
 }
 
 func TestNormalizePromotionChannelInputRejectsUnsafeCodeAndRate(t *testing.T) {
@@ -29,6 +33,7 @@ func TestNormalizePromotionChannelInputRejectsUnsafeCodeAndRate(t *testing.T) {
 		{Code: "BAD/URL", Name: "x"},
 		{Code: "OK", Name: "x", CommissionRate: float64Pointer(100.01)},
 		{Code: "OK", Name: "x", CommissionRate: float64Pointer(math.NaN())},
+		{Code: "OK", Name: "x", ChannelType: "论坛"},
 	} {
 		require.Error(t, normalizePromotionChannelInput(&input))
 	}

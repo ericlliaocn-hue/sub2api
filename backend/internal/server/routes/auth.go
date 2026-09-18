@@ -28,6 +28,8 @@ func RegisterAuthRoutes(
 	// 公开接口
 	auth := v1.Group("/auth")
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
+	// 获客落地证据（s2a_touch Cookie）：注册成功后用于官网 / SEO / 邀请 / 其他归因
+	auth.Use(servermiddleware.AcquisitionTouch())
 	// 认证事件（登录/注册/2FA/token 刷新失败）入审计
 	auth.Use(gin.HandlerFunc(auditLog))
 	{
@@ -56,6 +58,10 @@ func RegisterAuthRoutes(
 		}), h.Auth.RefreshToken)
 		// 登出接口（公开，允许未认证用户调用以撤销Refresh Token）
 		auth.POST("/logout", h.Auth.Logout)
+		// 获客落地信标：记录访问计数并由服务端写 s2a_touch（绕过 Safari 对 JS Cookie 的 7 天上限）
+		auth.POST("/touch", rateLimiter.LimitWithOptions("auth-touch", 30, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailOpen,
+		}), h.Auth.AcquisitionTouch)
 		// 优惠码验证接口添加速率限制：每分钟最多 10 次（Redis 故障时 fail-close）
 		auth.POST("/validate-promo-code", rateLimiter.LimitWithOptions("validate-promo", 10, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,

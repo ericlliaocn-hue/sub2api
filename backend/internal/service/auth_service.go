@@ -94,10 +94,32 @@ type AuthService struct {
 func (s *AuthService) SetPromotionService(promotionService *PromotionService) {
 	s.promotionService = promotionService
 }
+
+// PromotionService 暴露给 handler 的获客信标端点使用；未注入时返回 nil。
+func (s *AuthService) PromotionService() *PromotionService {
+	if s == nil {
+		return nil
+	}
+	return s.promotionService
+}
 func (s *AuthService) AttributePromotionSource(ctx context.Context, userID int64, source string) {
 	if s != nil && s.promotionService != nil {
 		_ = s.promotionService.AttributeUser(ctx, userID, source)
 	}
+}
+
+// attributeAcquisition 在每一条自助注册路径创建用户成功后调用：
+// 落地证据来自 ctx（s2a_touch Cookie），邀请码来自表单或 OAuth pending session。
+// 没有任何证据也会归因到官网，保证每个用户都有一行。
+func (s *AuthService) attributeAcquisition(ctx context.Context, userID int64, affiliateCode string) {
+	if s == nil || s.promotionService == nil || userID <= 0 {
+		return
+	}
+	touch := AcquisitionTouchFromContext(ctx)
+	if code := strings.TrimSpace(affiliateCode); code != "" && touch.AffCode == "" {
+		touch.AffCode = code
+	}
+	_ = s.promotionService.AttributeAcquisition(ctx, userID, touch, 0)
 }
 
 type CaptchaProof struct {
@@ -271,11 +293,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			return "", nil, ErrServiceUnavailable
 		}
 	}
-	// The handler attaches the source to the request context. Attribution is
-	// best-effort and never blocks account creation.
-	if source := promotionSourceFromContext(ctx); source != "" {
-		s.AttributePromotionSource(ctx, user.ID, source)
-	}
+	// 落地证据由 handler 放进 ctx；归因尽力而为，永不阻塞注册。
+	s.attributeAcquisition(ctx, user.ID, affiliateCode)
 	s.postAuthUserBootstrap(ctx, user, "email", true)
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
@@ -651,6 +670,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				}
 			} else {
 				user = newUser
+				s.attributeAcquisition(ctx, user.ID, "")
 				s.postAuthUserBootstrap(ctx, user, signupSource, false)
 				s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 				// snapshot user × platform quota（fail-open）
@@ -816,6 +836,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					}
 					user = newUser
 					created = true
+					s.attributeAcquisition(ctx, user.ID, affiliateCode)
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 					// snapshot user × platform quota（fail-open）
@@ -837,6 +858,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				} else {
 					user = newUser
 					created = true
+					s.attributeAcquisition(ctx, user.ID, affiliateCode)
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 					// snapshot user × platform quota（fail-open）

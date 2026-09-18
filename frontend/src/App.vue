@@ -13,6 +13,8 @@ import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import { captureLandingTouch } from '@/utils/acquisitionTouch'
+import { sendAcquisitionTouch } from '@/api/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -148,6 +150,16 @@ onBeforeUnmount(() => {
 
 onMounted(async () => {
   window.addEventListener('admin-compliance-required', onAdminComplianceRequired)
+
+  // 获客落地：每次整页加载采集一次证据；已登录用户和 OAuth 回跳页不算新访问。
+  // 证据等级升级（比如官网逛过后点了推广链接）才发信标，服务端计访问并续 Cookie。
+  if (!authStore.isAuthenticated && !route.path.startsWith('/auth/') && route.path !== '/setup') {
+    const href = window.location.href
+    const captured = captureLandingTouch(href, document.referrer)
+    if (captured?.upgraded) {
+      void sendAcquisitionTouch(href, document.referrer)
+    }
+  }
 
   // Check if setup is needed
   try {

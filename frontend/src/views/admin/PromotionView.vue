@@ -4,7 +4,7 @@
       <div class="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">推广管理</h1>
-          <p class="mt-1 text-sm text-gray-500">渠道首次归因、转化成本、佣金冻结与人工结算。</p>
+          <p class="mt-1 text-sm text-gray-500">每个注册用户归到官网 / 搜索 / 邀请 / 其他四类之一；渠道码、转化成本、佣金冻结与人工结算。</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button v-for="item in tabs" :key="item.key" class="btn" :class="tab === item.key ? 'btn-primary' : 'btn-secondary'" @click="tab = item.key">
@@ -24,28 +24,70 @@
           </div>
         </section>
 
-        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div class="card p-5"><div class="text-sm text-gray-500">新增用户</div><div class="mt-2 text-2xl font-semibold">{{ totals.newUsers }}</div></div>
-          <div class="card p-5"><div class="text-sm text-gray-500">付费用户</div><div class="mt-2 text-2xl font-semibold">{{ totals.payingUsers }}</div></div>
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div class="card p-5"><div class="text-sm text-gray-500">落地访问</div><div class="mt-2 text-2xl font-semibold">{{ totals.visits }}</div><div class="mt-1 text-xs text-gray-500">访问→注册 {{ percent(totals.conversion_rate * 100) }}</div></div>
+          <div class="card p-5"><div class="text-sm text-gray-500">新增用户</div><div class="mt-2 text-2xl font-semibold">{{ totals.new_users }}</div><div class="mt-1 text-xs" :class="totals.unattributed_users > 0 ? 'text-red-500' : 'text-gray-500'">{{ totals.unattributed_users > 0 ? `${totals.unattributed_users} 人未归因，请检查` : `实际注册 ${totals.registered_users}，全部已归因` }}</div></div>
+          <div class="card p-5"><div class="text-sm text-gray-500">付费用户</div><div class="mt-2 text-2xl font-semibold">{{ totals.paying_users }}</div><div class="mt-1 text-xs text-gray-500">有邀请人 {{ totals.invited_users }}</div></div>
           <div class="card p-5"><div class="text-sm text-gray-500">消耗收入</div><div class="mt-2 text-2xl font-semibold">{{ money(totals.revenue) }}</div></div>
           <div class="card p-5"><div class="text-sm text-gray-500">贡献利润</div><div class="mt-2 text-2xl font-semibold" :class="totals.profit < 0 ? 'text-red-500' : 'text-emerald-500'">{{ money(totals.profit) }}</div></div>
         </section>
 
         <section class="card overflow-hidden">
-          <div class="border-b border-gray-200 p-5 dark:border-dark-700"><h2 class="font-semibold">渠道经营明细</h2></div>
+          <div class="border-b border-gray-200 p-5 dark:border-dark-700"><h2 class="font-semibold">获客来源四分类</h2><p class="text-xs text-gray-500">用户从哪来（首次落地证据，注册后不变）。“有邀请人”是返利维度，与来源分开算：搜索进来又填了邀请码的，算搜索。</p></div>
           <div class="overflow-x-auto">
             <table class="min-w-full whitespace-nowrap text-left text-sm">
-              <thead class="border-b border-gray-200 text-xs text-gray-500"><tr><th class="px-4 py-3">渠道</th><th class="px-4 py-3">负责人</th><th class="px-4 py-3">注册</th><th class="px-4 py-3">付费/活跃</th><th class="px-4 py-3">充值</th><th class="px-4 py-3">收入</th><th class="px-4 py-3">上游成本</th><th class="px-4 py-3">赠送/返利/佣金</th><th class="px-4 py-3">手续费/营销</th><th class="px-4 py-3">贡献利润</th><th class="px-4 py-3">CAC/LTV</th><th class="px-4 py-3">ROI</th></tr></thead>
+              <thead class="border-b border-gray-200 text-xs text-gray-500"><tr><th class="px-4 py-3">来源</th><th class="px-4 py-3">访问</th><th class="px-4 py-3">注册（占比）</th><th class="px-4 py-3">访问→注册</th><th class="px-4 py-3">有邀请人</th><th class="px-4 py-3">付费/活跃</th><th class="px-4 py-3">充值</th><th class="px-4 py-3">收入</th><th class="px-4 py-3">贡献利润</th><th class="px-4 py-3">CAC/LTV</th></tr></thead>
               <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-                <tr v-for="row in report?.rows" :key="row.channel_id">
-                  <td class="px-4 py-3"><b>{{ row.name }}</b><div class="font-mono text-xs text-gray-500">{{ row.code }} · {{ row.channel_type }}</div></td>
-                  <td class="px-4 py-3">{{ row.promoter_name || '—' }}</td><td class="px-4 py-3">{{ row.new_users }}</td><td class="px-4 py-3">{{ row.paying_users }} / {{ row.active_users }}</td>
+                <tr v-for="row in report?.classes" :key="row.class" class="cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-800" :class="classFilter === row.class ? 'bg-primary-50 dark:bg-dark-800' : ''" @click="classFilter = classFilter === row.class ? '' : row.class">
+                  <td class="px-4 py-3"><span class="rounded px-2 py-0.5 text-xs font-medium" :class="classBadge(row.class)">{{ classLabel(row.class) }}</span></td>
+                  <td class="px-4 py-3">{{ row.visits }}</td>
+                  <td class="px-4 py-3"><b>{{ row.new_users }}</b><span class="ml-1 text-xs text-gray-500">{{ percent(row.new_users_share * 100) }}</span></td>
+                  <td class="px-4 py-3">{{ row.visits ? percent(row.conversion_rate * 100) : '—' }}</td>
+                  <td class="px-4 py-3">{{ row.invited_users }}</td>
+                  <td class="px-4 py-3">{{ row.paying_users }} / {{ row.active_users }}</td>
+                  <td class="px-4 py-3">{{ money(row.recharge) }}</td><td class="px-4 py-3">{{ money(row.revenue) }}</td>
+                  <td class="px-4 py-3 font-semibold" :class="row.profit < 0 ? 'text-red-500' : 'text-emerald-500'">{{ money(row.profit) }}</td>
+                  <td class="px-4 py-3">{{ money(row.cac) }} / {{ money(row.ltv) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="grid gap-4 xl:grid-cols-2">
+          <div class="card overflow-hidden">
+            <div class="border-b border-gray-200 p-5 dark:border-dark-700"><h2 class="font-semibold">搜索：按引擎</h2><p class="text-xs text-gray-500">含 AI 搜索（ChatGPT / Kimi / 豆包 等）。Google 会隐藏关键词，只能到引擎粒度。</p></div>
+            <BreakdownTable :rows="report?.seo_engines || []" key-label="引擎" empty="区间内没有搜索来源" />
+          </div>
+          <div class="card overflow-hidden">
+            <div class="border-b border-gray-200 p-5 dark:border-dark-700"><h2 class="font-semibold">搜索：按落地页</h2><p class="text-xs text-gray-500">哪些页面在搜索里被点进来，用于判断 SEO 内容方向。</p></div>
+            <BreakdownTable :rows="report?.seo_landing_pages || []" key-label="落地页" empty="区间内没有搜索来源" />
+          </div>
+          <div class="card overflow-hidden">
+            <div class="border-b border-gray-200 p-5 dark:border-dark-700"><h2 class="font-semibold">邀请：Top 邀请人</h2><p class="text-xs text-gray-500">按区间内被邀请注册数排序；“附加”列为已发返利。</p></div>
+            <BreakdownTable :rows="report?.inviters || []" key-label="邀请人" extra-label="已发返利" empty="区间内没有邀请注册" />
+          </div>
+          <div class="card overflow-hidden">
+            <div class="border-b border-gray-200 p-5 dark:border-dark-700"><h2 class="font-semibold">其他：外站来源</h2><p class="text-xs text-gray-500">没有渠道码的外部 referrer。值得长期投放的站点应该建渠道码。</p></div>
+            <BreakdownTable :rows="report?.external_hosts || []" key-label="来源站点" empty="区间内没有外站来源" />
+          </div>
+        </section>
+
+        <section class="card overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 p-5 dark:border-dark-700"><div><h2 class="font-semibold">渠道经营明细</h2><p class="text-xs text-gray-500">系统渠道自动归因；人工渠道用 ?source=编码。{{ classFilter ? `当前只看「${classLabel(classFilter)}」，点上方分类行取消。` : '点上方分类行可筛选。' }}</p></div><label class="flex items-center gap-2 text-xs text-gray-500"><input v-model="hideEmptyRows" type="checkbox" />隐藏无数据渠道</label></div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full whitespace-nowrap text-left text-sm">
+              <thead class="border-b border-gray-200 text-xs text-gray-500"><tr><th class="px-4 py-3">渠道</th><th class="px-4 py-3">负责人</th><th class="px-4 py-3">访问</th><th class="px-4 py-3">注册</th><th class="px-4 py-3">付费/活跃</th><th class="px-4 py-3">充值</th><th class="px-4 py-3">收入</th><th class="px-4 py-3">上游成本</th><th class="px-4 py-3">赠送/返利/佣金</th><th class="px-4 py-3">手续费/营销</th><th class="px-4 py-3">贡献利润</th><th class="px-4 py-3">CAC/LTV</th><th class="px-4 py-3">ROI</th></tr></thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
+                <tr v-for="row in visibleRows" :key="row.channel_id">
+                  <td class="px-4 py-3"><div class="flex items-center gap-2"><b>{{ row.name }}</b><span class="rounded px-1.5 py-0.5 text-[10px]" :class="classBadge(row.acquisition_class)">{{ classLabel(row.acquisition_class) }}</span><span v-if="row.system" class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-dark-700">系统</span></div><div class="font-mono text-xs text-gray-500">{{ row.code }}</div></td>
+                  <td class="px-4 py-3">{{ row.promoter_name || '—' }}</td><td class="px-4 py-3">{{ row.visits }}<div v-if="row.visits" class="text-xs text-gray-500">{{ percent(row.conversion_rate * 100) }}</div></td><td class="px-4 py-3">{{ row.new_users }}<div v-if="row.invited_users" class="text-xs text-gray-500">邀 {{ row.invited_users }}</div></td><td class="px-4 py-3">{{ row.paying_users }} / {{ row.active_users }}</td>
                   <td class="px-4 py-3">{{ money(row.recharge) }}</td><td class="px-4 py-3">{{ money(row.revenue) }}</td><td class="px-4 py-3">{{ money(row.upstream_cost) }}</td>
                   <td class="px-4 py-3"><div>{{ money(row.bonus_cost) }}</div><div class="text-xs text-gray-500">返 {{ money(row.affiliate_cost) }} · 佣 {{ money(row.commission_cost) }}</div></td>
                   <td class="px-4 py-3"><div>{{ money(row.payment_fee) }}</div><div class="text-xs text-gray-500">营销 {{ money(row.marketing_cost) }}</div></td>
                   <td class="px-4 py-3 font-semibold" :class="row.profit < 0 ? 'text-red-500' : 'text-emerald-500'">{{ money(row.profit) }}</td><td class="px-4 py-3">{{ money(row.cac) }} / {{ money(row.ltv) }}</td><td class="px-4 py-3">{{ percent(row.roi * 100) }}</td>
                 </tr>
-                <tr v-if="!report?.rows.length"><td colspan="12" class="px-4 py-10 text-center text-gray-500">暂无渠道数据</td></tr>
+                <tr v-if="!visibleRows.length"><td colspan="13" class="px-4 py-10 text-center text-gray-500">暂无渠道数据</td></tr>
               </tbody>
             </table>
           </div>
@@ -63,10 +105,10 @@
             <div v-if="!promoters.length" class="py-10 text-center text-sm text-gray-500">暂无推广成员</div>
           </div>
           <div class="card p-5">
-            <div class="mb-4 flex items-center justify-between"><div><h2 class="font-semibold">推广渠道</h2><p class="text-xs text-gray-500">注册地址使用 ?source=渠道编码</p></div><button class="btn btn-primary btn-sm" @click="newChannel">新增</button></div>
+            <div class="mb-4 flex items-center justify-between"><div><h2 class="font-semibold">推广渠道</h2><p class="text-xs text-gray-500">人工渠道：推广地址带 ?source=渠道编码，落地即记录，注册时归因。系统渠道自动判定，不可删改。</p></div><button class="btn btn-primary btn-sm" @click="newChannel">新增</button></div>
             <div v-for="item in channels" :key="item.id" class="flex items-center justify-between gap-3 border-b border-gray-100 py-3 dark:border-dark-700">
-              <div class="min-w-0"><div class="flex items-center gap-2"><b>{{ item.name }}</b><span class="rounded px-2 py-0.5 text-xs" :class="item.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'">{{ item.enabled ? '启用' : '停用' }}</span></div><div class="truncate font-mono text-xs text-gray-500">{{ item.code }} · {{ item.channel_type }} · {{ item.promoter_name || '未分配' }} · {{ item.commission_rate == null ? '成员默认佣金' : percent(item.commission_rate) }}</div></div>
-              <div class="flex gap-2"><button class="btn btn-secondary btn-sm" @click="copyLink(item)">复制链接</button><button class="btn btn-secondary btn-sm" @click="editChannel(item)">编辑</button></div>
+              <div class="min-w-0"><div class="flex items-center gap-2"><b>{{ item.name }}</b><span class="rounded px-1.5 py-0.5 text-[10px]" :class="classBadge(item.channel_type)">{{ classLabel(item.channel_type) }}</span><span v-if="item.system" class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-dark-700">系统</span><span v-else class="rounded px-2 py-0.5 text-xs" :class="item.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'">{{ item.enabled ? '启用' : '停用' }}</span></div><div class="truncate font-mono text-xs text-gray-500">{{ item.code }}<template v-if="!item.system"> · {{ item.promoter_name || '未分配' }} · {{ item.commission_rate == null ? '成员默认佣金' : percent(item.commission_rate) }}</template><template v-else> · {{ item.notes }}</template></div></div>
+              <div class="flex gap-2"><button v-if="!item.system" class="btn btn-secondary btn-sm" @click="copyLink(item)">复制链接</button><button class="btn btn-secondary btn-sm" @click="editChannel(item)">编辑</button></div>
             </div>
             <div v-if="!channels.length" class="py-10 text-center text-sm text-gray-500">暂无推广渠道</div>
           </div>
@@ -77,25 +119,26 @@
           <form class="grid gap-4 md:grid-cols-2" @submit.prevent="saveConfig">
             <label class="field"><span>名称</span><input v-model.trim="form.name" class="input" required /></label>
             <label v-if="modal.kind === 'promoter'" class="field"><span>联系方式</span><input v-model.trim="form.contact" class="input" /></label>
-            <label v-else class="field"><span>渠道编码</span><input v-model.trim="form.code" class="input font-mono uppercase" maxlength="64" required /></label>
+            <label v-else class="field"><span>渠道编码</span><input v-model.trim="form.code" class="input font-mono uppercase" maxlength="64" required :disabled="editingSystemChannel" /></label>
             <template v-if="modal.kind === 'promoter'">
               <label class="field"><span>默认佣金比例（%）</span><input v-model.number="form.commission_rate" class="input" type="number" min="0" max="100" step="0.01" required /></label>
               <label class="field"><span>佣金冻结天数</span><input v-model.number="form.freeze_days" class="input" type="number" min="0" max="365" required /></label>
             </template>
             <template v-else>
-              <label class="field"><span>渠道类型</span><input v-model.trim="form.channel_type" class="input" placeholder="SEO / 论坛 / TG群 / 自定义" /></label>
-              <label class="field"><span>推广成员</span><select v-model="form.promoter_id" class="input"><option :value="null">未分配</option><option v-for="item in promoters" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
-              <label class="field"><span>渠道覆盖佣金（留空使用成员默认）</span><input v-model="form.channel_rate" class="input" type="number" min="0" max="100" step="0.01" /></label>
+              <label class="field"><span>获客分类</span><select v-model="form.channel_type" class="input" :disabled="editingSystemChannel"><option v-for="cls in ACQUISITION_CLASSES" :key="cls" :value="cls">{{ classLabel(cls) }}</option></select><small class="text-xs text-gray-500">该渠道带来的用户在四分类报表里计入哪一类。付费买的 SEO 软文选“搜索”，TG / 论坛 / 广告选“其他”。</small></label>
+              <label class="field"><span>推广成员</span><select v-model="form.promoter_id" class="input" :disabled="editingSystemChannel"><option :value="null">未分配</option><option v-for="item in promoters" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
+              <label class="field"><span>渠道覆盖佣金（留空使用成员默认）</span><input v-model="form.channel_rate" class="input" type="number" min="0" max="100" step="0.01" :disabled="editingSystemChannel" /></label>
             </template>
             <label class="field md:col-span-2"><span>备注</span><input v-model.trim="form.notes" class="input" /></label>
-            <label class="flex items-center gap-2 text-sm"><input v-model="form.enabled" type="checkbox" />启用</label>
+            <label class="flex items-center gap-2 text-sm"><input v-model="form.enabled" type="checkbox" :disabled="editingSystemChannel" />启用</label>
+            <p v-if="editingSystemChannel" class="text-xs text-gray-500 md:col-span-2">系统渠道只能改名称和备注。</p>
             <div class="flex justify-end gap-2 md:col-span-2"><button type="button" class="btn btn-secondary" @click="modal = null">取消</button><button class="btn btn-primary" :disabled="saving">保存</button></div>
           </form>
         </section>
       </template>
 
       <template v-else-if="tab === 'attribution'">
-        <section class="card overflow-hidden"><div class="flex items-center justify-between border-b border-gray-200 p-5 dark:border-dark-700"><div><h2 class="font-semibold">注册归因审计</h2><p class="text-xs text-gray-500">无效、停用和重复归因同样会被记录</p></div><button class="btn btn-secondary btn-sm" @click="loadEvents">刷新</button></div><div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b text-xs text-gray-500"><tr><th class="px-4 py-3">时间</th><th class="px-4 py-3">用户</th><th class="px-4 py-3">请求编码</th><th class="px-4 py-3">渠道</th><th class="px-4 py-3">结果</th></tr></thead><tbody class="divide-y dark:divide-dark-700"><tr v-for="item in events" :key="item.id"><td class="px-4 py-3">{{ dateTime(item.created_at) }}</td><td class="px-4 py-3">#{{ item.user_id }}<div class="text-xs text-gray-500">{{ item.user_email }}</div></td><td class="px-4 py-3 font-mono">{{ item.requested_code }}</td><td class="px-4 py-3">{{ item.channel_name || '—' }}</td><td class="px-4 py-3"><span :class="item.outcome === 'attributed' ? 'text-emerald-500' : item.outcome === 'already_attributed' ? 'text-amber-500' : 'text-red-500'">{{ outcomeLabel(item.outcome) }}</span><div class="text-xs text-gray-500">{{ item.detail }}</div></td></tr><tr v-if="!events.length"><td colspan="5" class="px-4 py-10 text-center text-gray-500">暂无归因记录</td></tr></tbody></table></div></section>
+        <section class="card overflow-hidden"><div class="flex items-center justify-between border-b border-gray-200 p-5 dark:border-dark-700"><div><h2 class="font-semibold">注册归因审计</h2><p class="text-xs text-gray-500">无效、停用和重复归因同样会被记录</p></div><button class="btn btn-secondary btn-sm" @click="loadEvents">刷新</button></div><div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b text-xs text-gray-500"><tr><th class="px-4 py-3">时间</th><th class="px-4 py-3">用户</th><th class="px-4 py-3">请求编码</th><th class="px-4 py-3">分类 / 渠道</th><th class="px-4 py-3">结果</th></tr></thead><tbody class="divide-y dark:divide-dark-700"><tr v-for="item in events" :key="item.id"><td class="px-4 py-3">{{ dateTime(item.created_at) }}</td><td class="px-4 py-3">#{{ item.user_id }}<div class="text-xs text-gray-500">{{ item.user_email }}</div></td><td class="px-4 py-3 font-mono">{{ item.requested_code || '—' }}</td><td class="px-4 py-3"><span v-if="item.acquisition_class" class="rounded px-1.5 py-0.5 text-[10px]" :class="classBadge(item.acquisition_class)">{{ classLabel(item.acquisition_class) }}</span> {{ item.channel_name || '' }}</td><td class="px-4 py-3"><span :class="outcomeClass(item.outcome)">{{ outcomeLabel(item.outcome) }}</span><div class="text-xs text-gray-500">{{ item.detail }}</div></td></tr><tr v-if="!events.length"><td colspan="5" class="px-4 py-10 text-center text-gray-500">暂无归因记录</td></tr></tbody></table></div></section>
       </template>
 
       <template v-else>
@@ -112,10 +155,12 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAppStore } from '@/stores/app'
-import promotionAPI, { type PromotionAttributionEvent, type PromotionChannel, type PromotionCommission, type PromotionPromoter, type PromotionReport, type PromotionSettlement } from '@/api/admin/promotion'
+import promotionAPI, { ACQUISITION_CLASSES, type AcquisitionClass, type PromotionAttributionEvent, type PromotionChannel, type PromotionCommission, type PromotionPromoter, type PromotionReport, type PromotionSettlement } from '@/api/admin/promotion'
+import BreakdownTable from '@/components/admin/promotion/PromotionBreakdownTable.vue'
+import { acquisitionClassBadge, acquisitionClassLabel } from '@/utils/acquisitionClass'
 
 type Tab = 'report' | 'config' | 'attribution' | 'commission'
-const tabs: Array<{ key: Tab; label: string }> = [{ key: 'report', label: '渠道报表' }, { key: 'config', label: '成员与渠道' }, { key: 'attribution', label: '归因审计' }, { key: 'commission', label: '佣金结算' }]
+const tabs: Array<{ key: Tab; label: string }> = [{ key: 'report', label: '获客报表' }, { key: 'config', label: '成员与渠道' }, { key: 'attribution', label: '归因审计' }, { key: 'commission', label: '佣金结算' }]
 const appStore = useAppStore()
 const tab = ref<Tab>('report')
 const loading = ref(false), saving = ref(false)
@@ -125,10 +170,17 @@ const end = ref(new Date().toISOString().slice(0, 10)); const initialStart = new
 const reportMode = ref<'operation' | 'acquisition'>('operation')
 const commissionPromoter = ref(0), commissionStatus = ref('')
 const modal = ref<{ kind: 'promoter' | 'channel'; id?: number } | null>(null)
-const form = reactive({ name: '', contact: '', code: '', commission_rate: 0, freeze_days: 7, channel_type: 'other', promoter_id: null as number | null, channel_rate: '' as string | number, notes: '', enabled: true })
+const form = reactive({ name: '', contact: '', code: '', commission_rate: 0, freeze_days: 7, channel_type: 'other' as AcquisitionClass, promoter_id: null as number | null, channel_rate: '' as string | number, notes: '', enabled: true })
 const settlementForm = ref<{ period_end: string; notes: string } | null>(null)
-const totals = computed(() => (report.value?.rows || []).reduce((sum, row) => ({ newUsers: sum.newUsers + row.new_users, payingUsers: sum.payingUsers + row.paying_users, revenue: sum.revenue + row.revenue, profit: sum.profit + row.profit }), { newUsers: 0, payingUsers: 0, revenue: 0, profit: 0 }))
+const classFilter = ref<AcquisitionClass | ''>('')
+const hideEmptyRows = ref(true)
+const editingSystemChannel = computed(() => modal.value?.kind === 'channel' && !!modal.value.id && !!channels.value.find(c => c.id === modal.value?.id)?.system)
+const emptyTotals = { visits: 0, conversion_rate: 0, registered_users: 0, new_users: 0, unattributed_users: 0, invited_users: 0, paying_users: 0, active_users: 0, recharge: 0, revenue: 0, profit: 0 }
+const totals = computed(() => report.value?.totals ?? emptyTotals)
+const visibleRows = computed(() => (report.value?.rows || []).filter(row => (!classFilter.value || row.acquisition_class === classFilter.value) && (!hideEmptyRows.value || row.visits || row.new_users || row.paying_users || row.active_users || row.revenue || row.marketing_cost)))
 
+const classLabel = acquisitionClassLabel
+const classBadge = acquisitionClassBadge
 function money(value: number) { return (Number(value) || 0).toFixed(4) }
 function percent(value: number) { return `${(Number(value) || 0).toFixed(2)}%` }
 function dateTime(value: string) { return value ? new Date(value).toLocaleString() : '—' }
@@ -137,7 +189,7 @@ function resetForm() { Object.assign(form, { name: '', contact: '', code: '', co
 function newPromoter() { resetForm(); modal.value = { kind: 'promoter' } }
 function newChannel() { resetForm(); modal.value = { kind: 'channel' } }
 function editPromoter(item: PromotionPromoter) { resetForm(); Object.assign(form, { name: item.name, contact: item.contact, commission_rate: item.commission_rate, freeze_days: item.commission_freeze_days, notes: item.notes, enabled: item.enabled }); modal.value = { kind: 'promoter', id: item.id } }
-function editChannel(item: PromotionChannel) { resetForm(); Object.assign(form, { name: item.name, code: item.code, channel_type: item.channel_type, promoter_id: item.promoter_id ?? null, channel_rate: item.commission_rate ?? '', notes: item.notes, enabled: item.enabled }); modal.value = { kind: 'channel', id: item.id } }
+function editChannel(item: PromotionChannel) { resetForm(); Object.assign(form, { name: item.name, code: item.code, channel_type: (ACQUISITION_CLASSES as string[]).includes(item.channel_type) ? item.channel_type : 'other', promoter_id: item.promoter_id ?? null, channel_rate: item.commission_rate ?? '', notes: item.notes, enabled: item.enabled }); modal.value = { kind: 'channel', id: item.id } }
 async function copyLink(item: PromotionChannel) { await navigator.clipboard.writeText(`${window.location.origin}/register?source=${encodeURIComponent(item.code)}`); appStore.showSuccess('推广链接已复制') }
 async function loadBase() { const [a, b] = await Promise.all([promotionAPI.listPromoters(), promotionAPI.listChannels()]); promoters.value = a.data; channels.value = b.data }
 async function loadReport() { loading.value = true; try { report.value = (await promotionAPI.report({ start_time: new Date(`${start.value}T00:00:00`).toISOString(), end_time: new Date(`${end.value}T23:59:59.999`).toISOString(), mode: reportMode.value })).data } catch (error) { appStore.showError(errorMessage(error)) } finally { loading.value = false } }
@@ -147,7 +199,8 @@ async function saveConfig() { if (!modal.value) return; saving.value = true; try
 function openSettlement() { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); settlementForm.value = { period_end: now.toISOString().slice(0, 16), notes: '' } }
 async function createSettlement() { if (!settlementForm.value || !commissionPromoter.value) return; try { await promotionAPI.createSettlement({ promoter_id: commissionPromoter.value, period_end: new Date(settlementForm.value.period_end).toISOString(), notes: settlementForm.value.notes }); settlementForm.value = null; await loadCommissions(); appStore.showSuccess('结算单已生成，确认实际打款后再标记已支付') } catch (error) { appStore.showError(errorMessage(error)) } }
 async function updateSettlement(id: number, status: 'paid' | 'cancelled') { try { await promotionAPI.updateSettlementStatus(id, status); await loadCommissions(); appStore.showSuccess(status === 'paid' ? '结算单已标记支付' : '结算单已取消') } catch (error) { appStore.showError(errorMessage(error)) } }
-function outcomeLabel(value: PromotionAttributionEvent['outcome']) { return ({ attributed: '归因成功', already_attributed: '保留原归因', invalid_code: '无效编码', channel_disabled: '渠道已停用' })[value] }
+function outcomeLabel(value: PromotionAttributionEvent['outcome']) { return ({ attributed: '归因成功', resolved: '归因成功', default_official: '默认官网', already_attributed: '保留原归因', invalid_code: '无效编码', channel_disabled: '渠道已停用' })[value] ?? value }
+function outcomeClass(value: PromotionAttributionEvent['outcome']) { if (value === 'attributed' || value === 'resolved') return 'text-emerald-500'; if (value === 'default_official') return 'text-gray-500'; if (value === 'already_attributed') return 'text-amber-500'; return 'text-red-500' }
 function commissionStatusLabel(value: PromotionCommission['status']) { return ({ frozen: '冻结中', available: '可结算', settled: '已结算', reversed: '已冲正' })[value] }
 function settlementStatusLabel(value: PromotionSettlement['status']) { return ({ draft: '待支付', paid: '已支付', cancelled: '已取消' })[value] }
 watch(tab, value => { if (value === 'attribution') void loadEvents(); if (value === 'commission') void loadCommissions() })

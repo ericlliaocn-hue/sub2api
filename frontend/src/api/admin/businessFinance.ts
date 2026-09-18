@@ -150,7 +150,7 @@ export interface FinanceCostComponent {
 export interface FinanceRiskAlert { severity: string; dimension: string; key: string; name: string; reason: string; operating_profit: number; operating_margin: number; cost_multiplier: number }
 export interface FinanceReport { start_time: string; end_time: string; dimension: string; summary: FinanceMetric; rows: FinanceReportRow[]; trend: FinanceTrendPoint[]; components: FinanceCostComponent[]; alerts: FinanceRiskAlert[] }
 export interface FinanceGrowthSource { source: string; new_users: number; active_users: number; paying_users: number; revenue: number; recharge: number }
-export interface FinanceGrowthReport { start_time: string; end_time: string; new_users: number; active_users: number; online_users: number; paying_users: number; recharge_amount: number; revenue: number; marketing_cost: number; affiliate_cost: number; cac: number; ltv: number; roi: number; by_source: FinanceGrowthSource[] }
+export interface FinanceGrowthReport { start_time: string; end_time: string; new_users: number; active_users: number; online_users: number; paying_users: number; recharge_amount: number; revenue: number; marketing_cost: number; affiliate_cost: number; cac: number; ltv: number; roi: number; by_source: FinanceGrowthSource[]; by_signup_method?: FinanceGrowthSource[] }
 
 const businessFinanceAPI = {
   listCostConfigs() {

@@ -21,15 +21,21 @@ export interface PromotionPromoterInput {
   notes: string
 }
 
+/** 获客分类：官网 / 搜索 / 邀请 / 其他。与后端 service.AcquisitionClass* 一致。 */
+export type AcquisitionClass = 'official' | 'seo' | 'invite' | 'other'
+export const ACQUISITION_CLASSES: AcquisitionClass[] = ['official', 'seo', 'invite', 'other']
+
 export interface PromotionChannel {
   id: number
   code: string
   name: string
-  channel_type: string
+  channel_type: AcquisitionClass | string
   promoter_id?: number | null
   promoter_name?: string
   commission_rate?: number | null
   enabled: boolean
+  /** 系统渠道（OFFICIAL / SEO / INVITE / MANUAL / EXTERNAL）：只能改名称和备注 */
+  system: boolean
   notes: string
   created_at?: string
   updated_at?: string
@@ -38,7 +44,7 @@ export interface PromotionChannel {
 export interface PromotionChannelInput {
   code: string
   name: string
-  channel_type: string
+  channel_type: AcquisitionClass
   promoter_id: number | null
   commission_rate: number | null
   enabled: boolean
@@ -50,8 +56,13 @@ export interface PromotionReportRow {
   code: string
   name: string
   channel_type: string
+  acquisition_class: AcquisitionClass
+  system: boolean
   promoter_name: string
+  visits: number
+  conversion_rate: number
   new_users: number
+  invited_users: number
   paying_users: number
   active_users: number
   recharge: number
@@ -68,12 +79,73 @@ export interface PromotionReportRow {
   roi: number
 }
 
+export interface PromotionReportClassRow {
+  class: AcquisitionClass
+  visits: number
+  conversion_rate: number
+  new_users: number
+  new_users_share: number
+  invited_users: number
+  paying_users: number
+  active_users: number
+  recharge: number
+  revenue: number
+  upstream_cost: number
+  bonus_cost: number
+  affiliate_cost: number
+  commission_cost: number
+  payment_fee: number
+  marketing_cost: number
+  profit: number
+  cac: number
+  ltv: number
+  roi: number
+}
+
+export interface PromotionReportTotals {
+  visits: number
+  conversion_rate: number
+  registered_users: number
+  new_users: number
+  unattributed_users: number
+  invited_users: number
+  paying_users: number
+  active_users: number
+  recharge: number
+  revenue: number
+  profit: number
+}
+
+export interface PromotionBreakdownRow {
+  key: string
+  label: string
+  visits: number
+  new_users: number
+  paying_users: number
+  revenue: number
+  extra: number
+}
+
 export interface PromotionReport {
   start_time: string
   end_time: string
   mode: 'operation' | 'acquisition'
+  totals: PromotionReportTotals
+  classes: PromotionReportClassRow[]
   rows: PromotionReportRow[]
+  seo_engines: PromotionBreakdownRow[]
+  seo_landing_pages: PromotionBreakdownRow[]
+  inviters: PromotionBreakdownRow[]
+  external_hosts: PromotionBreakdownRow[]
 }
+
+export type PromotionAttributionOutcome =
+  | 'attributed'
+  | 'already_attributed'
+  | 'invalid_code'
+  | 'channel_disabled'
+  | 'default_official'
+  | 'resolved'
 
 export interface PromotionAttributionEvent {
   id: number
@@ -82,7 +154,8 @@ export interface PromotionAttributionEvent {
   requested_code: string
   channel_id?: number | null
   channel_name: string
-  outcome: 'attributed' | 'already_attributed' | 'invalid_code' | 'channel_disabled'
+  acquisition_class: AcquisitionClass | ''
+  outcome: PromotionAttributionOutcome
   detail: string
   created_at: string
 }
