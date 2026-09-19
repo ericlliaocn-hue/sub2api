@@ -219,6 +219,9 @@ func (a *Account) IsSchedulable() bool {
 	if a.IsAPIKeyOrBedrock() && a.IsQuotaExceeded() {
 		return false
 	}
+	if openAICodexQuotaExhausted(a, now) {
+		return false
+	}
 	return true
 }
 

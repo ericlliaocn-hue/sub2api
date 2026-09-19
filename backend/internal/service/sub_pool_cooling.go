@@ -151,6 +151,9 @@ func (s *SubPoolCoolingService) RunOnce(ctx context.Context) SubPoolCoolingResul
 			if poolHasUsableAccount(pool, health) {
 				continue
 			}
+			if s.promoteReserveAccounts(ctx, pool, health) && poolHasUsableAccount(pool, health) {
+				continue
+			}
 			migrated := s.cool(ctx, pool, &migrationBudget)
 			result.Cooled++
 			result.Migrated += migrated
@@ -204,6 +207,43 @@ func (s *SubPoolCoolingService) accountHealth(ctx context.Context, pools []SubPo
 // poolHasUsableAccount reports whether any account behind the pool can serve a
 // request right now. A pool with no accounts at all is not "burned" — it is
 // misconfigured, and cooling it would hide that.
+type reserveSchedulableWriter interface {
+	SetSchedulable(ctx context.Context, id int64, schedulable bool) error
+}
+
+func (s *SubPoolCoolingService) promoteReserveAccounts(ctx context.Context, pool *SubPool, health map[int64]bool) bool {
+	if s == nil || s.accounts == nil || pool == nil || len(pool.AccountIDs) == 0 {
+		return false
+	}
+	writer, ok := s.accounts.(reserveSchedulableWriter)
+	if !ok {
+		return false
+	}
+	accounts, err := s.accounts.GetByIDs(ctx, pool.AccountIDs)
+	if err != nil {
+		slog.Warn("sub_pool_reserve_promote_list_failed", "sub_pool_id", pool.ID, "error", err)
+		return false
+	}
+	promoted := false
+	for _, account := range accounts {
+		if account == nil || !IsReserveFleetAccount(account) || account.Status != StatusActive || reserveAuthDead(account) {
+			continue
+		}
+		if account.IsSchedulable() {
+			health[account.ID] = true
+			continue
+		}
+		if err := writer.SetSchedulable(ctx, account.ID, true); err != nil {
+			slog.Warn("sub_pool_reserve_promote_failed", "account_id", account.ID, "error", err)
+			continue
+		}
+		health[account.ID] = true
+		promoted = true
+		slog.Info("sub_pool_reserve_promoted", "account_id", account.ID, "sub_pool_id", pool.ID, "group_id", pool.GroupID)
+	}
+	return promoted
+}
+
 func poolHasUsableAccount(pool *SubPool, health map[int64]bool) bool {
 	if len(pool.AccountIDs) == 0 {
 		return true
@@ -317,9 +357,8 @@ func (s *SubPoolCoolingService) recover(ctx context.Context, pool *SubPool, heal
 	if pool.CoolingReason == nil || *pool.CoolingReason != domain.SubPoolCoolingReasonAccountsUnavailable {
 		return false
 	}
-	if pool.CoolingUntil != nil && timezone.Now().Before(*pool.CoolingUntil) {
-		return false
-	}
+	// A newly attached or restored account should serve immediately. Waiting
+	// out hysteresis left healthy cars idle while every key got pool=0.
 	if !poolHasUsableAccount(pool, health) {
 		return false
 	}

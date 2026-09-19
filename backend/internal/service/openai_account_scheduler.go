@@ -416,7 +416,9 @@ func (s *defaultOpenAIAccountScheduler) Select(
 				groupCompatible = s.service.openAIAccountMatchesSchedulingGroup(selection.Account, req.GroupID)
 			}
 			if !groupCompatible ||
-				!compatible || !s.isAccountTransportCompatible(selection.Account, req.RequiredTransport) {
+				!compatible || !s.isAccountTransportCompatible(selection.Account, req.RequiredTransport) ||
+				(IsReserveFleetAccount(selection.Account) && s.hasSchedulablePrimaryFleet(ctx, req)) ||
+				s.hasBetterPriorityPrimary(ctx, req, selection.Account) {
 				if selection.ReleaseFunc != nil {
 					selection.ReleaseFunc()
 				}
@@ -532,6 +534,18 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		clearBinding()
 		return nil, false, nil
 	}
+	if IsReserveFleetAccount(account) && s.hasSchedulablePrimaryFleet(ctx, req) {
+		clearBinding()
+		return nil, false, nil
+	}
+	if s.hasBetterPriorityPrimary(ctx, req, account) {
+		clearBinding()
+		return nil, false, nil
+	}
+	if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, account); paused {
+		clearBinding()
+		return nil, false, nil
+	}
 	if !s.isAccountRequestCompatible(ctx, account, req) {
 		return nil, false, nil
 	}
@@ -626,6 +640,44 @@ func openAIStickyAccountMatchesGroup(account *Account, groupID *int64) bool {
 	}
 	for _, accountGroup := range account.AccountGroups {
 		if accountGroup.GroupID == *groupID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *defaultOpenAIAccountScheduler) hasSchedulablePrimaryFleet(ctx context.Context, req OpenAIAccountScheduleRequest) bool {
+	if s == nil || s.service == nil {
+		return false
+	}
+	accounts, err := s.service.listSchedulableAccounts(ctx, req.GroupID, req.Platform)
+	if err != nil {
+		return false
+	}
+	for i := range accounts {
+		if !accounts[i].IsSchedulable() || IsReserveFleetAccount(&accounts[i]) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func (s *defaultOpenAIAccountScheduler) hasBetterPriorityPrimary(ctx context.Context, req OpenAIAccountScheduleRequest, current *Account) bool {
+	if s == nil || s.service == nil || current == nil {
+		return false
+	}
+	accounts, err := s.service.listSchedulableAccounts(ctx, req.GroupID, req.Platform)
+	if err != nil {
+		return false
+	}
+	currentPriority := openAIAccountSchedulingPriority(current)
+	for i := range accounts {
+		candidate := &accounts[i]
+		if candidate.ID == current.ID || !candidate.IsSchedulable() || IsReserveFleetAccount(candidate) {
+			continue
+		}
+		if openAIAccountSchedulingPriority(candidate) < currentPriority {
 			return true
 		}
 	}
@@ -1484,6 +1536,14 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	}
 	if len(filtered) == 0 {
 		return nil, 0, 0, 0, noAvailableOpenAISelectionError(req.RequestedModel, false, filterStats.summary(""))
+	}
+	filtered = preferPrimaryFleetAccounts(filtered)
+	loadReq = loadReq[:0]
+	for _, account := range filtered {
+		loadReq = append(loadReq, AccountWithConcurrency{
+			ID:             account.ID,
+			MaxConcurrency: account.EffectiveLoadFactor(),
+		})
 	}
 
 	loadMap := map[int64]*AccountLoadInfo{}

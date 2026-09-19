@@ -216,9 +216,54 @@ func TestCoolingRecoversPoolAfterMinimumDuration(t *testing.T) {
 	}
 }
 
-// Hysteresis: upstream accounts flap in and out of rate limits constantly, so
-// recovery must wait out the minimum cooling period.
-func TestCoolingDoesNotRecoverBeforeMinimumDuration(t *testing.T) {
+type stubCoolingAccountsWriter struct {
+	stubCoolingAccounts
+	enabled []int64
+}
+
+func (s *stubCoolingAccountsWriter) GetByIDs(_ context.Context, ids []int64) ([]*Account, error) {
+	out := make([]*Account, 0, len(ids))
+	for _, id := range ids {
+		account := &Account{
+			ID:          id,
+			Status:      StatusActive,
+			Schedulable: s.schedulable[id],
+			Type:        AccountTypeOAuth,
+			Credentials: map[string]any{"plan_type": "pro"},
+		}
+		out = append(out, account)
+	}
+	return out, nil
+}
+
+func (s *stubCoolingAccountsWriter) SetSchedulable(_ context.Context, id int64, schedulable bool) error {
+	if s.schedulable == nil {
+		s.schedulable = map[int64]bool{}
+	}
+	s.schedulable[id] = schedulable
+	s.enabled = append(s.enabled, id)
+	return nil
+}
+
+func TestCoolingPromotesReserveInsteadOfEmptyingPool(t *testing.T) {
+	repo := &stubCoolingRepo{pools: []SubPool{{
+		ID: 1, GroupID: 19, Kind: domain.SubPoolKindFormal,
+		Status: domain.SubPoolStatusHealthy, AccountIDs: []int64{10},
+	}}}
+	accounts := &stubCoolingAccountsWriter{stubCoolingAccounts: stubCoolingAccounts{schedulable: map[int64]bool{10: false}}}
+	subPools := NewSubPoolService(repo, nil, nil, &stubCoolingUsage{}, nil)
+	svc := NewSubPoolCoolingService(repo, accounts, subPools, nil, nil)
+
+	result := svc.RunOnce(context.Background())
+	if result.Cooled != 0 {
+		t.Fatalf("expected reserve promote to skip cooling, got cooled=%d", result.Cooled)
+	}
+	if len(accounts.enabled) != 1 || accounts.enabled[0] != 10 {
+		t.Fatalf("expected reserve 10 to be enabled, got %v", accounts.enabled)
+	}
+}
+
+func TestCoolingRecoversImmediatelyWhenAccountIsUsable(t *testing.T) {
 	future := time.Now().Add(10 * time.Minute)
 	reason := domain.SubPoolCoolingReasonAccountsUnavailable
 	repo := &stubCoolingRepo{pools: []SubPool{{
@@ -228,8 +273,12 @@ func TestCoolingDoesNotRecoverBeforeMinimumDuration(t *testing.T) {
 	accounts := &stubCoolingAccounts{schedulable: map[int64]bool{10: true}}
 	svc := newCoolingService(repo, accounts, &stubCoolingUsage{})
 
-	if result := svc.RunOnce(context.Background()); result.Recovered != 0 {
-		t.Fatalf("expected no early recovery, got %d", result.Recovered)
+	result := svc.RunOnce(context.Background())
+	if result.Recovered != 1 {
+		t.Fatalf("expected immediate recovery once a car is usable, got %d", result.Recovered)
+	}
+	if repo.updated[0].Status != domain.SubPoolStatusHealthy {
+		t.Errorf("expected healthy, got %q", repo.updated[0].Status)
 	}
 }
 

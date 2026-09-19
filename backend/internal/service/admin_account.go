@@ -498,6 +498,8 @@ func prepareUpstreamCostConfigForCreate(input *CreateAccountInput, accountExtra 
 }
 
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
+	s.applyDefaultCreateProxy(ctx, input)
+	s.applyDefaultCreateAttachSubPools(input)
 	accountExtra, err := normalizeOpenAILongContextBillingExtra(input.Platform, input.Extra)
 	if err != nil {
 		return nil, err

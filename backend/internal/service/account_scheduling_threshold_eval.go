@@ -46,20 +46,23 @@ func EvaluateAccountSchedulingThreshold(account *Account, thresholds map[string]
 
 	threshold, ok := resolveEffectiveAccountSchedulingThreshold(account, thresholds, decision.Platform)
 	decision.ThresholdPercent = threshold
-	if !ok || threshold >= 100 {
-		return decision
+	evalThreshold := 100
+	if ok && threshold > 0 && threshold < 100 {
+		evalThreshold = threshold
+	} else if !ok {
+		decision.ThresholdPercent = 100
 	}
 
 	var winner *accountSchedulingThresholdCandidate
 	switch decision.Platform {
 	case PlatformOpenAI:
-		winner = pickLatestResetSchedulingCandidate(openAIThresholdCandidates(account, now), threshold, now)
+		winner = pickLatestResetSchedulingCandidate(openAIThresholdCandidates(account, now), evalThreshold, now)
 	case PlatformAnthropic:
-		winner = pickLatestResetSchedulingCandidate(anthropicThresholdCandidates(account), threshold, now)
+		winner = pickLatestResetSchedulingCandidate(anthropicThresholdCandidates(account), evalThreshold, now)
 	case PlatformGrok:
-		winner = pickLatestResetSchedulingCandidate(grokThresholdCandidates(account), threshold, now)
+		winner = pickLatestResetSchedulingCandidate(grokThresholdCandidates(account), evalThreshold, now)
 	case PlatformKimi, PlatformZhipu, PlatformMiniMax, PlatformOpenCodeGo:
-		winner = pickLatestResetSchedulingCandidate(cnProviderThresholdCandidates(account, decision.Platform), threshold, now)
+		winner = pickLatestResetSchedulingCandidate(cnProviderThresholdCandidates(account, decision.Platform), evalThreshold, now)
 	default:
 		return decision
 	}

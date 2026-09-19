@@ -275,11 +275,39 @@ func (s *SubPoolService) Delete(ctx context.Context, id int64) error {
 // scheduling cache immediately: a stale allowlist here means traffic keeps
 // hitting an account that was just pulled out of the pool.
 func (s *SubPoolService) SetAccounts(ctx context.Context, subPoolID int64, accountIDs []int64) error {
-	if err := s.repo.SetAccounts(ctx, subPoolID, dedupeInt64(accountIDs)); err != nil {
+	next := dedupeInt64(accountIDs)
+	if err := s.repo.SetAccounts(ctx, subPoolID, next); err != nil {
 		return err
 	}
 	s.membership.Invalidate(subPoolID)
+	s.uncoolIfAccountsUnavailable(ctx, subPoolID, next)
 	return nil
+}
+
+func (s *SubPoolService) uncoolIfAccountsUnavailable(ctx context.Context, subPoolID int64, accountIDs []int64) {
+	if s == nil || s.repo == nil || subPoolID <= 0 || len(accountIDs) == 0 {
+		return
+	}
+	pool, err := s.repo.GetByID(ctx, subPoolID)
+	if err != nil || pool == nil {
+		return
+	}
+	if pool.Status != domain.SubPoolStatusCooling {
+		return
+	}
+	if pool.CoolingReason == nil || *pool.CoolingReason != domain.SubPoolCoolingReasonAccountsUnavailable {
+		return
+	}
+	pool.AccountIDs = append([]int64(nil), accountIDs...)
+	pool.Status = domain.SubPoolStatusHealthy
+	pool.CoolingUntil = nil
+	pool.CoolingReason = nil
+	if err := s.repo.Update(ctx, pool); err != nil {
+		slog.Warn("sub_pool_uncool_on_attach_failed", "sub_pool_id", subPoolID, "error", err)
+		return
+	}
+	s.membership.Invalidate(subPoolID)
+	slog.Info("sub_pool_uncooled_on_attach", "sub_pool_id", subPoolID, "group_id", pool.GroupID)
 }
 
 func (s *SubPoolService) normalize(pool *SubPool) error {
