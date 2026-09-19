@@ -152,6 +152,9 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
+	if s.acquisitionAttributor != nil {
+		_ = s.acquisitionAttributor.AttributeManualCreation(ctx, user.ID, input.ActorAdminID)
+	}
 	// 创建管理员属权限敏感操作，落审计日志（含操作者），便于事后追溯。
 	if user.Role == RoleAdmin {
 		logger.LegacyPrintf("service.admin", "audit: admin user created actor_admin_id=%d target_user_id=%d",

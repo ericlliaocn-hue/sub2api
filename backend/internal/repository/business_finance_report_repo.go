@@ -560,10 +560,28 @@ func (r *businessFinanceRepository) GetBusinessFinanceGrowth(ctx context.Context
 		report.ROI = (report.Revenue - report.MarketingCost - report.AffiliateCost) / report.MarketingCost
 	}
 
+	// 获客来源：与推广报表同一口径（official / seo / invite / other），没有归因行的老用户按官网。
+	bySource, err := r.queryGrowthBySource(ctx, `COALESCE(a.acquisition_class, 'official')`, `LEFT JOIN promotion_user_attributions a ON a.user_id = us.id`, filter.StartTime, filter.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	report.BySource = orderGrowthSources(bySource, service.AcquisitionClassOrder)
+
+	// 注册方式：只是登录手段，单独一张表，不再冒充“来源”。
+	byMethod, err := r.queryGrowthBySource(ctx, `COALESCE(NULLIF(us.signup_source, ''), 'unknown')`, ``, filter.StartTime, filter.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	report.BySignupMethod = byMethod
+	return &report, nil
+}
+
+func (r *businessFinanceRepository) queryGrowthBySource(ctx context.Context, sourceExpr, extraJoin string, start, end time.Time) ([]service.FinanceGrowthSource, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		WITH cohort AS (
-			SELECT id, COALESCE(NULLIF(signup_source, ''), 'unknown') AS source
-			FROM users WHERE created_at >= $1 AND created_at < $2
+			SELECT us.id, `+sourceExpr+` AS source
+			FROM users us `+extraJoin+`
+			WHERE us.created_at >= $1 AND us.created_at < $2
 		), usage AS (
 			SELECT user_id, SUM(actual_cost)::double precision AS revenue
 			FROM usage_logs WHERE created_at >= $1 AND created_at < $2 GROUP BY user_id
@@ -579,20 +597,41 @@ func (r *businessFinanceRepository) GetBusinessFinanceGrowth(ctx context.Context
 		       COALESCE(SUM(u.revenue), 0)::double precision,
 		       COALESCE(SUM(p.recharge), 0)::double precision
 		FROM cohort c LEFT JOIN usage u ON u.user_id = c.id LEFT JOIN payments p ON p.user_id = c.id
-		GROUP BY c.source ORDER BY COUNT(*) DESC, c.source`, filter.StartTime, filter.EndTime)
+		GROUP BY c.source ORDER BY COUNT(*) DESC, c.source`, start, end)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	out := []service.FinanceGrowthSource{}
 	for rows.Next() {
 		var item service.FinanceGrowthSource
 		if err := rows.Scan(&item.Source, &item.NewUsers, &item.ActiveUsers, &item.PayingUsers, &item.Revenue, &item.Recharge); err != nil {
 			return nil, err
 		}
-		report.BySource = append(report.BySource, item)
+		out = append(out, item)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	return out, rows.Err()
+}
+
+// orderGrowthSources 固定四分类顺序，缺的补 0 行，多出来的（不该有）排在最后。
+func orderGrowthSources(items []service.FinanceGrowthSource, order []string) []service.FinanceGrowthSource {
+	byKey := map[string]service.FinanceGrowthSource{}
+	for _, item := range items {
+		byKey[item.Source] = item
 	}
-	return &report, nil
+	out := make([]service.FinanceGrowthSource, 0, len(order)+len(items))
+	for _, key := range order {
+		item, ok := byKey[key]
+		if !ok {
+			item = service.FinanceGrowthSource{Source: key}
+		}
+		out = append(out, item)
+		delete(byKey, key)
+	}
+	for _, item := range items {
+		if _, leftover := byKey[item.Source]; leftover {
+			out = append(out, item)
+		}
+	}
+	return out
 }

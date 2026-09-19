@@ -191,10 +191,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	// 落地证据优先来自 s2a_touch Cookie（中间件已放进 ctx）；表单里的 source / aff_code 只补空位。
 	ctx := c.Request.Context()
-	if strings.TrimSpace(req.Source) != "" {
-		ctx = service.WithPromotionSource(ctx, req.Source)
+	touch := service.AcquisitionTouchFromContext(ctx)
+	if touch.Source == "" && strings.TrimSpace(req.Source) != "" {
+		touch.Source = strings.TrimSpace(req.Source)
 	}
+	if touch.AffCode == "" && strings.TrimSpace(req.AffCode) != "" {
+		touch.AffCode = strings.TrimSpace(req.AffCode)
+	}
+	ctx = service.WithAcquisitionTouch(ctx, touch)
 	_, user, err := h.authService.RegisterWithVerification(
 		ctx,
 		req.Email,

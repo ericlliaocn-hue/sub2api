@@ -448,7 +448,10 @@ type FinanceGrowthReport struct {
 	CAC            float64               `json:"cac"`
 	LTV            float64               `json:"ltv"`
 	ROI            float64               `json:"roi"`
-	BySource       []FinanceGrowthSource `json:"by_source"`
+	// BySource 获客来源（official / seo / invite / other），与推广报表同一口径。
+	BySource []FinanceGrowthSource `json:"by_source"`
+	// BySignupMethod 注册方式（email / github / linuxdo ...），只是登录手段，不是获客来源。
+	BySignupMethod []FinanceGrowthSource `json:"by_signup_method"`
 }
 
 type FinanceRiskAlert struct {

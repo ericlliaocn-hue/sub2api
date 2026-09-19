@@ -197,6 +197,17 @@ export async function getCurrentUser() {
 }
 
 /**
+ * 获客落地信标：服务端计访问并写 s2a_touch Cookie。失败静默。
+ */
+export async function sendAcquisitionTouch(href: string, referrer: string): Promise<void> {
+  try {
+    await apiClient.post('/auth/touch', { href, referrer }, { timeout: 5000 })
+  } catch {
+    // 信标不影响任何功能
+  }
+}
+
+/**
  * User logout
  * Clears authentication token and user data from localStorage
  * Optionally revokes the refresh token on the server

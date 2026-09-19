@@ -733,10 +733,16 @@ type adminServiceImpl struct {
 	// Optional: import-time hang onto formal/observation pools. Wired after
 	// construction so NewAdminService stays compatible with official upstream.
 	subPoolAttacher accountSubPoolAttacher
+	// Optional: 后台建号归因到 MANUAL，不污染官网注册数。
+	acquisitionAttributor manualAcquisitionAttributor
 }
 
 type accountSubPoolAttacher interface {
 	AttachAccountOnCreate(ctx context.Context, accountID int64, groupIDs []int64, mode string) error
+}
+
+type manualAcquisitionAttributor interface {
+	AttributeManualCreation(ctx context.Context, userID int64, actorUserID int64) error
 }
 
 // ChannelCacheInvalidator 失效渠道缓存。
@@ -818,4 +824,12 @@ func (s *adminServiceImpl) SetSubPoolAttacher(attacher accountSubPoolAttacher) {
 		return
 	}
 	s.subPoolAttacher = attacher
+}
+
+// SetAcquisitionAttributor 注册后台建号的获客归因（MANUAL）。测试可留空。
+func (s *adminServiceImpl) SetAcquisitionAttributor(attributor manualAcquisitionAttributor) {
+	if s == nil {
+		return
+	}
+	s.acquisitionAttributor = attributor
 }
