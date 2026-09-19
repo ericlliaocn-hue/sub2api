@@ -423,9 +423,9 @@ type CreateAccountInput struct {
 	// SkipMixedChannelCheck skips the mixed channel risk check when binding groups.
 	// This should only be set when the caller has explicitly confirmed the risk.
 	SkipMixedChannelCheck bool
-	// AttachSubPools optionally hangs the new account on the selected group's
-	// formal and/or observation sub-pools. Empty means leave pool membership
-	// untouched (the historical create behavior).
+	// AttachSubPools hangs the new account on the selected group's formal
+	// and/or observation sub-pools. Empty defaults to the formal pool so a
+	// new car is actually schedulable for pool-bound keys. Pass "none" to skip.
 	AttachSubPools string
 }
 

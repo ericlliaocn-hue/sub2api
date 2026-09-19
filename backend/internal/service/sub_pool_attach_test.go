@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
@@ -58,6 +59,29 @@ func (s *attachPoolRepoStub) SetAccounts(_ context.Context, subPoolID int64, acc
 	return nil
 }
 
+func (s *attachPoolRepoStub) GetByID(_ context.Context, id int64) (*SubPool, error) {
+	for i := range s.pools {
+		if s.pools[i].ID == id {
+			pool := s.pools[i]
+			return &pool, nil
+		}
+	}
+	return &SubPool{ID: id, Status: domain.SubPoolStatusHealthy}, nil
+}
+
+func (s *attachPoolRepoStub) Update(_ context.Context, pool *SubPool) error {
+	if pool == nil {
+		return nil
+	}
+	for i := range s.pools {
+		if s.pools[i].ID == pool.ID {
+			s.pools[i] = *pool
+			return nil
+		}
+	}
+	return nil
+}
+
 type attachGroupRepoStub struct {
 	GroupRepository
 	enabled bool
@@ -85,6 +109,26 @@ func TestAttachAccountOnCreateBothPools(t *testing.T) {
 	}
 	if got := repo.setCalls[1]; len(got) != 2 || got[0] != 11 || got[1] != 99 {
 		t.Fatalf("observation accounts = %v", got)
+	}
+}
+
+func TestSetAccountsUncoolsUnavailablePool(t *testing.T) {
+	reason := domain.SubPoolCoolingReasonAccountsUnavailable
+	future := time.Now().Add(15 * time.Minute)
+	repo := &attachPoolRepoStub{pools: []SubPool{{
+		ID: 6, Name: "正池", Kind: domain.SubPoolKindFormal,
+		Status: domain.SubPoolStatusCooling, AccountIDs: []int64{10},
+		CoolingReason: &reason, CoolingUntil: &future,
+	}}}
+	svc := NewSubPoolService(repo, &attachGroupRepoStub{enabled: true}, nil, nil, NewSubPoolMembership(repo))
+	if err := svc.SetAccounts(context.Background(), 6, []int64{10, 99}); err != nil {
+		t.Fatal(err)
+	}
+	if repo.pools[0].Status != domain.SubPoolStatusHealthy {
+		t.Fatalf("status = %q, want healthy", repo.pools[0].Status)
+	}
+	if repo.pools[0].CoolingReason != nil || repo.pools[0].CoolingUntil != nil {
+		t.Fatal("expected cooling fields cleared")
 	}
 }
 

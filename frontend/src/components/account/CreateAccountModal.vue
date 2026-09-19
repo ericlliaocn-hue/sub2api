@@ -4110,6 +4110,7 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import { pickDefaultCreateAccountProxyId } from '@/utils/defaultCreateAccountProxy'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
 import CnBaseUrlPresets from '@/components/account/CnBaseUrlPresets.vue'
 import OpenCodeGoProtocolRulesEditor from '@/components/account/OpenCodeGoProtocolRulesEditor.vue'
@@ -4988,7 +4989,7 @@ const form = reactive({
   platform: 'anthropic' as AccountPlatform,
   type: 'oauth' as AccountType, // Will be 'oauth', 'setup-token', or 'apikey'
   credentials: {} as Record<string, unknown>,
-  proxy_id: null as number | null,
+  proxy_id: pickDefaultCreateAccountProxyId([]) as number | null,
   concurrency: 10,
   load_factor: null as number | null,
   priority: 1,
@@ -5054,9 +5055,22 @@ const canExchangeCode = computed(() => {
 
 // Watchers
 watch(
+  () => props.proxies,
+  () => {
+    if (form.proxy_id == null) {
+      form.proxy_id = pickDefaultCreateAccountProxyId(props.proxies)
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
+      if (form.proxy_id == null) {
+        form.proxy_id = pickDefaultCreateAccountProxyId(props.proxies)
+      }
       // Load TLS fingerprint profiles
       adminAPI.tlsFingerprintProfiles.list()
         .then(profiles => { tlsFingerprintProfiles.value = profiles.map(p => ({ id: p.id, name: p.name })) })
@@ -5594,7 +5608,7 @@ const resetForm = () => {
   form.platform = 'anthropic'
   form.type = 'oauth'
   form.credentials = {}
-  form.proxy_id = null
+  form.proxy_id = pickDefaultCreateAccountProxyId(props.proxies)
   form.concurrency = 10
   form.load_factor = null
   form.priority = 1

@@ -101,6 +101,48 @@ func TestAccountIsSchedulable_QuotaExceeded(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "openai oauth 7d exhausted is unschedulable",
+			account: &Account{
+				Platform:    PlatformOpenAI,
+				Status:      StatusActive,
+				Schedulable: true,
+				Type:        AccountTypeOAuth,
+				Extra: map[string]any{
+					"codex_7d_used_percent": 100.0,
+					"codex_7d_reset_at":     now.Add(24 * time.Hour).Format(time.RFC3339),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "openai oauth 7d not exhausted stays schedulable",
+			account: &Account{
+				Platform:    PlatformOpenAI,
+				Status:      StatusActive,
+				Schedulable: true,
+				Type:        AccountTypeOAuth,
+				Extra: map[string]any{
+					"codex_7d_used_percent": 99.0,
+					"codex_7d_reset_at":     now.Add(24 * time.Hour).Format(time.RFC3339),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "openai oauth 7d reset restores schedulable",
+			account: &Account{
+				Platform:    PlatformOpenAI,
+				Status:      StatusActive,
+				Schedulable: true,
+				Type:        AccountTypeOAuth,
+				Extra: map[string]any{
+					"codex_7d_used_percent": 100.0,
+					"codex_7d_reset_at":     now.Add(-time.Minute).Format(time.RFC3339),
+				},
+			},
+			want: true,
+		},
+		{
 			name: "bedrock quota exceeded",
 			account: &Account{
 				Status:      StatusActive,

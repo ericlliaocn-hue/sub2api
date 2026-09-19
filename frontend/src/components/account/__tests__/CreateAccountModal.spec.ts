@@ -142,9 +142,9 @@ const ModelWhitelistSelectorStub = defineComponent({
   >models</button>`,
 })
 
-function mountModal(groups: any[] = []) {
+function mountModal(groups: any[] = [], proxies: any[] = []) {
   return mount(CreateAccountModal, {
-    props: { show: true, proxies: [], groups },
+    props: { show: true, proxies, groups },
     global: {
       stubs: {
         BaseDialog: BaseDialogStub,
@@ -761,5 +761,20 @@ describe('CreateAccountModal sub-pool attach on create', () => {
     await flushPromises()
 
     expect(createAccountMock.mock.calls[0]?.[0]?.attach_sub_pools).toBeUndefined()
+  })
+
+  it('defaults new and imported accounts onto JP-WARP-SSH-103', async () => {
+    const wrapper = mountModal(subPoolGroups, [
+      { id: 2, name: 'SG-OpenAI-01', status: 'active' },
+      { id: 5, name: 'JP-WARP-SSH-103', status: 'active' },
+    ])
+    await selectButtonByText(wrapper, 'OpenAI')
+    await selectButtonByText(wrapper, 'API Key')
+    await wrapper.get('form#create-account-form input[type="text"]').setValue('donna')
+    await wrapper.get('form#create-account-form input[type="password"]').setValue('sk-test')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createAccountMock.mock.calls[0]?.[0]?.proxy_id).toBe(5)
   })
 })
