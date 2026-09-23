@@ -63,6 +63,15 @@ export interface BusinessCostConfigInput {
   notes?: string
 }
 
+export interface ExpenseRecoup {
+  account_id: number
+  account_name?: string
+  billed: number
+  requests: number
+  cost: number
+  profit: number
+}
+
 export interface BusinessExpense {
   id: number
   category: FinanceCategory
@@ -80,6 +89,7 @@ export interface BusinessExpense {
   created_by?: number | null
   created_at: string
   updated_at: string
+  recoup?: ExpenseRecoup | null
 }
 
 export interface BusinessExpenseInput {
@@ -152,6 +162,55 @@ export interface FinanceReport { start_time: string; end_time: string; dimension
 export interface FinanceGrowthSource { source: string; new_users: number; active_users: number; paying_users: number; revenue: number; recharge: number }
 export interface FinanceGrowthReport { start_time: string; end_time: string; new_users: number; active_users: number; online_users: number; paying_users: number; recharge_amount: number; revenue: number; marketing_cost: number; affiliate_cost: number; cac: number; ltv: number; roi: number; by_source: FinanceGrowthSource[]; by_signup_method?: FinanceGrowthSource[] }
 
+export interface ProfitCalendarRow {
+  account_ids: number[]
+  account_name: string
+  imported_at: string
+  status: string
+  schedulable: boolean
+  expense_id?: number | null
+  cost: number
+  cost_recorded: boolean
+  requests: number
+  official_tokens: number
+  official_billing: number
+  user_billing: number
+  profit: number
+}
+
+export interface ProfitCalendarDay {
+  date: string
+  rows: ProfitCalendarRow[]
+  cost: number
+  official_tokens: number
+  official_billing: number
+  user_billing: number
+  profit: number
+  recorded: number
+  unrecorded: number
+}
+
+export interface ProfitCalendarSummary {
+  accounts: number
+  recorded: number
+  unrecorded: number
+  recouped: number
+  short: number
+  cost: number
+  official_tokens: number
+  official_billing: number
+  user_billing: number
+  profit: number
+}
+
+export interface ProfitCalendar {
+  start_time: string
+  end_time: string
+  timezone: string
+  days: ProfitCalendarDay[]
+  summary: ProfitCalendarSummary
+}
+
 const businessFinanceAPI = {
   listCostConfigs() {
     return apiClient.get<BusinessCostConfig[]>('/admin/business-finance/cost-configs')
@@ -171,8 +230,10 @@ const businessFinanceAPI = {
   listExpenses(params?: {
     page?: number
     page_size?: number
-    category?: FinanceCategory
-    status?: 'active' | 'void'
+    category?: FinanceCategory | ''
+    status?: 'active' | 'void' | 'all'
+    keyword?: string
+    account_id?: number
     start_time?: string
     end_time?: string
   }) {
@@ -198,6 +259,9 @@ const businessFinanceAPI = {
   },
   getGrowth(params?: { start_time?: string; end_time?: string }) {
     return apiClient.get<FinanceGrowthReport>('/admin/business-finance/growth', { params })
+  },
+  getProfitCalendar(params?: { start_time?: string; end_time?: string }) {
+    return apiClient.get<ProfitCalendar>('/admin/business-finance/profit-calendar', { params })
   },
 }
 

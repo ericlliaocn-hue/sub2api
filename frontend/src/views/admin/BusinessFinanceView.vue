@@ -5,7 +5,7 @@
         <div>
           <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">经营管理</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            维护周期成本和费用台账，经营仪表盘会按用量、上游成本和分摊规则生成利润报表。
+            按导入日看进货、官方量和用户扣费。买号后记到费用台账，日历会自动合并重复账号。
           </p>
         </div>
         <button class="btn btn-secondary" :disabled="loading" @click="reload">
@@ -16,6 +16,14 @@
       <div class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
         <button
           class="border-b-2 px-4 py-3 text-sm font-medium"
+          data-testid="tab-calendar"
+          :class="activeTab === 'calendar' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500'"
+          @click="activeTab = 'calendar'"
+        >
+          利润日历
+        </button>
+        <button
+          class="border-b-2 px-4 py-3 text-sm font-medium"
           :class="activeTab === 'configs' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500'"
           @click="activeTab = 'configs'"
         >
@@ -23,12 +31,24 @@
         </button>
         <button
           class="border-b-2 px-4 py-3 text-sm font-medium"
+          data-testid="tab-expenses"
           :class="activeTab === 'expenses' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500'"
           @click="activeTab = 'expenses'"
         >
           费用台账
         </button>
       </div>
+
+      <section v-if="activeTab === 'calendar'" class="card p-6">
+        <ProfitCalendarBoard
+          :calendar="calendar"
+          :start-date="calendarStart"
+          :end-date="calendarEnd"
+          @reload="loadCalendar"
+          @preset="applyCalendarPreset"
+          @update="onCalendarDate"
+        />
+      </section>
 
       <section v-if="activeTab === 'configs'" class="space-y-6">
         <div class="card p-6">
@@ -131,41 +151,28 @@
       </section>
 
       <section v-else-if="activeTab === 'expenses'" class="space-y-6">
-        <div class="card p-6">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div><h2 class="font-semibold text-gray-900 dark:text-white">费用台账</h2></div>
-            <button class="btn btn-primary" @click="startNewExpense">新增费用</button>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
-              <thead class="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-dark-700"><tr><th class="px-3 py-3">名称</th><th class="px-3 py-3">类别</th><th class="px-3 py-3">金额</th><th class="px-3 py-3">发生时间</th><th class="px-3 py-3">费用周期</th><th class="px-3 py-3">分摊方式</th><th class="px-3 py-3">作用范围</th><th class="px-3 py-3">状态</th><th class="px-3 py-3">操作</th></tr></thead>
-              <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-                <tr v-for="item in expenses" :key="item.id"><td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ item.name }}</div><div class="text-xs text-gray-500">{{ item.notes }}</div></td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ categoryLabel(item.category) }}</td><td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.amount.toFixed(2) }} {{ item.currency }}</td><td class="px-3 py-3 text-gray-500">{{ formatDate(item.occurred_at) }}</td><td class="px-3 py-3 text-gray-500">{{ formatPeriod(item.period_start, item.period_end) }}</td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ allocationMethodLabel(item.allocation_method) }}</td><td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ formatScope(item.scope) }}</td><td class="px-3 py-3"><span class="badge" :class="item.status === 'active' ? 'badge-success' : 'badge-secondary'">{{ item.status === 'active' ? '有效' : '已作废' }}</span></td><td class="px-3 py-3"><div class="flex gap-2"><button v-if="item.status === 'active'" class="btn btn-secondary btn-sm" @click="editExpense(item)">编辑</button><button v-if="item.status === 'active'" class="btn btn-danger btn-sm" @click="voidExpense(item.id)">作废</button></div></td></tr>
-                <tr v-if="!expenses.length"><td colspan="9" class="px-3 py-10 text-center text-sm text-gray-500">暂无费用记录</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="mt-4 flex items-center justify-between text-sm text-gray-500"><span>共 {{ expenseTotal }} 条</span><div class="flex gap-2"><button class="btn btn-secondary btn-sm" :disabled="expensePage <= 1" @click="expensePage--; loadExpenses()">上一页</button><button class="btn btn-secondary btn-sm" :disabled="expenses.length < pageSize" @click="expensePage++; loadExpenses()">下一页</button></div></div>
-        </div>
-
         <div v-if="expenseFormVisible" class="card p-6">
-          <div class="mb-4 flex items-center justify-between"><h2 class="font-semibold text-gray-900 dark:text-white">{{ editingExpenseId ? '编辑费用' : '新增费用' }}</h2><button class="text-sm text-gray-500" @click="expenseFormVisible = false">取消</button></div>
+          <div class="mb-4 flex items-center justify-between">
+            <div>
+              <h2 class="font-semibold text-gray-900 dark:text-white">{{ editingExpenseId ? '编辑费用' : '记一笔采购' }}</h2>
+              <p class="mt-1 text-xs text-gray-500">按 1 元 = 1 计费单位看回本。绑上账号后，列表会按费用周期汇总实收。</p>
+            </div>
+            <button class="text-sm text-gray-500" @click="expenseFormVisible = false">取消</button>
+          </div>
           <form class="grid gap-4 md:grid-cols-2" @submit.prevent="saveExpense">
-            <label class="field"><span>名称</span><input v-model="expenseForm.name" class="input" required maxlength="128" /></label>
+            <label class="field"><span>名称</span><input v-model="expenseForm.name" class="input" required maxlength="128" placeholder="账号邮箱或这笔费用叫什么" /></label>
             <label class="field">
               <span>类别</span>
               <div class="relative">
-                <select v-model="expenseForm.category" class="input appearance-none pr-10">
+                <select v-model="expenseForm.category" class="input appearance-none pr-10" @change="onExpenseCategoryChange">
                   <option v-for="value in categories" :key="value" :value="value">{{ categoryLabel(value) }}</option>
                 </select>
                 <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
               </div>
             </label>
-            <label class="field"><span>金额</span><input v-model.number="expenseForm.amount" class="input" type="number" min="0" step="0.00000001" required /></label>
+            <label class="field"><span>进货金额</span><input v-model.number="expenseForm.amount" class="input" type="number" min="0" step="0.01" required /></label>
             <label class="field"><span>币种</span><input v-model="expenseForm.currency" class="input" maxlength="3" /></label>
-            <label class="field"><span>发生时间</span><input v-model="expenseForm.occurred_at" class="input" type="datetime-local" required /></label>
-            <label class="field"><span>费用周期开始（可选）</span><input v-model="expenseForm.period_start" class="input" type="datetime-local" /></label>
-            <label class="field"><span>费用周期结束（可选）</span><input v-model="expenseForm.period_end" class="input" type="datetime-local" /></label>
+            <label class="field"><span>入账时间</span><input v-model="expenseForm.occurred_at" class="input" type="datetime-local" required /></label>
             <label class="field">
               <span>分摊方式</span>
               <div class="relative">
@@ -175,10 +182,116 @@
                 <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
               </div>
             </label>
-            <label class="field md:col-span-2"><span>作用范围 JSON</span><textarea v-model="expenseScopeJSON" class="input min-h-20 font-mono text-xs" placeholder="{} 或 {&quot;group_id&quot;: 1} / {&quot;channel_id&quot;: 2} / {&quot;model&quot;: &quot;gpt-4o&quot;}"></textarea><small class="text-gray-500">留空或填写 {} 表示全局；支持 group_id、channel_id、account_id、model，可组合填写。</small></label>
+            <label class="field"><span>周期开始</span><input v-model="expenseForm.period_start" class="input" type="datetime-local" /></label>
+            <label class="field"><span>周期结束</span><input v-model="expenseForm.period_end" class="input" type="datetime-local" /></label>
+            <div class="md:col-span-2">
+              <FinanceScopeFields v-model="expenseScopeFields" :groups="groupOptions" :channels="channelOptions" @account-selected="onExpenseAccountSelected" />
+            </div>
             <label class="field md:col-span-2"><span>备注</span><input v-model="expenseForm.notes" class="input" maxlength="500" /></label>
             <div class="flex justify-end gap-2 md:col-span-2"><button type="button" class="btn btn-secondary" @click="expenseFormVisible = false">取消</button><button class="btn btn-primary" :disabled="saving">{{ saving ? '保存中…' : '保存' }}</button></div>
           </form>
+        </div>
+
+        <div class="card p-6">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 class="font-semibold text-gray-900 dark:text-white">费用台账</h2>
+              <p class="mt-1 text-xs text-gray-500">买号记一笔、绑上账号，就能在这里看出本和利润，不用再对聊天记录。</p>
+            </div>
+            <button class="btn btn-primary" data-testid="expense-create" @click="startNewExpense">记一笔采购</button>
+          </div>
+
+          <div class="mb-4 grid gap-3 md:grid-cols-4">
+            <label class="field"><span>搜索</span><input v-model="expenseKeyword" class="input" placeholder="名称或备注" @keydown.enter="applyExpenseFilters" /></label>
+            <label class="field">
+              <span>类别</span>
+              <div class="relative">
+                <select v-model="expenseCategoryFilter" class="input appearance-none pr-10">
+                  <option value="">全部类别</option>
+                  <option v-for="value in categories" :key="value" :value="value">{{ categoryLabel(value) }}</option>
+                </select>
+                <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+              </div>
+            </label>
+            <label class="field">
+              <span>状态</span>
+              <div class="relative">
+                <select v-model="expenseStatusFilter" class="input appearance-none pr-10">
+                  <option value="active">有效</option>
+                  <option value="void">已作废</option>
+                  <option value="all">全部</option>
+                </select>
+                <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+              </div>
+            </label>
+            <div class="flex items-end gap-2">
+              <button type="button" class="btn btn-secondary" data-testid="expense-filter" @click="applyExpenseFilters">筛选</button>
+              <button type="button" class="btn btn-secondary" @click="resetExpenseFilters">重置</button>
+            </div>
+          </div>
+
+          <div v-if="expenseRecoupSummary.bound" class="mb-4 grid gap-3 sm:grid-cols-3" data-testid="expense-recoup-summary">
+            <div class="rounded-xl border border-gray-200/80 px-3 py-2.5 dark:border-dark-700">
+              <div class="text-[11px] font-medium uppercase tracking-wide text-gray-400">本页进货</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums">{{ money(expenseRecoupSummary.cost) }}</div>
+            </div>
+            <div class="rounded-xl border border-gray-200/80 px-3 py-2.5 dark:border-dark-700">
+              <div class="text-[11px] font-medium uppercase tracking-wide text-gray-400">已收回</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums">{{ money(expenseRecoupSummary.billed) }}</div>
+            </div>
+            <div class="rounded-xl border border-gray-200/80 px-3 py-2.5 dark:border-dark-700">
+              <div class="text-[11px] font-medium uppercase tracking-wide text-gray-400">利润</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums" :class="expenseRecoupSummary.profit < 0 ? 'text-red-600' : 'text-emerald-600'">{{ money(expenseRecoupSummary.profit) }}</div>
+              <div class="mt-0.5 text-xs text-gray-500">过本 {{ expenseRecoupSummary.recouped }} · 未过本 {{ expenseRecoupSummary.short }}</div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+              <thead class="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-dark-700">
+                <tr>
+                  <th class="px-3 py-3">名称</th>
+                  <th class="px-3 py-3">类别</th>
+                  <th class="px-3 py-3">进货</th>
+                  <th class="px-3 py-3">已收回</th>
+                  <th class="px-3 py-3">利润</th>
+                  <th class="px-3 py-3">周期</th>
+                  <th class="px-3 py-3">绑定</th>
+                  <th class="px-3 py-3">状态</th>
+                  <th class="px-3 py-3">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
+                <tr v-for="item in expenses" :key="item.id">
+                  <td class="px-3 py-3">
+                    <div class="font-medium text-gray-900 dark:text-white">{{ item.name }}</div>
+                    <div class="text-xs text-gray-500">{{ item.notes }}</div>
+                  </td>
+                  <td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ categoryLabel(item.category) }}</td>
+                  <td class="px-3 py-3 tabular-nums text-gray-900 dark:text-white">{{ money(item.amount) }} {{ item.currency }}</td>
+                  <td class="px-3 py-3">
+                    <template v-if="item.recoup">
+                      <div class="tabular-nums">{{ money(item.recoup.billed) }}</div>
+                      <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                        <div class="h-full rounded-full" :class="item.recoup.profit >= 0 ? 'bg-emerald-500' : 'bg-amber-500'" :style="{ width: `${recoupBarWidth(item.recoup)}%` }" />
+                      </div>
+                      <div class="mt-0.5 text-[11px] text-gray-400">{{ item.recoup.requests }} 次</div>
+                    </template>
+                    <span v-else class="text-xs text-gray-400">未绑账号</span>
+                  </td>
+                  <td class="px-3 py-3 tabular-nums" :class="item.recoup && item.recoup.profit < 0 ? 'text-red-600' : item.recoup ? 'text-emerald-600' : 'text-gray-400'">
+                    {{ item.recoup ? money(item.recoup.profit) : '—' }}
+                  </td>
+                  <td class="px-3 py-3 text-gray-500">{{ formatPeriod(item.period_start, item.period_end) }}</td>
+                  <td class="px-3 py-3 text-gray-600 dark:text-gray-300">{{ expenseScopeLabel(item) }}</td>
+                  <td class="px-3 py-3"><span class="badge" :class="item.status === 'active' ? 'badge-success' : 'badge-secondary'">{{ item.status === 'active' ? '有效' : '已作废' }}</span></td>
+                  <td class="px-3 py-3"><div class="flex gap-2"><button v-if="item.status === 'active'" class="btn btn-secondary btn-sm" @click="editExpense(item)">编辑</button><button v-if="item.status === 'active'" class="btn btn-danger btn-sm" @click="voidExpense(item.id)">作废</button></div></td>
+                </tr>
+                <tr v-if="!expenses.length"><td colspan="9" class="px-3 py-10 text-center text-sm text-gray-500">还没有费用。买号后点「记一笔采购」，绑上账号就能看回本。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-4 flex items-center justify-between text-sm text-gray-500"><span>共 {{ expenseTotal }} 条</span><div class="flex gap-2"><button class="btn btn-secondary btn-sm" :disabled="expensePage <= 1" @click="expensePage--; loadExpenses()">上一页</button><button class="btn btn-secondary btn-sm" :disabled="expenses.length < pageSize" @click="expensePage++; loadExpenses()">下一页</button></div></div>
         </div>
       </section>
 
@@ -187,13 +300,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import FinanceScopeFields from '@/components/admin/finance/FinanceScopeFields.vue'
+import ProfitCalendarBoard from '@/components/admin/finance/ProfitCalendarBoard.vue'
 import { useAppStore } from '@/stores/app'
-import businessFinanceAPI, { type BusinessCostConfig, type BusinessExpense, type BusinessCostConfigInput, type BusinessExpenseInput, type FinanceCategory, type AllocationMethod, type CostFrequency } from '@/api/admin/businessFinance'
+import { list as listChannels } from '@/api/admin/channels'
+import { list as listGroups } from '@/api/admin/groups'
+import businessFinanceAPI, { type BusinessCostConfig, type BusinessExpense, type BusinessCostConfigInput, type BusinessExpenseInput, type ExpenseRecoup, type FinanceCategory, type AllocationMethod, type CostFrequency, type ProfitCalendar } from '@/api/admin/businessFinance'
+import { buildFinanceScope, emptyFinanceScopeFields, formatScopeLabel, readFinanceScope, recoupProgress, summarizeExpenseRecoup, type FinanceScopeFields as ScopeFields } from './businessFinanceScope'
 
 const appStore = useAppStore()
-const activeTab = ref<'configs' | 'expenses'>('configs')
+const activeTab = ref<'calendar' | 'configs' | 'expenses'>('calendar')
+const calendar = ref<ProfitCalendar | null>(null)
+const calendarStart = ref(shiftShanghaiDate(-6))
+const calendarEnd = ref(shiftShanghaiDate(0))
 const loading = ref(false)
 const saving = ref(false)
 const configs = ref<BusinessCostConfig[]>([])
@@ -252,9 +373,15 @@ function frequencyLabel(value: CostFrequency) {
 }
 
 const configForm = reactive<BusinessCostConfigInput & { effective_from: string; effective_to: string; enabled: boolean }>({ code: '', name: '', category: 'server', amount: 0, currency: 'CNY', exchange_rate_to_billing_unit: 1, allocation_method: 'revenue_share', frequency: 'monthly', scope: {}, effective_from: toLocalInput(new Date().toISOString()), effective_to: '', enabled: true, notes: '' })
-const expenseForm = reactive<BusinessExpenseInput>({ category: 'server', name: '', amount: 0, currency: 'CNY', exchange_rate_to_billing_unit: 1, occurred_at: toLocalInput(new Date().toISOString()), allocation_method: 'revenue_share', scope: {}, notes: '' })
+const expenseForm = reactive<BusinessExpenseInput & { period_start?: string | null; period_end?: string | null }>({ category: 'account_purchase', name: '', amount: 0, currency: 'CNY', exchange_rate_to_billing_unit: 1, occurred_at: toLocalInput(new Date().toISOString()), allocation_method: 'direct', scope: {}, notes: '', period_start: '', period_end: '' })
 const configScopeJSON = ref('{}')
-const expenseScopeJSON = ref('{}')
+const expenseScopeFields = ref<ScopeFields>(emptyFinanceScopeFields())
+const expenseKeyword = ref('')
+const expenseCategoryFilter = ref<FinanceCategory | ''>('')
+const expenseStatusFilter = ref<'active' | 'void' | 'all'>('active')
+const groupOptions = ref<{ id: number; name: string }[]>([])
+const channelOptions = ref<{ id: number; name: string }[]>([])
+const expenseRecoupSummary = computed(() => summarizeExpenseRecoup(expenses.value))
 
 
 async function loadConfigs() {
@@ -263,21 +390,79 @@ async function loadConfigs() {
 }
 
 async function loadExpenses() {
-  const { data } = await businessFinanceAPI.listExpenses({ page: expensePage.value, page_size: pageSize })
+  const { data } = await businessFinanceAPI.listExpenses({
+    page: expensePage.value,
+    page_size: pageSize,
+    keyword: expenseKeyword.value.trim() || undefined,
+    category: expenseCategoryFilter.value || undefined,
+    status: expenseStatusFilter.value,
+  })
   expenses.value = data.items || []
   expenseTotal.value = data.total || 0
 }
 
+async function loadCalendar() {
+  const { start_time, end_time } = shanghaiRange(calendarStart.value, calendarEnd.value)
+  const { data } = await businessFinanceAPI.getProfitCalendar({ start_time, end_time })
+  calendar.value = data
+}
+
+function onCalendarDate(field: 'start' | 'end', value: string) {
+  if (field === 'start') calendarStart.value = value
+  else calendarEnd.value = value
+}
+
+function applyCalendarPreset(kind: '2d' | '7d' | 'month') {
+  if (kind === '2d') {
+    calendarStart.value = shiftShanghaiDate(-2)
+    calendarEnd.value = shiftShanghaiDate(-1)
+  } else if (kind === '7d') {
+    calendarStart.value = shiftShanghaiDate(-6)
+    calendarEnd.value = shiftShanghaiDate(0)
+  } else {
+    const now = shanghaiNow()
+    calendarStart.value = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`
+    calendarEnd.value = shiftShanghaiDate(0)
+  }
+  void loadCalendar()
+}
+
+async function loadScopeOptions() {
+  try {
+    const [groups, channels] = await Promise.all([
+      listGroups(1, 100, { status: 'active' }),
+      listChannels(1, 100),
+    ])
+    groupOptions.value = (groups.items || []).map((item) => ({ id: item.id, name: item.name }))
+    channelOptions.value = (channels.items || []).map((item) => ({ id: item.id, name: item.name }))
+  } catch {
+    groupOptions.value = []
+    channelOptions.value = []
+  }
+}
 
 async function reload() {
   loading.value = true
   try {
-    await Promise.all([loadConfigs(), loadExpenses()])
+    await Promise.all([loadCalendar(), loadConfigs(), loadExpenses(), loadScopeOptions()])
   } catch (error) {
     appStore.showError(error instanceof Error ? error.message : '经营数据加载失败')
   } finally {
     loading.value = false
   }
+}
+
+function applyExpenseFilters() {
+  expensePage.value = 1
+  void loadExpenses()
+}
+
+function resetExpenseFilters() {
+  expenseKeyword.value = ''
+  expenseCategoryFilter.value = ''
+  expenseStatusFilter.value = 'active'
+  expensePage.value = 1
+  void loadExpenses()
 }
 
 
@@ -333,22 +518,40 @@ async function deleteConfig(item: BusinessCostConfig) {
 
 function startNewExpense() {
   editingExpenseId.value = null
-  Object.assign(expenseForm, { category: 'server', name: '', amount: 0, currency: 'CNY', exchange_rate_to_billing_unit: 1, occurred_at: toLocalInput(new Date().toISOString()), period_start: null, period_end: null, allocation_method: 'revenue_share', scope: {}, notes: '' })
-  expenseScopeJSON.value = '{}'
+  Object.assign(expenseForm, { category: 'account_purchase', name: '', amount: 0, currency: 'CNY', exchange_rate_to_billing_unit: 1, occurred_at: toLocalInput(new Date().toISOString()), period_start: toLocalInput(new Date().toISOString()), period_end: '', allocation_method: 'direct', scope: {}, notes: '' })
+  expenseScopeFields.value = emptyFinanceScopeFields()
   expenseFormVisible.value = true
 }
 
 function editExpense(item: BusinessExpense) {
   editingExpenseId.value = item.id
   Object.assign(expenseForm, { ...item, occurred_at: toLocalInput(item.occurred_at), period_start: optionalLocalInput(item.period_start), period_end: optionalLocalInput(item.period_end) })
-  expenseScopeJSON.value = stringifyScope(item.scope)
+  expenseScopeFields.value = readFinanceScope(item.scope)
   expenseFormVisible.value = true
+}
+
+function onExpenseCategoryChange() {
+  if (expenseForm.category === 'account_purchase' && expenseForm.allocation_method === 'revenue_share') {
+    expenseForm.allocation_method = 'direct'
+  }
+}
+
+function onExpenseAccountSelected(account: { id: number; name: string; created_at?: string; expires_at?: number | null }) {
+  if (!expenseForm.name.trim()) expenseForm.name = account.name
+  if (account.created_at) expenseForm.period_start = toLocalInput(account.created_at)
+  if (account.expires_at) expenseForm.period_end = toLocalInput(new Date(account.expires_at * 1000).toISOString())
 }
 
 async function saveExpense() {
   saving.value = true
   try {
-    const input: BusinessExpenseInput = { ...expenseForm, scope: parseScope(expenseScopeJSON.value), occurred_at: new Date(expenseForm.occurred_at).toISOString(), period_start: toOptionalISOString(expenseForm.period_start), period_end: toOptionalISOString(expenseForm.period_end) }
+    const input: BusinessExpenseInput = {
+      ...expenseForm,
+      scope: buildFinanceScope(expenseScopeFields.value),
+      occurred_at: new Date(expenseForm.occurred_at).toISOString(),
+      period_start: toOptionalISOString(expenseForm.period_start),
+      period_end: toOptionalISOString(expenseForm.period_end),
+    }
     if (editingExpenseId.value) await businessFinanceAPI.updateExpense(editingExpenseId.value, input)
     else await businessFinanceAPI.createExpense(input)
     expenseFormVisible.value = false
@@ -369,9 +572,34 @@ function formatPeriod(start: string | null | undefined, end: string | null | und
 function formatScope(scope: Record<string, unknown> | undefined) { return scope && Object.keys(scope).length ? Object.entries(scope).map(([key, value]) => `${key}=${String(value)}`).join(', ') : '全局' }
 function stringifyScope(scope: Record<string, unknown> | undefined) { return JSON.stringify(scope || {}, null, 2) }
 function parseScope(raw: string) { const parsed: unknown = JSON.parse(raw.trim() || '{}'); if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('作用范围必须是 JSON 对象'); return parsed as Record<string, unknown> }
+function money(value: number) { return (value || 0).toFixed(2) }
+function recoupBarWidth(recoup: ExpenseRecoup) { return recoupProgress(recoup) }
+function expenseScopeLabel(item: BusinessExpense) {
+  const fields = readFinanceScope(item.scope)
+  return formatScopeLabel(item.scope, {
+    account: item.recoup?.account_name,
+    group: groupOptions.value.find((group) => group.id === fields.groupId)?.name,
+    channel: channelOptions.value.find((channel) => channel.id === fields.channelId)?.name,
+  })
+}
 function optionalLocalInput(value: string | null | undefined) { return value ? toLocalInput(value) : '' }
 function toOptionalISOString(value: string | null | undefined) { return value ? new Date(value).toISOString() : null }
 function toLocalInput(value: string) { const date = new Date(value); const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16) }
+function pad2(value: number) { return String(value).padStart(2, '0') }
+function shanghaiNow() { return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })) }
+function shiftShanghaiDate(days: number) {
+  const date = shanghaiNow()
+  date.setDate(date.getDate() + days)
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+}
+function shanghaiRange(startDate: string, endDate: string) {
+  const [year, month, day] = endDate.split('-').map(Number)
+  const next = new Date(Date.UTC(year, month - 1, day + 1))
+  return {
+    start_time: `${startDate}T00:00:00+08:00`,
+    end_time: `${next.getUTCFullYear()}-${pad2(next.getUTCMonth() + 1)}-${pad2(next.getUTCDate())}T00:00:00+08:00`,
+  }
+}
 
 onMounted(reload)
 </script>

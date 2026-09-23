@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 type businessFinanceRepository struct {
@@ -108,6 +111,14 @@ func (r *businessFinanceRepository) ListExpenses(ctx context.Context, filter ser
 	if filter.Status != "" {
 		add("status = $%d", filter.Status)
 	}
+	if keyword := likePattern(filter.Keyword); keyword != "" {
+		args = append(args, keyword)
+		n := len(args)
+		where = append(where, fmt.Sprintf("(name ILIKE $%d ESCAPE '\\' OR notes ILIKE $%d ESCAPE '\\')", n, n))
+	}
+	if filter.AccountID > 0 {
+		add("COALESCE(scope->>'account_id', '') = $%d", strconv.FormatInt(filter.AccountID, 10))
+	}
 	if filter.StartTime != nil {
 		add("COALESCE(period_end, occurred_at + interval '1 microsecond') > $%d", *filter.StartTime)
 	}
@@ -148,7 +159,92 @@ func (r *businessFinanceRepository) ListExpenses(ctx context.Context, filter ser
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
+	if err := r.attachExpenseRecoups(ctx, items); err != nil {
+		return nil, 0, err
+	}
 	return items, total, nil
+}
+
+func (r *businessFinanceRepository) attachExpenseRecoups(ctx context.Context, items []service.ExpenseEntry) error {
+	if len(items) == 0 {
+		return nil
+	}
+	now := time.Now().UTC()
+	slots := make([]int32, 0, len(items))
+	accountIDs := make([]int64, 0, len(items))
+	starts := make([]time.Time, 0, len(items))
+	ends := make([]time.Time, 0, len(items))
+	for i, item := range items {
+		accountID, start, end, ok := service.ExpenseRecoupWindow(item, now)
+		if !ok {
+			continue
+		}
+		slots = append(slots, int32(i))
+		accountIDs = append(accountIDs, accountID)
+		starts = append(starts, start)
+		ends = append(ends, end)
+	}
+	if len(slots) == 0 {
+		return nil
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT t.slot,
+		       t.account_id,
+		       COALESCE(MAX(a.name), ''),
+		       COALESCE(SUM(ul.actual_cost), 0)::double precision,
+		       COUNT(ul.id)
+		FROM UNNEST($1::int[], $2::bigint[], $3::timestamptz[], $4::timestamptz[]) AS t(slot, account_id, start_at, end_at)
+		LEFT JOIN accounts a ON a.id = t.account_id AND a.deleted_at IS NULL
+		LEFT JOIN usage_logs ul ON ul.account_id = t.account_id
+		  AND ul.created_at >= t.start_at AND ul.created_at < t.end_at
+		GROUP BY t.slot, t.account_id`,
+		pq.Array(slots), pq.Array(accountIDs), pq.Array(starts), pq.Array(ends),
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	type recoupHit struct {
+		accountID int64
+		name      string
+		billed    float64
+		requests  int64
+	}
+	found := make(map[int]recoupHit, len(slots))
+	for rows.Next() {
+		var slot int
+		var hit recoupHit
+		if err := rows.Scan(&slot, &hit.accountID, &hit.name, &hit.billed, &hit.requests); err != nil {
+			return err
+		}
+		found[slot] = hit
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, slot := range slots {
+		itemIndex := int(slot)
+		hit, ok := found[itemIndex]
+		if !ok {
+			accountID, _ := service.FinanceScopeAccountID(items[itemIndex].Scope)
+			service.ApplyExpenseRecoup(&items[itemIndex], accountID, 0, 0, "")
+			continue
+		}
+		service.ApplyExpenseRecoup(&items[itemIndex], hit.accountID, hit.billed, hit.requests, hit.name)
+	}
+	return nil
+}
+
+func likePattern(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return "%" + replacer.Replace(raw) + "%"
 }
 
 func (r *businessFinanceRepository) CreateExpense(ctx context.Context, input service.ExpenseInput, createdBy int64) (*service.ExpenseEntry, error) {

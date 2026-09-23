@@ -67,6 +67,18 @@ type ExpenseEntry struct {
 	CreatedBy        *int64         `json:"created_by,omitempty"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
+	Recoup           *ExpenseRecoup `json:"recoup,omitempty"`
+}
+
+// ExpenseRecoup is the live billed amount for an account-scoped expense.
+// Cost uses amount * exchange_rate (1 CNY = 1 billing unit when rate is 1).
+type ExpenseRecoup struct {
+	AccountID   int64   `json:"account_id"`
+	AccountName string  `json:"account_name,omitempty"`
+	Billed      float64 `json:"billed"`
+	Requests    int64   `json:"requests"`
+	Cost        float64 `json:"cost"`
+	Profit      float64 `json:"profit"`
 }
 
 type ExpenseInput struct {
@@ -88,6 +100,8 @@ type ExpenseListFilter struct {
 	PageSize  int
 	Category  string
 	Status    string
+	Keyword   string
+	AccountID int64
 	StartTime *time.Time
 	EndTime   *time.Time
 }
@@ -106,6 +120,7 @@ type BusinessFinanceRepository interface {
 	CreateUpstreamCostVersion(ctx context.Context, input UpstreamCostVersionInput, createdBy int64) (*UpstreamCostVersion, error)
 	GetBusinessFinanceReport(ctx context.Context, filter FinanceReportFilter) (*FinanceReport, error)
 	GetBusinessFinanceGrowth(ctx context.Context, filter FinanceReportFilter) (*FinanceGrowthReport, error)
+	GetProfitCalendar(ctx context.Context, start, end time.Time) (*ProfitCalendar, error)
 }
 
 type BusinessFinanceService struct {
@@ -152,6 +167,10 @@ func (s *BusinessFinanceService) DeleteCostConfig(ctx context.Context, id int64)
 }
 
 func (s *BusinessFinanceService) ListExpenses(ctx context.Context, filter ExpenseListFilter) ([]ExpenseEntry, int, error) {
+	return s.repo.ListExpenses(ctx, normalizeExpenseListFilter(filter))
+}
+
+func normalizeExpenseListFilter(filter ExpenseListFilter) ExpenseListFilter {
 	if filter.Page <= 0 {
 		filter.Page = 1
 	}
@@ -161,10 +180,16 @@ func (s *BusinessFinanceService) ListExpenses(ctx context.Context, filter Expens
 	if filter.PageSize > 100 {
 		filter.PageSize = 100
 	}
-	if filter.Status == "" {
+	if strings.EqualFold(filter.Status, "all") {
+		filter.Status = ""
+	} else if filter.Status == "" {
 		filter.Status = "active"
 	}
-	return s.repo.ListExpenses(ctx, filter)
+	filter.Keyword = strings.TrimSpace(filter.Keyword)
+	if filter.AccountID < 0 {
+		filter.AccountID = 0
+	}
+	return filter
 }
 
 func (s *BusinessFinanceService) CreateExpense(ctx context.Context, input ExpenseInput, createdBy int64) (*ExpenseEntry, error) {
@@ -435,19 +460,19 @@ type FinanceGrowthSource struct {
 }
 
 type FinanceGrowthReport struct {
-	StartTime      time.Time             `json:"start_time"`
-	EndTime        time.Time             `json:"end_time"`
-	NewUsers       int64                 `json:"new_users"`
-	ActiveUsers    int64                 `json:"active_users"`
-	OnlineUsers    int64                 `json:"online_users"`
-	PayingUsers    int64                 `json:"paying_users"`
-	RechargeAmount float64               `json:"recharge_amount"`
-	Revenue        float64               `json:"revenue"`
-	MarketingCost  float64               `json:"marketing_cost"`
-	AffiliateCost  float64               `json:"affiliate_cost"`
-	CAC            float64               `json:"cac"`
-	LTV            float64               `json:"ltv"`
-	ROI            float64               `json:"roi"`
+	StartTime      time.Time `json:"start_time"`
+	EndTime        time.Time `json:"end_time"`
+	NewUsers       int64     `json:"new_users"`
+	ActiveUsers    int64     `json:"active_users"`
+	OnlineUsers    int64     `json:"online_users"`
+	PayingUsers    int64     `json:"paying_users"`
+	RechargeAmount float64   `json:"recharge_amount"`
+	Revenue        float64   `json:"revenue"`
+	MarketingCost  float64   `json:"marketing_cost"`
+	AffiliateCost  float64   `json:"affiliate_cost"`
+	CAC            float64   `json:"cac"`
+	LTV            float64   `json:"ltv"`
+	ROI            float64   `json:"roi"`
 	// BySource 获客来源（official / seo / invite / other），与推广报表同一口径。
 	BySource []FinanceGrowthSource `json:"by_source"`
 	// BySignupMethod 注册方式（email / github / linuxdo ...），只是登录手段，不是获客来源。
@@ -473,6 +498,14 @@ func (s *BusinessFinanceService) GetBusinessFinanceReport(ctx context.Context, f
 func (s *BusinessFinanceService) GetBusinessFinanceGrowth(ctx context.Context, filter FinanceReportFilter) (*FinanceGrowthReport, error) {
 	filter = normalizeFinanceReportFilter(filter)
 	return s.repo.GetBusinessFinanceGrowth(ctx, filter)
+}
+
+func (s *BusinessFinanceService) GetProfitCalendar(ctx context.Context, start, end time.Time) (*ProfitCalendar, error) {
+	start, end, err := NormalizeProfitCalendarRange(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetProfitCalendar(ctx, start, end)
 }
 
 func normalizeFinanceReportFilter(filter FinanceReportFilter) FinanceReportFilter {

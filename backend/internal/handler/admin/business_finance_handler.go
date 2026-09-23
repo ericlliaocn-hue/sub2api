@@ -143,6 +143,15 @@ func (h *BusinessFinanceHandler) ListExpenses(c *gin.Context) {
 		PageSize: pageSize,
 		Category: strings.TrimSpace(strings.ToLower(c.Query("category"))),
 		Status:   strings.TrimSpace(strings.ToLower(c.DefaultQuery("status", "active"))),
+		Keyword:  strings.TrimSpace(c.Query("keyword")),
+	}
+	if value := strings.TrimSpace(c.Query("account_id")); value != "" {
+		accountID, parseErr := strconv.ParseInt(value, 10, 64)
+		if parseErr != nil || accountID <= 0 {
+			response.BadRequest(c, "Invalid account_id")
+			return
+		}
+		filter.AccountID = accountID
 	}
 	var err error
 	filter.StartTime, err = parseFinanceQueryTime(c.Query("start_time"))
@@ -279,6 +288,36 @@ func (h *BusinessFinanceHandler) GetGrowth(c *gin.Context) {
 		return
 	}
 	response.Success(c, report)
+}
+
+func (h *BusinessFinanceHandler) GetProfitCalendar(c *gin.Context) {
+	start, err := parseFinanceQueryTime(c.Query("start_time"))
+	if err != nil {
+		response.BadRequest(c, "Invalid start_time")
+		return
+	}
+	end, err := parseFinanceQueryTime(c.Query("end_time"))
+	if err != nil {
+		response.BadRequest(c, "Invalid end_time")
+		return
+	}
+	var startTime, endTime time.Time
+	if start != nil {
+		startTime = *start
+	}
+	if end != nil {
+		endTime = *end
+	}
+	calendar, err := h.financeService.GetProfitCalendar(c.Request.Context(), startTime, endTime)
+	if err != nil {
+		if strings.Contains(err.Error(), "start_time") || strings.Contains(err.Error(), "end_time") || strings.Contains(err.Error(), "range") {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, calendar)
 }
 
 func toCostConfigInput(req businessCostConfigRequest) (service.CostConfigInput, error) {
