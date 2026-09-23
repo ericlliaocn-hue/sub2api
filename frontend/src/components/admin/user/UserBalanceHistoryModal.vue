@@ -176,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
@@ -192,13 +192,15 @@ const { t } = useI18n()
 const history = ref<BalanceHistoryItem[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
-let historyRequest = 0
 const currentPage = ref(1)
 const total = ref(0)
 const totalRecharged = ref(0)
 const pageSize = 15
 const typeFilter = ref('')
 const ledgerTypes = ['registration_bonus', 'initial_balance', 'admin_bonus_granted', 'recharge_bonus_granted', 'bonus_expired', 'payment_refund', 'bonus_expiry_changed', 'subscription_created', 'subscription_changed', 'subscription_removed']
+let requestVersion = 0
+
+onUnmounted(() => { requestVersion++ })
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 
@@ -216,6 +218,7 @@ const typeOptions = computed(() => [
 
 // Watch modal open
 watch(() => props.show, (v) => {
+  requestVersion++
   if (v && props.user) {
     typeFilter.value = ''
     loadHistory(1)
@@ -224,7 +227,7 @@ watch(() => props.show, (v) => {
 
 const loadHistory = async (page: number) => {
   if (!props.user) return
-  const request = ++historyRequest
+  const version = ++requestVersion
   loading.value = true
   loadFailed.value = false
   currentPage.value = page
@@ -235,17 +238,17 @@ const loadHistory = async (page: number) => {
       pageSize,
       typeFilter.value || undefined
     )
-    if (request !== historyRequest) return
+    if (version !== requestVersion) return
     history.value = res.items || []
     total.value = res.total || 0
     totalRecharged.value = res.total_recharged || 0
   } catch (error) {
-    if (request !== historyRequest) return
+    if (version !== requestVersion) return
     history.value = []
     loadFailed.value = true
     console.error('Failed to load balance history:', error)
   } finally {
-    if (request === historyRequest) loading.value = false
+    if (version === requestVersion) loading.value = false
   }
 }
 
