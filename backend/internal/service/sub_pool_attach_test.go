@@ -25,6 +25,21 @@ func TestPickFormalAndObservationPools(t *testing.T) {
 	}
 }
 
+func TestPickFormalPoolSkipsDedicatedAndSplit(t *testing.T) {
+	formal := SubPool{ID: 6, Name: "正池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, SortOrder: 0}
+	watch := SubPool{ID: 7, Name: "观察池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, SortOrder: 10}
+	dedi := SubPool{ID: 9, Name: "605专车", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, SortOrder: 1}
+	split := SubPool{ID: 8, Name: "生图分流", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, SortOrder: 2}
+
+	got := PickFormalPool([]SubPool{watch, dedi, split, formal})
+	if got == nil || got.ID != 6 {
+		t.Fatalf("formal = %+v, want 正池 6", got)
+	}
+	if PickFormalPool([]SubPool{watch, dedi, split}) != nil {
+		t.Fatal("expected no formal target when only isolation leftovers exist")
+	}
+}
+
 func TestNormalizeAttachSubPools(t *testing.T) {
 	got, err := NormalizeAttachSubPools(" BOTH ")
 	if err != nil || got != AttachSubPoolsBoth {

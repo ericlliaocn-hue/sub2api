@@ -49,7 +49,11 @@ func TestApplyDefaultCreateAttachSubPools(t *testing.T) {
 
 	input = &CreateAccountInput{AttachSubPools: "none"}
 	svc.applyDefaultCreateAttachSubPools(input)
-	require.Equal(t, "none", input.AttachSubPools)
+	require.Equal(t, AttachSubPoolsFormal, input.AttachSubPools)
+
+	input = &CreateAccountInput{AttachSubPools: AttachSubPoolsBoth}
+	svc.applyDefaultCreateAttachSubPools(input)
+	require.Equal(t, AttachSubPoolsBoth, input.AttachSubPools)
 
 	svc = &adminServiceImpl{}
 	input = &CreateAccountInput{}

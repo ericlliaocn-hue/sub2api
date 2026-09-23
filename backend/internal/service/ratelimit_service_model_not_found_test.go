@@ -69,6 +69,24 @@ func TestRateLimitService_HandleUpstreamError_ModelNotFoundUsesModelRateLimit(t 
 	require.WithinDuration(t, time.Now().Add(upstreamModelNotFoundCooldown), call.resetAt, 5*time.Second)
 }
 
+func TestRateLimitService_HandleUpstreamModelNotFound_SkipsGPT6SolCooldown(t *testing.T) {
+	repo := &modelNotFoundAccountRepoStub{}
+	svc := &RateLimitService{accountRepo: repo}
+	account := openAIModelNotFoundTempAccount()
+
+	handled := svc.HandleUpstreamModelNotFound(
+		context.Background(),
+		account,
+		"gpt-6-sol",
+		http.StatusNotFound,
+		[]byte(`{"error":{"code":"model_not_found","message":"The model gpt-6-sol does not exist or you do not have access to it."}}`),
+	)
+
+	require.True(t, handled)
+	require.Empty(t, repo.modelRateLimitCalls)
+	require.Zero(t, repo.tempCalls)
+}
+
 func TestRateLimitService_HandleUpstreamError_ModelNotFoundWriteFailureDoesNotTempUnschedule(t *testing.T) {
 	repo := &modelNotFoundAccountRepoStub{modelRateLimitErr: errors.New("write failed")}
 	svc := &RateLimitService{accountRepo: repo}

@@ -219,6 +219,7 @@ func TestCoolingRecoversPoolAfterMinimumDuration(t *testing.T) {
 type stubCoolingAccountsWriter struct {
 	stubCoolingAccounts
 	enabled []int64
+	primary map[int64]bool
 }
 
 func (s *stubCoolingAccountsWriter) GetByIDs(_ context.Context, ids []int64) ([]*Account, error) {
@@ -230,6 +231,9 @@ func (s *stubCoolingAccountsWriter) GetByIDs(_ context.Context, ids []int64) ([]
 			Schedulable: s.schedulable[id],
 			Type:        AccountTypeOAuth,
 			Credentials: map[string]any{"plan_type": "pro"},
+		}
+		if s.primary[id] {
+			account.Extra = map[string]any{ExtraFleetRoleKey: FleetRolePrimary}
 		}
 		out = append(out, account)
 	}
@@ -243,6 +247,53 @@ func (s *stubCoolingAccountsWriter) SetSchedulable(_ context.Context, id int64, 
 	s.schedulable[id] = schedulable
 	s.enabled = append(s.enabled, id)
 	return nil
+}
+
+func TestCoolingDoesNotPromoteReserveWhenGroupStillHasPrimary(t *testing.T) {
+	repo := &stubCoolingRepo{pools: []SubPool{
+		{ID: 6, GroupID: 19, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, AccountIDs: []int64{20}},
+		{ID: 11, GroupID: 19, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, AccountIDs: []int64{10}},
+	}}
+	accounts := &stubCoolingAccountsWriter{
+		stubCoolingAccounts: stubCoolingAccounts{schedulable: map[int64]bool{20: true, 10: false}},
+		primary:             map[int64]bool{20: true},
+	}
+	subPools := NewSubPoolService(repo, nil, nil, &stubCoolingUsage{}, nil)
+	svc := NewSubPoolCoolingService(repo, accounts, subPools, nil, nil)
+
+	result := svc.RunOnce(context.Background())
+	if len(accounts.enabled) != 0 {
+		t.Fatalf("group still has a primary; reserve must stay off, got enabled=%v", accounts.enabled)
+	}
+	if result.Cooled != 1 {
+		t.Fatalf("expected the empty split pool to cool, got cooled=%d", result.Cooled)
+	}
+}
+
+func TestCoolingPromotesReserveWhenGroupPrimaryIsDead(t *testing.T) {
+	reason := domain.SubPoolCoolingReasonAccountsUnavailable
+	future := time.Now().Add(10 * time.Minute)
+	repo := &stubCoolingRepo{pools: []SubPool{
+		{ID: 6, GroupID: 19, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy, AccountIDs: []int64{20}},
+		{ID: 11, GroupID: 19, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusCooling, AccountIDs: []int64{10}, CoolingUntil: &future, CoolingReason: &reason},
+	}}
+	accounts := &stubCoolingAccountsWriter{
+		stubCoolingAccounts: stubCoolingAccounts{schedulable: map[int64]bool{20: false, 10: false}},
+		primary:             map[int64]bool{20: true},
+	}
+	subPools := NewSubPoolService(repo, nil, nil, &stubCoolingUsage{}, nil)
+	svc := NewSubPoolCoolingService(repo, accounts, subPools, nil, nil)
+
+	result := svc.RunOnce(context.Background())
+	if len(accounts.enabled) != 1 || accounts.enabled[0] != 10 {
+		t.Fatalf("primary is dead; reserve must come back, got enabled=%v", accounts.enabled)
+	}
+	if result.Cooled != 1 {
+		t.Fatalf("formal pool with only the dead primary should cool, got cooled=%d", result.Cooled)
+	}
+	if result.Recovered != 1 {
+		t.Fatalf("cooling leftover should recover once reserve is on, got recovered=%d", result.Recovered)
+	}
 }
 
 func TestCoolingPromotesReserveInsteadOfEmptyingPool(t *testing.T) {

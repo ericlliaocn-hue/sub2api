@@ -534,6 +534,10 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		clearBinding()
 		return nil, false, nil
 	}
+	if s.dailyThrowawayForbids(ctx, req, account) {
+		clearBinding()
+		return nil, false, nil
+	}
 	if IsReserveFleetAccount(account) && s.hasSchedulablePrimaryFleet(ctx, req) {
 		clearBinding()
 		return nil, false, nil
@@ -646,6 +650,17 @@ func openAIStickyAccountMatchesGroup(account *Account, groupID *int64) bool {
 	return false
 }
 
+func (s *defaultOpenAIAccountScheduler) dailyThrowawayForbids(ctx context.Context, req OpenAIAccountScheduleRequest, account *Account) bool {
+	if s == nil || account == nil || !IsDailyThrowawayForbiddenAccount(account) {
+		return false
+	}
+	if req.GroupID == nil || s.service == nil || s.service.schedulerSnapshot == nil {
+		return false
+	}
+	group, _ := s.service.schedulerSnapshot.GetGroupByID(ctx, *req.GroupID)
+	return IsDailyThrowawayGroup(group)
+}
+
 func (s *defaultOpenAIAccountScheduler) hasSchedulablePrimaryFleet(ctx context.Context, req OpenAIAccountScheduleRequest) bool {
 	if s == nil || s.service == nil {
 		return false
@@ -655,7 +670,7 @@ func (s *defaultOpenAIAccountScheduler) hasSchedulablePrimaryFleet(ctx context.C
 		return false
 	}
 	for i := range accounts {
-		if !accounts[i].IsSchedulable() || IsReserveFleetAccount(&accounts[i]) {
+		if !accounts[i].IsSchedulable() || IsReserveFleetAccount(&accounts[i]) || s.dailyThrowawayForbids(ctx, req, &accounts[i]) {
 			continue
 		}
 		return true
@@ -674,7 +689,7 @@ func (s *defaultOpenAIAccountScheduler) hasBetterPriorityPrimary(ctx context.Con
 	currentPriority := openAIAccountSchedulingPriority(current)
 	for i := range accounts {
 		candidate := &accounts[i]
-		if candidate.ID == current.ID || !candidate.IsSchedulable() || IsReserveFleetAccount(candidate) {
+		if candidate.ID == current.ID || !candidate.IsSchedulable() || IsReserveFleetAccount(candidate) || s.dailyThrowawayForbids(ctx, req, candidate) {
 			continue
 		}
 		if openAIAccountSchedulingPriority(candidate) < currentPriority {
@@ -1526,6 +1541,10 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		}
 		if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
 			filterStats.exclude("transport_incompatible")
+			continue
+		}
+		if IsDailyThrowawayGroup(schedGroup) && IsDailyThrowawayForbiddenAccount(account) {
+			filterStats.exclude("ripao_forbidden")
 			continue
 		}
 		filtered = append(filtered, account)

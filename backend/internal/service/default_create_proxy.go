@@ -18,7 +18,8 @@ func (s *adminServiceImpl) applyDefaultCreateAttachSubPools(input *CreateAccount
 	if input == nil || s == nil || s.subPoolAttacher == nil {
 		return
 	}
-	if strings.TrimSpace(input.AttachSubPools) != "" {
+	mode := strings.ToLower(strings.TrimSpace(input.AttachSubPools))
+	if mode == AttachSubPoolsBoth {
 		return
 	}
 	input.AttachSubPools = AttachSubPoolsFormal

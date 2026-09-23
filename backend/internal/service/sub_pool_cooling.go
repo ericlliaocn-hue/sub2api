@@ -138,7 +138,10 @@ func (s *SubPoolCoolingService) RunOnce(ctx context.Context) SubPoolCoolingResul
 		return result
 	}
 
-	health := s.accountHealth(ctx, pools)
+	health, listed := s.accountHealth(ctx, pools)
+	// 20x 兜底看整组还有没有主号：主号活着不准拉备用号；主号全死再拉，
+	// 而且要扫整组（含已冷却的分流池），不能只看当前这个池。
+	s.promoteGroupReserves(ctx, pools, listed, health)
 	migrationBudget := subPoolMigrationsPerCycle
 
 	for i := range pools {
@@ -149,9 +152,6 @@ func (s *SubPoolCoolingService) RunOnce(ctx context.Context) SubPoolCoolingResul
 		switch pool.Status {
 		case domain.SubPoolStatusHealthy:
 			if poolHasUsableAccount(pool, health) {
-				continue
-			}
-			if s.promoteReserveAccounts(ctx, pool, health) && poolHasUsableAccount(pool, health) {
 				continue
 			}
 			migrated := s.cool(ctx, pool, &migrationBudget)
@@ -172,7 +172,7 @@ func (s *SubPoolCoolingService) RunOnce(ctx context.Context) SubPoolCoolingResul
 }
 
 // accountHealth resolves every pool account in one query instead of one per pool.
-func (s *SubPoolCoolingService) accountHealth(ctx context.Context, pools []SubPool) map[int64]bool {
+func (s *SubPoolCoolingService) accountHealth(ctx context.Context, pools []SubPool) (map[int64]bool, []*Account) {
 	ids := make([]int64, 0)
 	seen := make(map[int64]struct{})
 	for i := range pools {
@@ -186,7 +186,7 @@ func (s *SubPoolCoolingService) accountHealth(ctx context.Context, pools []SubPo
 	}
 	health := make(map[int64]bool, len(ids))
 	if len(ids) == 0 {
-		return health
+		return health, nil
 	}
 	accounts, err := s.accounts.GetByIDs(ctx, ids)
 	if err != nil {
@@ -196,12 +196,70 @@ func (s *SubPoolCoolingService) accountHealth(ctx context.Context, pools []SubPo
 		for _, id := range ids {
 			health[id] = true
 		}
-		return health
+		return health, nil
 	}
 	for _, account := range accounts {
 		health[account.ID] = account.IsSchedulable()
 	}
-	return health
+	return health, accounts
+}
+
+func groupAccountIDs(groupID int64, pools []SubPool) []int64 {
+	seen := make(map[int64]struct{})
+	ids := make([]int64, 0)
+	for i := range pools {
+		if pools[i].GroupID != groupID {
+			continue
+		}
+		for _, id := range pools[i].AccountIDs {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func groupHasSchedulablePrimary(groupID int64, pools []SubPool, accounts []*Account) bool {
+	ids := make(map[int64]struct{}, len(accounts))
+	for _, id := range groupAccountIDs(groupID, pools) {
+		ids[id] = struct{}{}
+	}
+	for _, account := range accounts {
+		if account == nil {
+			continue
+		}
+		if _, ok := ids[account.ID]; !ok {
+			continue
+		}
+		if account.IsSchedulable() && !IsReserveFleetAccount(account) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *SubPoolCoolingService) promoteGroupReserves(ctx context.Context, pools []SubPool, listed []*Account, health map[int64]bool) {
+	if s == nil {
+		return
+	}
+	seen := make(map[int64]struct{})
+	for i := range pools {
+		groupID := pools[i].GroupID
+		if _, ok := seen[groupID]; ok {
+			continue
+		}
+		seen[groupID] = struct{}{}
+		if groupHasSchedulablePrimary(groupID, pools, listed) {
+			continue
+		}
+		s.promoteReserveAccounts(ctx, &SubPool{
+			GroupID:    groupID,
+			AccountIDs: groupAccountIDs(groupID, pools),
+		}, health)
+	}
 }
 
 // poolHasUsableAccount reports whether any account behind the pool can serve a

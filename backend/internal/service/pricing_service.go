@@ -73,6 +73,42 @@ var (
 		Mode:                                "chat",
 		SupportsPromptCaching:               true,
 	}
+	// Official GPT-6 Sol / Luna rates (2026-09-23), Fast = 2x, >272K input = 2x in / 1.5x out:
+	// https://developers.openai.com/api/docs/pricing
+	openAIGPT6SolFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   2e-06,
+		InputCostPerTokenPriority:           4e-06,
+		OutputCostPerToken:                  1e-05,
+		OutputCostPerTokenPriority:          2e-05,
+		CacheCreationInputTokenCost:         2.5e-06,
+		CacheCreationInputTokenCostPriority: 5e-06,
+		CacheReadInputTokenCost:             2e-07,
+		CacheReadInputTokenCostPriority:     4e-07,
+		LongContextInputTokenThreshold:      272_000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
+	openAIGPT6LunaFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   1e-07,
+		InputCostPerTokenPriority:           2e-07,
+		OutputCostPerToken:                  5e-07,
+		OutputCostPerTokenPriority:          1e-06,
+		CacheCreationInputTokenCost:         1.25e-07,
+		CacheCreationInputTokenCostPriority: 2.5e-07,
+		CacheReadInputTokenCost:             1e-08,
+		CacheReadInputTokenCostPriority:     2e-08,
+		LongContextInputTokenThreshold:      272_000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
 	openAIGPT56SolFallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:                   5e-06,
 		InputCostPerTokenPriority:           1e-05,
@@ -1479,6 +1515,16 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 		logger.With(zap.String("component", "service.pricing")).
 			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-6-astra(static)"))
 		return openAIGPT6AstraFallbackPricing
+	}
+	if strings.HasPrefix(model, "gpt-6-sol") {
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-6-sol(static)"))
+		return openAIGPT6SolFallbackPricing
+	}
+	if strings.HasPrefix(model, "gpt-6-luna") {
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-6-luna(static)"))
+		return openAIGPT6LunaFallbackPricing
 	}
 
 	if strings.HasPrefix(model, "gpt-5.6-sol") {

@@ -157,6 +157,46 @@ func TestGPT6AstraDedicatedFallbacksUseOfficialRates(t *testing.T) {
 	}
 }
 
+func TestGPT6SolLunaDedicatedFallbacksUseOfficialRates(t *testing.T) {
+	type want struct {
+		input, output, cacheWrite, cacheRead float64
+	}
+	wants := map[string]want{
+		"gpt-6-sol":  {input: 2e-6, output: 10e-6, cacheWrite: 2.5e-6, cacheRead: 0.2e-6},
+		"gpt-6-luna": {input: 0.1e-6, output: 0.5e-6, cacheWrite: 0.125e-6, cacheRead: 0.01e-6},
+	}
+	svcs := []struct {
+		name string
+		svc  *BillingService
+	}{
+		{name: "pricing_service", svc: NewBillingService(&config.Config{}, &PricingService{pricingData: map[string]*LiteLLMModelPricing{}})},
+		{name: "billing_service", svc: NewBillingService(&config.Config{}, nil)},
+	}
+	for model, w := range wants {
+		for _, tt := range svcs {
+			t.Run(model+"/"+tt.name, func(t *testing.T) {
+				pricing, err := tt.svc.GetModelPricing(model)
+				require.NoError(t, err)
+				require.InDelta(t, w.input, pricing.InputPricePerToken, 1e-15)
+				require.InDelta(t, w.input*2, pricing.InputPricePerTokenPriority, 1e-15)
+				require.InDelta(t, w.output, pricing.OutputPricePerToken, 1e-15)
+				require.InDelta(t, w.output*2, pricing.OutputPricePerTokenPriority, 1e-15)
+				require.InDelta(t, w.cacheWrite, pricing.CacheCreationPricePerToken, 1e-15)
+				require.InDelta(t, w.cacheWrite*2, pricing.CacheCreationPricePerTokenPriority, 1e-15)
+				require.InDelta(t, w.cacheRead, pricing.CacheReadPricePerToken, 1e-15)
+				require.InDelta(t, w.cacheRead*2, pricing.CacheReadPricePerTokenPriority, 1e-15)
+				require.Equal(t, 272_000, pricing.LongContextInputThreshold)
+				require.InDelta(t, 2.0, pricing.LongContextInputMultiplier, 1e-12)
+				require.InDelta(t, 1.5, pricing.LongContextOutputMultiplier, 1e-12)
+			})
+		}
+	}
+	// gpt-6-sol / gpt-6-luna 不得被裸 "gpt-6" 别名吸到 Astra 价卡上。
+	require.NotEqual(t, "gpt-6-astra", normalizeKnownOpenAICodexModel("gpt-6-sol"))
+	require.Equal(t, "gpt-6-sol", normalizeKnownOpenAICodexModel("openai/gpt-6-sol"))
+	require.Equal(t, "gpt-6-luna", normalizeKnownOpenAICodexModel("gpt-6-luna-2026-09-23"))
+}
+
 func TestPricingServiceBareGPT6AliasUsesAstra(t *testing.T) {
 	astraPricing := &LiteLLMModelPricing{InputCostPerToken: 123e-6, OutputCostPerToken: 456e-6}
 	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{"gpt-6-astra": astraPricing}}

@@ -536,6 +536,36 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextOutputMultiplier:        1.5,
 	}
 
+	// OpenAI GPT-6 Sol / Luna 官方价格（2026-09-23）；Fast 为标准价 2 倍，
+	// >272K 输入时整单输入 2x、输出 1.5x。缓存写入为输入价的 1.25 倍。
+	// Source: https://developers.openai.com/api/docs/pricing
+	s.fallbackPrices["gpt-6-sol"] = &ModelPricing{
+		InputPricePerToken:                 2e-6,
+		InputPricePerTokenPriority:         4e-6,
+		OutputPricePerToken:                10e-6,
+		OutputPricePerTokenPriority:        20e-6,
+		CacheCreationPricePerToken:         2.5e-6,
+		CacheCreationPricePerTokenPriority: 5e-6,
+		CacheReadPricePerToken:             0.2e-6,
+		CacheReadPricePerTokenPriority:     0.4e-6,
+		LongContextInputThreshold:          272_000,
+		LongContextInputMultiplier:         2,
+		LongContextOutputMultiplier:        1.5,
+	}
+	s.fallbackPrices["gpt-6-luna"] = &ModelPricing{
+		InputPricePerToken:                 0.1e-6,
+		InputPricePerTokenPriority:         0.2e-6,
+		OutputPricePerToken:                0.5e-6,
+		OutputPricePerTokenPriority:        1e-6,
+		CacheCreationPricePerToken:         0.125e-6,
+		CacheCreationPricePerTokenPriority: 0.25e-6,
+		CacheReadPricePerToken:             0.01e-6,
+		CacheReadPricePerTokenPriority:     0.02e-6,
+		LongContextInputThreshold:          272_000,
+		LongContextInputMultiplier:         2,
+		LongContextOutputMultiplier:        1.5,
+	}
+
 	// OpenAI GPT-5.6 官方价格（USD/token）。缓存写入为输入价的 1.25 倍。
 	s.fallbackPrices["gpt-5.6-sol"] = &ModelPricing{
 		InputPricePerToken:                 5e-6,
@@ -1109,6 +1139,10 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 		switch normalized {
 		case "gpt-6-astra":
 			return s.fallbackPrices["gpt-6-astra"]
+		case "gpt-6-sol":
+			return s.fallbackPrices["gpt-6-sol"]
+		case "gpt-6-luna":
+			return s.fallbackPrices["gpt-6-luna"]
 		case "gpt-5.6-sol":
 			return s.fallbackPrices["gpt-5.6-sol"]
 		case "gpt-5.6-terra":
@@ -1816,11 +1850,11 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 }
 
 // openAIModelFastPricingRatio 返回业务口径下 OpenAI GPT 模型 Fast/priority
-// 的标准价倍率：gpt-5.6 / gpt-6-astra / gpt-5.4 为 2x，gpt-5.5 为 2.5x。未定义 Fast
-// 档的模型（如 gpt-5.5-pro、gpt-5.4-mini/nano）返回 0。
+// 的标准价倍率：gpt-5.6 / gpt-6 系（astra/sol/luna）/ gpt-5.4 为 2x，gpt-5.5 为 2.5x。
+// 未定义 Fast 档的模型（如 gpt-5.5-pro、gpt-5.4-mini/nano）返回 0。
 func openAIModelFastPricingRatio(normalized string) float64 {
 	switch normalized {
-	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra":
+	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna":
 		return 2.0
 	case "gpt-5.5":
 		return 2.5

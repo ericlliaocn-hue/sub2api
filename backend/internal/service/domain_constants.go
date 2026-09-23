@@ -763,6 +763,10 @@ const AdminAPIKeyPrefix = "admin-"
 // their own failed requests on the usage page. Default false (opt-in).
 const SettingKeyAllowUserViewErrorRequests = "allow_user_view_error_requests"
 
+// SettingKeyAllowUserViewUsagePressure controls whether end users can see the
+// live "how's the pressure" board. Default false (admin-only).
+const SettingKeyAllowUserViewUsagePressure = "allow_user_view_usage_pressure"
+
 // Sub-pool probation: a freshly created key starts in a probe pool backed by
 // disposable accounts and only reaches the formal pools after it has behaved
 // for a while. All three keys default to "off" so enabling sub-pools does not

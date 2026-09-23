@@ -162,15 +162,49 @@ func TestFilterAccountsBySubPoolStillServesClosedPool(t *testing.T) {
 
 func TestPickPoolForNewKeyPrefersMainFormalOverEmptyIsolation(t *testing.T) {
 	main := SubPool{
-		ID: 6, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		ID: 6, Name: "正池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
 		SortOrder: 0, BoundKeys: 122, KeySoftLimit: 0, AccountIDs: []int64{1, 2},
 	}
 	watch := SubPool{
-		ID: 7, Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		ID: 7, Name: "观察池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
 		SortOrder: 10, BoundKeys: 1, KeySoftLimit: 0, AccountIDs: []int64{3},
 	}
 	got := pickPoolForNewKey([]SubPool{watch, main})
 	if got == nil || got.ID != 6 {
 		t.Fatalf("expected main formal pool 6, got %+v", got)
+	}
+}
+
+func TestPickMigrationTargetIgnoresObserveEvenWhenEmptier(t *testing.T) {
+	main := SubPool{
+		ID: 6, Name: "正池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 0, BoundKeys: 144, KeySoftLimit: 0, AccountIDs: []int64{1},
+	}
+	watch := SubPool{
+		ID: 7, Name: "观察池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 10, BoundKeys: 2, KeySoftLimit: 0, AccountIDs: []int64{9, 10},
+	}
+	dedi := SubPool{
+		ID: 12, Name: "stavely专车", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 4, BoundKeys: 0, KeySoftLimit: 0, AccountIDs: []int64{8},
+	}
+	got := pickMigrationTarget([]SubPool{watch, dedi, main}, 9)
+	if got == nil || got.ID != 6 {
+		t.Fatalf("expected cooling to drain into 正池, got %+v", got)
+	}
+}
+
+func TestPickMigrationTargetDoesNotDumpIntoObserveWhenMainIsExcluded(t *testing.T) {
+	main := SubPool{
+		ID: 6, Name: "正池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 0, BoundKeys: 10, KeySoftLimit: 0, AccountIDs: []int64{1},
+	}
+	watch := SubPool{
+		ID: 7, Name: "观察池", Kind: domain.SubPoolKindFormal, Status: domain.SubPoolStatusHealthy,
+		SortOrder: 10, BoundKeys: 0, KeySoftLimit: 0, AccountIDs: []int64{9},
+	}
+	got := pickMigrationTarget([]SubPool{main, watch}, 6)
+	if got != nil {
+		t.Fatalf("expected no fallback into 观察池, got %+v", got)
 	}
 }

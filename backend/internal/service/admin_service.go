@@ -818,7 +818,7 @@ func NewAdminService(
 }
 
 // SetSubPoolAttacher registers the import-time sub-pool hang. Tests leave it
-// nil; create then only attaches when AttachSubPools is set.
+// nil; live create/update then attach to the group's formal pool.
 func (s *adminServiceImpl) SetSubPoolAttacher(attacher accountSubPoolAttacher) {
 	if s == nil {
 		return

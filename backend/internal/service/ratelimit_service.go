@@ -2480,6 +2480,11 @@ func (s *RateLimitService) HandleUpstreamModelNotFound(ctx context.Context, acco
 	if shouldSkipCodexPlanGatedImageModelCooldown(ctx, reason, requestedModel, modelKey) {
 		return true
 	}
+	// gpt-6-sol 已出现在 Codex 清单里，但上游推理经常 404「无权限」。
+	// 写 30 分钟模型冷却会把整个号池打成 429 rate-limited，客户端只会空转重试。
+	if shouldSkipGPT6SolModelNotFoundCooldown(reason, requestedModel, modelKey) {
+		return true
+	}
 	resetAt := time.Now().Add(cooldown)
 	if err := s.accountRepo.SetModelRateLimit(ctx, account.ID, modelKey, resetAt, reason); err != nil {
 		slog.Warn("upstream_model_not_found_set_model_rate_limit_failed", "account_id", account.ID, "model", modelKey, "reason", reason, "error", err)
@@ -2502,6 +2507,18 @@ func (s *RateLimitService) HandleUpstreamModelNotFound(ctx context.Context, acco
 //
 // 请求模型与最终冷却键都要判：冷却键走的是 account.GetMappedModel，账号可能把
 // 文本别名映射到 gpt-image-*，只判请求模型会漏掉这种形态。
+func shouldSkipGPT6SolModelNotFoundCooldown(reason, requestedModel, modelKey string) bool {
+	if reason != upstreamModelNotFoundReason && reason != upstreamCodexPlanGatedModelReason {
+		return false
+	}
+	return isGPT6SolCooldownSkippedModel(requestedModel) || isGPT6SolCooldownSkippedModel(modelKey)
+}
+
+func isGPT6SolCooldownSkippedModel(model string) bool {
+	normalized := canonicalizeOpenAIModelAliasSpelling(model)
+	return normalized == "gpt-6-sol" || strings.HasPrefix(normalized, "gpt-6-sol-")
+}
+
 func shouldSkipCodexPlanGatedImageModelCooldown(ctx context.Context, reason, requestedModel, modelKey string) bool {
 	if reason != upstreamCodexPlanGatedModelReason {
 		return false

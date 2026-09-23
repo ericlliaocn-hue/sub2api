@@ -56,14 +56,15 @@ func betterPool(current *SubPool, candidate SubPool) bool {
 	return candidate.ID < current.ID
 }
 
-// PickFormalPool returns the group's live formal pool. Names containing 观察
-// are treated as observation even when kind is wrongly stored as formal.
+// PickFormalPool returns the group's live formal pool. Isolation leftovers
+// (观察 / 专车 / 分流 / probe) never receive automatic attaches even when
+// kind is wrongly stored as formal.
 func PickFormalPool(pools []SubPool) *SubPool {
 	var named *SubPool
 	var fallback *SubPool
 	for i := range pools {
 		pool := pools[i]
-		if isObservationPool(pool) || isClosedPool(pool) {
+		if isClosedPool(pool) || isSidePool(&pool) {
 			continue
 		}
 		if pool.Kind != "" && pool.Kind != domain.SubPoolKindFormal {

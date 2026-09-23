@@ -343,6 +343,9 @@ func (s *adminServiceImpl) DuplicateAccount(ctx context.Context, id int64, actor
 	}
 	duplicate.AccountGroups = groups
 	duplicate.GroupIDs = groupIDs
+	if err := s.attachAccountToFormalPools(ctx, duplicate.ID, groupIDs); err != nil {
+		return duplicate, err
+	}
 	return duplicate, nil
 }
 
@@ -613,6 +616,13 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 
 	return account, nil
+}
+
+func (s *adminServiceImpl) attachAccountToFormalPools(ctx context.Context, accountID int64, groupIDs []int64) error {
+	if s == nil || s.subPoolAttacher == nil || len(groupIDs) == 0 {
+		return nil
+	}
+	return s.attachCreatedAccountToSubPools(ctx, accountID, groupIDs, AttachSubPoolsFormal)
 }
 
 func (s *adminServiceImpl) attachCreatedAccountToSubPools(ctx context.Context, accountID int64, groupIDs []int64, mode string) error {
@@ -992,6 +1002,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		if err := s.accountRepo.BindGroups(ctx, account.ID, *input.GroupIDs); err != nil {
 			return nil, err
 		}
+		if err := s.attachAccountToFormalPools(ctx, account.ID, *input.GroupIDs); err != nil {
+			return nil, err
+		}
 	}
 
 	// 重新查询以确保返回完整数据（包括正确的 Proxy 关联对象）
@@ -1265,6 +1278,14 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 
 		if input.GroupIDs != nil {
 			if err := s.accountRepo.BindGroups(ctx, accountID, *input.GroupIDs); err != nil {
+				entry.Success = false
+				entry.Error = err.Error()
+				result.Failed++
+				result.FailedIDs = append(result.FailedIDs, accountID)
+				result.Results = append(result.Results, entry)
+				continue
+			}
+			if err := s.attachAccountToFormalPools(ctx, accountID, *input.GroupIDs); err != nil {
 				entry.Success = false
 				entry.Error = err.Error()
 				result.Failed++
@@ -1552,6 +1573,9 @@ func (s *adminServiceImpl) CreateShadow(ctx context.Context, parentID int64, opt
 			return nil, fmt.Errorf("bind groups for spark shadow: %w", err)
 		}
 		shadow.GroupIDs = groupIDs
+		if err := s.attachAccountToFormalPools(ctx, shadow.ID, groupIDs); err != nil {
+			return shadow, err
+		}
 	}
 
 	return shadow, nil

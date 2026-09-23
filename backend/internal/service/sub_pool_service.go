@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
 	"strings"
 	"time"
 
@@ -454,36 +453,53 @@ func resolvePoolForNewKey(pools []SubPool, userDefault, groupDefault *int64) *Su
 	return pickPoolForNewKey(pools)
 }
 
-// pickPoolForNewKey prefers a probe pool, then the lowest sort_order healthy
-// pool. Manual isolation pools (观察池) should sit at a higher sort_order so
-// ordinary new keys keep landing in the main formal pool even when the
-// isolation pool is emptier and has no people cap.
-//
-// Only pools that still have capacity and at least one upstream account
-// qualify: binding into an account-less pool would hand the user a key that
-// cannot make a single call.
-func pickPoolForNewKey(pools []SubPool) *SubPool {
-	candidates := make([]*SubPool, 0, len(pools))
+// isSidePool reports pools that must never absorb ordinary paying traffic.
+// 观察 / 专车 / 分流 are isolation leftovers; cooling used to dump keys into
+// whichever formal pool had the fewest people, and 观察池 always won.
+func isSidePool(p *SubPool) bool {
+	if p == nil || p.IsProbe() {
+		return true
+	}
+	name := strings.ToLower(strings.TrimSpace(p.Name))
+	if name == "" {
+		return false
+	}
+	for _, needle := range []string{"观察", "observe", "watch", "分流", "专车"} {
+		if strings.Contains(p.Name, needle) || strings.Contains(name, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// pickPrimaryFormalPool is the only automatic home for mass traffic: the
+// lowest-sort healthy formal pool that is not an isolation leftover.
+func pickPrimaryFormalPool(pools []SubPool, excludeID int64) *SubPool {
+	var best *SubPool
 	for i := range pools {
 		pool := &pools[i]
+		if pool.ID == excludeID || isSidePool(pool) {
+			continue
+		}
+		if pool.Kind != domain.SubPoolKindFormal && pool.Kind != "" {
+			continue
+		}
 		if !pool.AcceptsNewBindings() || len(pool.AccountIDs) == 0 {
 			continue
 		}
-		candidates = append(candidates, pool)
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].IsProbe() != candidates[j].IsProbe() {
-			return candidates[i].IsProbe()
+		if best == nil ||
+			pool.SortOrder < best.SortOrder ||
+			(pool.SortOrder == best.SortOrder && pool.BoundKeys < best.BoundKeys) {
+			best = pool
 		}
-		if candidates[i].SortOrder != candidates[j].SortOrder {
-			return candidates[i].SortOrder < candidates[j].SortOrder
-		}
-		return candidates[i].BoundKeys < candidates[j].BoundKeys
-	})
-	return candidates[0]
+	}
+	return best
+}
+
+// pickPoolForNewKey lands ordinary keys on the main formal pool (正池).
+// Isolation pools stay empty unless an admin pins a key there by hand.
+func pickPoolForNewKey(pools []SubPool) *SubPool {
+	return pickPrimaryFormalPool(pools, 0)
 }
 
 // MigrateCleanKeys drains a burned pool: every key except the suspected ones is
@@ -550,31 +566,11 @@ func (s *SubPoolService) MigrateCleanKeys(ctx context.Context, subPoolID int64, 
 	return moved, nil
 }
 
-// pickMigrationTarget mirrors pickPoolForNewKey but prefers a formal pool: a
-// key that was already vouched for should not be demoted into the probe pool
-// just because its neighbours got the pool burned.
+// pickMigrationTarget only ever sends keys back to the main formal pool.
+// A burned dedicated/observe pool must not dump paying users into 观察池
+// just because that leftover still has dead accounts and fewer bound keys.
 func pickMigrationTarget(pools []SubPool, excludeID int64) *SubPool {
-	var probe *SubPool
-	var best *SubPool
-	for i := range pools {
-		pool := &pools[i]
-		if pool.ID == excludeID || !pool.AcceptsNewBindings() || len(pool.AccountIDs) == 0 {
-			continue
-		}
-		if pool.IsProbe() {
-			if probe == nil || pool.BoundKeys < probe.BoundKeys {
-				probe = pool
-			}
-			continue
-		}
-		if best == nil || pool.BoundKeys < best.BoundKeys {
-			best = pool
-		}
-	}
-	if best != nil {
-		return best
-	}
-	return probe
+	return pickPrimaryFormalPool(pools, excludeID)
 }
 
 // ── Sanctions ─────────────────────────────────────────────────────────────
