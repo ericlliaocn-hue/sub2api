@@ -288,6 +288,7 @@ export interface PublicSettings {
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean
+  allow_user_view_usage_pressure?: boolean
 }
 
 export interface AuthResponse {

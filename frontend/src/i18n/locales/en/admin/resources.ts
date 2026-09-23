@@ -571,6 +571,39 @@ export default {
           cost: 'Cost'
         }
       },
+      pressure: {
+        title: "How's the pressure now",
+        live: 'Live',
+        refreshHint: 'Refreshes every 30s',
+        levels: {
+          idle: 'Quiet night',
+          warm: 'People are on, not a rush',
+          busy: 'The regulars are back',
+          scramble: 'Pool is getting hit'
+        },
+        levelHints: {
+          idle: 'The pool is idle — take a breath',
+          warm: 'Spend is normal, not peak yet',
+          busy: 'Getting lively — keep an eye on accounts',
+          scramble: 'This wave is hot — watch remaining quota'
+        },
+        window5: 'Last 5 min',
+        window15: 'Last 15 min',
+        window60: 'Last hour',
+        billed: 'Billed',
+        users: 'Who is on',
+        accounts: 'Accounts in use',
+        requests: 'Requests',
+        hourly: 'Hourly pace',
+        vsPeak: "vs today's peak {hour}",
+        vsPeakNone: 'No peak hour yet today',
+        peakRatio: '{pct}% of peak',
+        nobody: 'Nobody is hitting the pool right now',
+        crowdOnly: '{users} people on · {accounts} accounts in use',
+        loadFailed: 'Could not load the live board',
+        justNow: 'just now',
+        minutesAgo: '{n}m ago'
+      },
       cleanup: {
         button: 'Cleanup',
         title: 'Cleanup Usage Records',

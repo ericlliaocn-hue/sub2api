@@ -568,6 +568,39 @@ export default {
           cost: '费用'
         }
       },
+      pressure: {
+        title: '现在压力怎么样',
+        live: '实时',
+        refreshHint: '每 30 秒刷新',
+        levels: {
+          idle: '今晚偏淡',
+          warm: '有人在打，不算猛',
+          busy: '大哥回来了',
+          scramble: '号池告急'
+        },
+        levelHints: {
+          idle: '号池在摸鱼，可以喘口气',
+          warm: '流水正常，还没到高峰',
+          busy: '这波有点热闹，盯着点号',
+          scramble: '这波有点猛，留意额度'
+        },
+        window5: '近 5 分钟',
+        window15: '近 15 分钟',
+        window60: '近 1 小时',
+        billed: '流水',
+        users: '在场用户',
+        accounts: '在打的号',
+        requests: '请求',
+        hourly: '折合每小时',
+        vsPeak: '对比今日高峰 {hour}',
+        vsPeakNone: '今天还没形成高峰',
+        peakRatio: '相当于高峰的 {pct}%',
+        nobody: '这会儿没人在打',
+        crowdOnly: '{users} 人在场 · {accounts} 个号在打',
+        loadFailed: '暂时读不到现场',
+        justNow: '刚刚',
+        minutesAgo: '{n} 分钟前'
+      },
       cleanup: {
         button: '清理',
         title: '清理使用记录',

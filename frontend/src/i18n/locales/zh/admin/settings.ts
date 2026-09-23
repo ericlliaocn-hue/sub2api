@@ -1267,6 +1267,10 @@ export default {
         label: '允许用户查看自己的错误请求',
         description: '开启后，用户可在用量页查看自己失败请求的精简信息（不含内部/上游错误细节）。需运维监控开启才有数据。',
       },
+      user_pressure_view: {
+        label: '允许用户查看现在压力',
+        description: '开启后，用户可在用量页看到号池现场冷热和人数，不会看到其他用户或具体账号。默认仅管理员可见。',
+      },
       saveSettings: '保存设置',
       saving: '保存中...',
       settingsSaved: '设置保存成功',

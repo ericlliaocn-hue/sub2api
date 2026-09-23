@@ -710,7 +710,9 @@ describe('admin UsageView ranking tab', () => {
         UserBalanceHistoryModal: true, Pagination: true, Select: true,
         DateRangePicker: true, Icon: true, TokenUsageTrend: true,
         ModelDistributionChart: true, GroupDistributionChart: true, EndpointDistributionChart: true,
-        UserTokenRanking: UserTokenRankingStub, OpsErrorLogTable: true, OpsErrorDetailModal: true,
+        UserTokenRanking: UserTokenRankingStub,
+        UsagePressureBoard: { template: '<div data-test="pressure" />' },
+        OpsErrorLogTable: true, OpsErrorDetailModal: true,
       } },
     })
     vi.advanceTimersByTime(120)
@@ -720,10 +722,11 @@ describe('admin UsageView ranking tab', () => {
     expect(wrapper.find('[data-test="ranking"]').exists()).toBe(false)
 
     const tabs = wrapper.findAll('[data-testid="usage-detail-tab"]')
-    expect(tabs).toHaveLength(3)
+    expect(tabs).toHaveLength(4)
     await tabs[2].trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-test="ranking"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="pressure"]').exists()).toBe(false)
     expect((wrapper.vm as any).rankingLimit).toBe(50)
     expect(wrapper.find('.usage-page-frame').exists()).toBe(true)
     expect(wrapper.find('.usage-page-frame').classes()).toEqual(expect.arrayContaining([
@@ -738,6 +741,45 @@ describe('admin UsageView ranking tab', () => {
     expect((wrapper.vm as any).activeTab).toBe('usage')
     expect((wrapper.vm as any).filters.user_id).toBe(5)
     expect(list).toHaveBeenCalledWith(expect.objectContaining({ user_id: 5 }), expect.anything())
+  })
+
+  it('mounts live pressure as its own tab and hides ranking filters', async () => {
+    const wrapper = mount(UsageView, {
+      global: { stubs: {
+        AppLayout: AppLayoutStub, UsageStatsCards: true, UsageFilters: UsageFiltersStub,
+        UsageTable: true, UsageExportProgress: true, UsageCleanupDialog: true,
+        UserBalanceHistoryModal: true, Pagination: true, Select: true,
+        DateRangePicker: true, Icon: true, TokenUsageTrend: true,
+        ModelDistributionChart: true, GroupDistributionChart: true, EndpointDistributionChart: true,
+        UserTokenRanking: UserTokenRankingStub,
+        UsagePressureBoard: {
+          emits: ['select-user'],
+          template: '<div data-test="pressure"><button class="pick-user" @click="$emit(\'select-user\', 8, \'live@test.com\')">pick</button></div>',
+        },
+        OpsErrorLogTable: true, OpsErrorDetailModal: true,
+      } },
+    })
+    vi.advanceTimersByTime(120)
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="pressure"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="user-filter-label"]').exists()).toBe(true)
+
+    const tabs = wrapper.findAll('[data-testid="usage-detail-tab"]')
+    await tabs[3].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="pressure"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="ranking"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="user-filter-label"]').exists()).toBe(false)
+
+    list.mockClear()
+    await wrapper.find('[data-test="pressure"] .pick-user').trigger('click')
+    await flushPromises()
+
+    expect((wrapper.vm as any).activeTab).toBe('usage')
+    expect((wrapper.vm as any).filters.user_id).toBe(8)
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ user_id: 8 }), expect.anything())
   })
 })
 

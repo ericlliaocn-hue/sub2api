@@ -1273,6 +1273,10 @@ export default {
         label: 'Allow users to view their own error requests',
         description: 'When enabled, users can see a redacted view of their failed requests on the usage page (no internal/upstream details). Requires ops monitoring enabled to have data.',
       },
+      user_pressure_view: {
+        label: 'Allow users to view live pressure',
+        description: 'When enabled, users can see pool heat and how many people are on, without other users or account names. Admins always see the full board.',
+      },
       saveSettings: 'Save Settings',
       saving: 'Saving...',
       settingsSaved: 'Settings saved successfully',

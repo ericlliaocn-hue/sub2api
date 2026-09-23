@@ -9,6 +9,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
@@ -490,4 +491,25 @@ func (s *UsageService) GetStatsWithFilters(ctx context.Context, filters usagesta
 		return nil, fmt.Errorf("get usage stats with filters: %w", err)
 	}
 	return stats, nil
+}
+
+// GetUsagePressure returns the live pool-pressure snapshot (same source as admin).
+func (s *UsageService) GetUsagePressure(ctx context.Context, now time.Time) (*usagestats.UsagePressureSnapshot, error) {
+	repo, ok := s.usageRepo.(usagePressureSnapshotRepo)
+	if !ok {
+		return nil, fmt.Errorf("usage pressure snapshot is not supported")
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	snap, err := repo.GetUsagePressureSnapshot(ctx, now, timezone.StartOfDay(now), pressureTimezoneName())
+	if err != nil {
+		return nil, fmt.Errorf("get usage pressure snapshot: %w", err)
+	}
+	if snap == nil {
+		snap = &usagestats.UsagePressureSnapshot{}
+	}
+	snap.GeneratedAt = now
+	usagestats.FinalizeUsagePressure(snap)
+	return snap, nil
 }

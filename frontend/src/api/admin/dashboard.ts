@@ -198,6 +198,51 @@ export async function getUserBreakdown(params: UserBreakdownParams): Promise<Use
   return data
 }
 
+export interface UsagePressureWindow {
+  requests: number
+  users: number
+  accounts: number
+  billed: number
+}
+
+export interface UsagePressureActor {
+  id: number
+  name: string
+  requests: number
+  billed: number
+  last_at: string
+}
+
+export interface UsagePressurePeakHour {
+  hour: string
+  requests: number
+  users: number
+  billed: number
+}
+
+export type UsagePressureLevel = 'idle' | 'warm' | 'busy' | 'scramble'
+
+export interface UsagePressureSnapshot {
+  generated_at: string
+  level: UsagePressureLevel
+  hourly_from_15m: number
+  peak_ratio: number
+  windows: {
+    m5: UsagePressureWindow
+    m15: UsagePressureWindow
+    m60: UsagePressureWindow
+  }
+  today: UsagePressureWindow
+  peak_hour?: UsagePressurePeakHour | null
+  users: UsagePressureActor[]
+  accounts: UsagePressureActor[]
+}
+
+export async function getUsagePressure(): Promise<UsagePressureSnapshot> {
+  const { data } = await apiClient.get<UsagePressureSnapshot>('/admin/dashboard/pressure')
+  return data
+}
+
 /**
  * Get dashboard snapshot v2 (aggregated response for heavy admin pages).
  */
@@ -334,6 +379,7 @@ export async function getBatchApiKeysUsage(
 export const dashboardAPI = {
   getStats,
   getRealtimeMetrics,
+  getUsagePressure,
   getUsageTrend,
   getModelStats,
   getGroupStats,

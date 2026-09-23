@@ -464,6 +464,29 @@ func (h *UsageHandler) DashboardStats(c *gin.Context) {
 	response.Success(c, stats)
 }
 
+// DashboardPressure handles the user-facing live pressure board.
+// GET /api/v1/usage/dashboard/pressure
+func (h *UsageHandler) DashboardPressure(c *gin.Context) {
+	if _, ok := middleware2.GetAuthSubjectFromContext(c); !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.settingService == nil || !h.settingService.IsUserPressureViewAllowed(c.Request.Context()) {
+		response.Forbidden(c, "Usage pressure view is disabled")
+		return
+	}
+	if h.usageService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Usage service not available")
+		return
+	}
+	snap, err := h.usageService.GetUsagePressure(c.Request.Context(), time.Now())
+	if err != nil {
+		response.Error(c, 500, "Failed to get usage pressure")
+		return
+	}
+	response.Success(c, usagestats.RedactUsagePressureForUser(snap))
+}
+
 // DashboardTrend handles getting user usage trend data
 // GET /api/v1/usage/dashboard/trend
 func (h *UsageHandler) DashboardTrend(c *gin.Context) {

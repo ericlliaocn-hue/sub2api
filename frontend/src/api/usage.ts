@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import type { UsagePressureSnapshot } from './admin/dashboard'
 import type {
   UsageLog,
   UsageQueryParams,
@@ -370,6 +371,11 @@ export async function getMyErrorDetail(id: number): Promise<UserErrorRequestDeta
   return data
 }
 
+export async function getDashboardPressure(): Promise<UsagePressureSnapshot> {
+  const { data } = await apiClient.get<UsagePressureSnapshot>('/usage/dashboard/pressure')
+  return data
+}
+
 export const usageAPI = {
   list,
   query,
@@ -379,6 +385,7 @@ export const usageAPI = {
   getById,
   // Dashboard
   getDashboardStats,
+  getDashboardPressure,
   getDashboardTrend,
   getDashboardModels,
   getMyApiKeyDailyUsage,

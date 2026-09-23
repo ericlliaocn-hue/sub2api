@@ -10,6 +10,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
@@ -430,4 +431,37 @@ func (s *DashboardService) GetBatchAPIKeyUsageStats(ctx context.Context, apiKeyI
 		return nil, fmt.Errorf("get batch api key usage stats: %w", err)
 	}
 	return stats, nil
+}
+
+type usagePressureSnapshotRepo interface {
+	GetUsagePressureSnapshot(ctx context.Context, now, todayStart time.Time, tz string) (*usagestats.UsagePressureSnapshot, error)
+}
+
+func pressureTimezoneName() string {
+	name := timezone.Name()
+	if name == "" || name == "Local" {
+		return "Asia/Shanghai"
+	}
+	return name
+}
+
+// GetUsagePressure returns the live usage-pressure snapshot for the ranking board.
+func (s *DashboardService) GetUsagePressure(ctx context.Context, now time.Time) (*usagestats.UsagePressureSnapshot, error) {
+	repo, ok := s.usageRepo.(usagePressureSnapshotRepo)
+	if !ok {
+		return nil, fmt.Errorf("usage pressure snapshot is not supported")
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	snap, err := repo.GetUsagePressureSnapshot(ctx, now, timezone.StartOfDay(now), pressureTimezoneName())
+	if err != nil {
+		return nil, fmt.Errorf("get usage pressure snapshot: %w", err)
+	}
+	if snap == nil {
+		snap = &usagestats.UsagePressureSnapshot{}
+	}
+	snap.GeneratedAt = now
+	usagestats.FinalizeUsagePressure(snap)
+	return snap, nil
 }

@@ -29,3 +29,17 @@ func TestAllowUserViewErrorRequests_PersistsToDB(t *testing.T) {
 	require.True(t, ok, "updates map 中应包含 SettingKeyAllowUserViewErrorRequests，但未找到（bug：buildSystemSettingsUpdates 漏写）")
 	require.Equal(t, "true", val)
 }
+
+func TestAllowUserViewUsagePressure_PersistsToDB(t *testing.T) {
+	repo := &bmUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		AllowUserViewUsagePressure: true,
+	})
+	require.NoError(t, err)
+
+	val, ok := repo.updates[SettingKeyAllowUserViewUsagePressure]
+	require.True(t, ok, "updates map 中应包含 SettingKeyAllowUserViewUsagePressure")
+	require.Equal(t, "true", val)
+}

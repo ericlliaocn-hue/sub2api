@@ -242,6 +242,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
+		SettingKeyAllowUserViewUsagePressure,
 	}
 
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
@@ -377,6 +378,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
+		AllowUserViewUsagePressure: settings[SettingKeyAllowUserViewUsagePressure] == "true",
 	}, nil
 }
 
@@ -546,6 +548,17 @@ func (s *SettingService) IsUserErrorViewAllowed(ctx context.Context) bool {
 	return vals[SettingKeyAllowUserViewErrorRequests] == "true"
 }
 
+// IsUserPressureViewAllowed reads the user-facing live-pressure visibility switch.
+// Fail-closed: on error returns false (admin-only default).
+func (s *SettingService) IsUserPressureViewAllowed(ctx context.Context) bool {
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyAllowUserViewUsagePressure})
+	if err != nil {
+		slog.Warn("failed to get allow_user_view_usage_pressure setting, defaulting to false", "error", err)
+		return false
+	}
+	return vals[SettingKeyAllowUserViewUsagePressure] == "true"
+}
+
 // PublicSettingsInjectionPayload is the JSON shape embedded into HTML as
 // `window.__APP_CONFIG__` so the frontend can hydrate feature flags & site
 // config before the first XHR finishes.
@@ -643,6 +656,7 @@ type PublicSettingsInjectionPayload struct {
 	AffiliateEnabled              bool `json:"affiliate_enabled"`
 	RiskControlEnabled            bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests    bool `json:"allow_user_view_error_requests"`
+	AllowUserViewUsagePressure    bool `json:"allow_user_view_usage_pressure"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -727,6 +741,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
+		AllowUserViewUsagePressure:           settings.AllowUserViewUsagePressure,
 	}, nil
 }
 

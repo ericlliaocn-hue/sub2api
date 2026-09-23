@@ -160,19 +160,22 @@
                 </button>
               </div>
             </div>
-            <button v-if="activeTab !== 'errors'" type="button" @click="exportToCSV" :disabled="exporting" class="btn btn-primary">
+            <button v-if="activeTab === 'usage'" type="button" @click="exportToCSV" :disabled="exporting" class="btn btn-primary">
               {{ exporting ? t('usage.exporting') : t('usage.exportCsv') }}
             </button>
           </div>
         </div>
       </div>
 
-      <div v-if="errorViewEnabled" class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
+      <div v-if="showDetailTabs" class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
         <button class="tab" :class="{ 'tab-active': activeTab === 'usage' }" @click="activeTab = 'usage'">
           {{ t('usage.tabs.usage') }}
         </button>
-        <button class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">
+        <button v-if="errorViewEnabled" class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">
           {{ t('usage.tabs.errors') }}
+        </button>
+        <button v-if="pressureViewEnabled" class="tab" :class="{ 'tab-active': activeTab === 'pressure' }" @click="activeTab = 'pressure'">
+          {{ t('usage.tabs.pressure') }}
         </button>
       </div>
 
@@ -200,8 +203,12 @@
         />
       </template>
 
+      <UsagePressureBoard
+        v-else-if="activeTab === 'pressure' && pressureViewEnabled"
+        source="user"
+      />
       <UserErrorRequestsTable
-        v-else-if="errorViewEnabled"
+        v-else-if="activeTab === 'errors' && errorViewEnabled"
         :rows="errorRows"
         :total="errorTotal"
         :loading="errorLoading"
@@ -236,6 +243,7 @@ import EndpointDistributionChart from '@/components/charts/EndpointDistributionC
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import Icon from '@/components/icons/Icon.vue'
 import UserErrorRequestsTable from '@/components/user/UserErrorRequestsTable.vue'
+import UsagePressureBoard from '@/components/admin/usage/UsagePressureBoard.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode } from '@/utils/billingMode'
@@ -354,8 +362,10 @@ const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const groupDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionSource = ref<EndpointSource>('inbound')
-const activeTab = ref<'usage' | 'errors'>('usage')
+const activeTab = ref<'usage' | 'errors' | 'pressure'>('usage')
 const errorViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_user_view_error_requests ?? false)
+const pressureViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_user_view_usage_pressure === true)
+const showDetailTabs = computed(() => errorViewEnabled.value || pressureViewEnabled.value)
 
 const filters = ref<UsageQueryParams>({
   start_date: startDate.value,
@@ -907,6 +917,11 @@ onMounted(() => {
 onUnmounted(() => {
   abortController?.abort()
   document.removeEventListener('click', handleColumnClickOutside)
+})
+
+watch([errorViewEnabled, pressureViewEnabled], () => {
+  if (activeTab.value === 'errors' && !errorViewEnabled.value) activeTab.value = 'usage'
+  if (activeTab.value === 'pressure' && !pressureViewEnabled.value) activeTab.value = 'usage'
 })
 
 watch(endpointDistributionSource, () => {

@@ -199,6 +199,21 @@ func (h *DashboardHandler) GetRealtimeMetrics(c *gin.Context) {
 	})
 }
 
+// GetUsagePressure handles the live "how's the pressure" snapshot.
+// GET /api/v1/admin/dashboard/pressure
+func (h *DashboardHandler) GetUsagePressure(c *gin.Context) {
+	if h.dashboardService == nil {
+		response.Error(c, 500, "Failed to get usage pressure")
+		return
+	}
+	snap, err := h.dashboardService.GetUsagePressure(c.Request.Context(), time.Now())
+	if err != nil {
+		response.Error(c, 500, "Failed to get usage pressure")
+		return
+	}
+	response.Success(c, snap)
+}
+
 // GetUsageTrend handles getting usage trend data
 // GET /api/v1/admin/dashboard/trend
 // Query params: start_date, end_date (YYYY-MM-DD), granularity (day/hour), user_id, api_key_id, model, account_id, group_id, request_type, stream, billing_type

@@ -55,6 +55,7 @@ const messages: Record<string, string> = {
   'usage.errors.allKeys': 'All API Keys',
   'usage.tabs.usage': 'Usage records',
   'usage.tabs.errors': 'Error records',
+  'usage.tabs.pressure': 'Live pressure',
   'usage.apiKeyFilter': 'API Key',
   'usage.model': 'Model',
   'usage.type': 'Type',
@@ -161,6 +162,7 @@ function mountUsageView() {
         UsageStatsCards: chartStub,
         UsageTable: chartStub,
         UserErrorRequestsTable: chartStub,
+        UsagePressureBoard: { template: '<div data-test="user-pressure" />' },
         ModelDistributionChart: chartStub,
         GroupDistributionChart: chartStub,
         EndpointDistributionChart: chartStub,
@@ -528,6 +530,38 @@ describe('user UsageView', () => {
     window.URL.revokeObjectURL = originalRevokeObjectURL
     vi.unstubAllGlobals()
     clickSpy.mockRestore()
+  })
+})
+
+describe('UsageView live pressure switch', () => {
+  afterEach(() => {
+    appStoreState.cachedPublicSettings = { allow_user_view_error_requests: true }
+  })
+
+  it('hides the pressure tab unless the admin switch is on', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Live pressure')
+    expect(wrapper.find('[data-test="user-pressure"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the pressure tab when the admin switch is on', async () => {
+    appStoreState.cachedPublicSettings = {
+      allow_user_view_error_requests: true,
+      allow_user_view_usage_pressure: true,
+    }
+    const wrapper = mountUsageView()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Live pressure')
+
+    const tabs = wrapper.findAll('button.tab')
+    const pressureTab = tabs.find((tab) => tab.text() === 'Live pressure')
+    expect(pressureTab).toBeDefined()
+    await pressureTab!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="user-pressure"]').exists()).toBe(true)
+    wrapper.unmount()
   })
 })
 
